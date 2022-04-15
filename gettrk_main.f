@@ -517,7 +517,7 @@ c     maxtime    Max number of forecast times program can track
 c     maxtp      Max number of tracked parameters program will track.
 c                Currently (7/2015), this maxtp is 11, and these 11 are
 c                listed just a few lines below.
-c     readflag   L  Indicates status of read for each of 16 parms:
+c     readflag   L  Indicates status of read for each of 19 parms:
 c                1: 850 mb absolute vorticity
 c                2: 700 mb absolute vorticity
 c                3: 850 mb u-comp
@@ -536,6 +536,8 @@ c                15: 500 mb gp hgt
 c                16: 200 mb gp hgt
 c                17: Land-Sea Mask (for use in tcgen applications, and 
 c                                   even there, it's optional)
+c                18: 200 mb u-comp
+c                19: 200 mb v-comp
 c
 c     calcparm   L  indicates which parms to track and which not to.
 c                Array positions are defined exactly as for clon
@@ -661,7 +663,8 @@ c
       USE contours; USE atcf; USE radii; USE trig_vals; USE phase
       USE gen_vitals; USE structure; USE verbose_output 
       USE waitfor_parms; USE module_waitfor; USE netcdf_parms
-      USE tracking_parm_prefs; USE genesis_diags
+      USE tracking_parm_prefs; USE shear_diags; USE genesis_diags
+      USE read_parms
 c         
       implicit none
 c
@@ -678,7 +681,6 @@ c
       character :: need_to_expand_r34(4)*1,ncfile_has_hour0*1
       character*(*), intent(in) :: ncfile
       integer :: ncfile_id
-      integer, parameter :: nreadparms=19
       real, allocatable :: prstemp(:),iwork(:)
       integer, parameter :: numdist=14,numquad=4,lout=51
       integer, allocatable :: prsindex(:)
@@ -693,6 +695,7 @@ c
       logical(1), allocatable :: valid_pt(:,:)
       logical(1), allocatable :: masked_outc(:,:),masked_out(:,:)
       logical(1) readflag(nreadparms),calcparm(maxtp,maxstorm)
+      logical(1) readgenflag(nreadgenparms)
       logical(1) tracking_previously_known_storms
       logical(1) need_to_flip_lats,need_to_flip_lons
       logical(1) file_open,first_time_thru_getradii
@@ -707,7 +710,7 @@ c
       integer   ibeg,jbeg,iend,jend,ix1,ix2,n,ilev,npts,icpsa,igzvret
       integer   igfwret,ioiret,igisret,iofwret,iowsret,igwsret,igscret
       integer   pdf_ct_tot,lugb,lugi,iret,icmcf,iccfh,ivt8f,icqwret
-      integer   igsret
+      integer   igsret,issta,iq850a,irha,ispfha,itempa,iomegaa
       integer   waitfor_gfile_status,waitfor_ifile_status,ncfile_tmax
       integer   wait_max_ifile_wait,ivr,r34_good_ct,itha,ilma,inctcv
       integer   date_time(8)
@@ -738,6 +741,8 @@ c
       real      vradius_km,hold_old_contint,tcv_max_wind_ms
       real      tcv_mslp_pa,r34_from_tcv,roci_from_tcv
       real      proci_from_tcv,prs_contint_thresh,xprstemp
+      real      divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
+      real      omega500_smooth,sst_smooth
       integer   enable_timing,igrct,ipfbret,icmc2f,iqwcf
       character(pfc_cmd_len) :: pfc_final
 c
@@ -828,6 +833,10 @@ c          lugi = 5200
       if ( verb .ge. 3 ) then
         print *,'top of tracker, ifh= ',ifh,' ifhmax= ',ifhmax
       endif
+
+      !--------------------------------------------------------------
+      ! ifhloop - Forecast hour loop
+      !--------------------------------------------------------------
 
       ifhloop: do while (ifh <= ifhmax)
 
@@ -1068,6 +1077,12 @@ c       First, allocate the working data arrays....
         if (allocated(cpshgt))   deallocate (cpshgt)
         if (allocated(thick))    deallocate (thick)
         if (allocated(lsmask))   deallocate (lsmask)
+        if (allocated(sst))      deallocate (sst)
+        if (allocated(q850))     deallocate (q850)
+        if (allocated(rh))       deallocate (rh)
+        if (allocated(spfh))     deallocate (spfh)
+        if (allocated(temperature)) deallocate (temperature)
+        if (allocated(omega500)) deallocate (omega500)
         if (allocated(masked_out))  deallocate (masked_out)
         if (allocated(masked_outc)) deallocate (masked_outc)
       
@@ -1084,13 +1099,30 @@ c       First, allocate the working data arrays....
         allocate (lsmask(imax,jmax),stat=ilma)
         allocate (masked_out(imax,jmax),stat=imoa)
         allocate (masked_outc(imax,jmax),stat=imoca)
+
+        issta   = 0
+        iq850a  = 0
+        irha    = 0
+        ispfha  = 0
+        itempa  = 0
+        iomegaa = 0
+
+        if (genflag == 'y') then
+          allocate (sst(imax,jmax),stat=issta)
+          allocate (q850(imax,jmax),stat=iq850a)
+          allocate (rh(imax,jmax,nlevmoist),stat=irha)
+          allocate (spfh(imax,jmax,nlevmoist),stat=ispfha)
+          allocate (temperature(imax,jmax,nlevmoist)
+     &             ,stat=itempa)
+          allocate (omega500(imax,jmax),stat=iomegaa)
+        endif
       
         ita=0
         icpsa=0 
         if (phaseflag == 'y') then
           if (phasescheme == 'cps' .or. phasescheme == 'both') then
             if (allocated(cpshgt)) deallocate (cpshgt)
-            allocate (cpshgt(imax,jmax,nlevs_cps),stat=icpsa)
+            allocate (cpshgt(imax,jmax,nreadcpsparms),stat=icpsa)
           endif
         endif   
 
@@ -1128,9 +1160,15 @@ c       then call subroutine to read data for this forecast time.
         v     = -9999.0
         slp   = -9999.0 
         tmean = -9999.0
+        sst   = -9999.0
+        q850  = -9999.0
+        rh    = -9999.0 
+        spfh  = -9999.0
+        temperature  = -9999.0
+        omega500  = -9999.0
 
-        readflag = .FALSE.
-
+        readflag    = .FALSE.
+        readgenflag = .FALSE.
 
         if(enable_timing/=0) then
         call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
@@ -1139,12 +1177,12 @@ c       then call subroutine to read data for this forecast time.
         endif
 
         if (trkrinfo%inp_data_type == 'grib') then
-          call getdata_grib (readflag,valid_pt,imax,jmax
+          call getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
      &               ,lugb,lugi,trkrinfo)
         elseif (trkrinfo%inp_data_type == 'netcdf') then
-          call getdata_netcdf (ncfile_id,readflag,valid_pt,imax,jmax
-     &               ,ifh,need_to_flip_lats,need_to_flip_lons
+          call getdata_netcdf (ncfile_id,readflag,readgenflag,valid_pt
+     &               ,imax,jmax,ifh,need_to_flip_lats,need_to_flip_lons
      &               ,ncfile_tmax,netcdfinfo)
         endif
 
@@ -1157,16 +1195,16 @@ c       then call subroutine to read data for this forecast time.
 c       Count how many parms were successfully read for this fcst time.
 c       Also, for right now, put the value of readflag into all of the
 c       calcparms for parameters 3 through 9.  Note that in getdata we
-c       read in 17 parms, but in this next loop we only check the 
+c       read in 19 parms, but in this next loop we only check the 
 c       readflags up to maxtp (= 14 as of 7/2015).  That's because
-c       parms 12 & 13 are for 500 mb u & v, which are not used for 
-c       tracking, only for calculating the deep layer mean wind for
-c       the next guess, and parm 14 is the 300-500 mb mean temperature, 
-c       which is used for determining storm phase.  Parms 10 & 11 are 
-c       for the near-surface winds, which are used in estimating surface
-c       winds near the storm, and will now also be used as a
-c       parameter for position estimates.  Finally, parm 17 is the 
-c       land-sea mask, which is not used as a tracking parm.
+c       read parms 12 & 13 are for 500 mb u & v, which are not used for 
+c       tracking (only for calculating the deep layer mean wind for
+c       the next guess), and parm 14 is the 300-500 mb mean temperature, 
+c       which is used for determining storm phase, parms 15 & 16 are for
+c       500 & 200 mb hgt, parm 17 is land-sea mask, and parms 18-19 are
+c       200 mb u & v.  Parms 10 & 11 are for the near-surface winds, 
+c       which are used in estimating surface winds near the storm, and 
+c       will now also be used as a parameter for position estimates.
 
         idum = 0
         do irf = 1,nreadparms
@@ -1237,6 +1275,7 @@ c       If not enough tracked parms were read in, exit the program....
           return
         endif
 
+c          ** Array positions for tracked parameters **
 c          1: 850 mb relative vorticity
 c          2: 700 mb relative vorticity
 c          3: 850 mb wind circulation
@@ -1540,7 +1579,18 @@ c       is why we set all the other calcparms to 'false' just below.
         prevstormct = stormct
         tracking_previously_known_storms = .true.
 
+        !-----------------------------------------------
+        ! stormloop starts here
+        !-----------------------------------------------
+
         stormloop: do sl_counter = 1,maxstorm
+
+         divg               = -9999.0
+         moist_divg         = -9999.0
+         rh_800_600_smooth  = -9999.0
+         rh_1000_925_smooth = -9999.0
+         omega500_smooth    = -9999.0
+         sst_smooth         = -9999.0
 
          cps_vals(1) =  -9999.0
          cps_vals(2) =  -9999.0
@@ -2406,7 +2456,7 @@ c             flag will have a value of 'U', for "undetermined".
                     ! user requests the ROCI and it's a fixed regional
                     ! grid where the storm is close to a boundary and we
                     ! need to check for a closed contour, then we have 
-                    ! to call check_closed_contour two separate times,
+                    ! to call  check_closed_contour two separate times,
                     ! because the contour intervals used may be 
                     ! different, depending on what the user specified in
                     ! the input namelist.
@@ -2734,10 +2784,10 @@ c             flag will have a value of 'U', for "undetermined".
                   ! set the mask to be TRUE for all points within the
                   ! area where mean cyclonic Vt exceed +1 m/s....
 
-c                  call check_closed_contour (imax,jmax,ifix,jfix,slp
-c     &                ,valid_pt,masked_outc,ccflag,'min',trkrinfo
-c     &                ,999,contour_info,get_last_isobar_flag,plastbar
-c     &                ,rlastbar,icccret)
+c                 ccall check_closed_contour (imax,jmax,ifix,jfix,slp
+c     &           c    ,valid_pt,masked_outc,ccflag,'min',trkrinfo
+c     &           c    ,999,contour_info,get_last_isobar_flag,plastbar
+c     &           c    ,rlastbar,icccret)
 
                   if ( verb .ge. 3 ) then
                     print *,' '
@@ -2915,7 +2965,8 @@ c     &                ,rlastbar,icccret)
 
                   print *,'At pt isi, isiret3= ',isiret3
                   print *,'At pt isi, isastorm(3)= ',isastorm(3)
-                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
+                  print *,'At pt isi, type= trkrinfo%type == '
+     &                   ,trkrinfo%type
 
                   if (isiret3 == 0 .and. isastorm(3) == 'Y' .and.
      &              trkrinfo%type == 'tracker') then
@@ -3509,7 +3560,7 @@ c           knots (1.9427) is explained in output_atcf.
 
                 ! Get the storm motion vector and the speed of 
                 ! motion so that we can output this in the 
-                ! "atcf_sink" forecast text file.
+                ! atcfunix file.
 
                 if (ifh < ifhmax) then
                   call get_next_ges (fixlon,fixlat,ist,ifh
@@ -3525,12 +3576,13 @@ c           knots (1.9427) is explained in output_atcf.
                 if ( verb .ge. 3 ) then
                   write (6,617) istmspd,istmdir,ignret
  617              format (1x,'+++ RPT_STORM_MOTION: istmspd= ',i5
-     &                 ,' istmdir= ',i5,' rcc= ',i3)
+     &                 ,' (kts*10)    istmdir= ',i5,' rcc= ',i3)
                 endif
 
                 ! Call a routine to find the mean & max relative
-                ! vorticity near the storm at 850 & 700.  These will
-                ! be written out to the "atcf_sink" fcst text file.
+                ! vorticity at the mean fix positions of the storm at
+                ! 850 & 700.  These will be written out to the
+                ! "atcf_gen" and "atcfunix_ext" files.
 
                 imeanzeta = -99
                 igridzeta = -99
@@ -3948,6 +4000,12 @@ c
       if (allocated(tmean)) deallocate (tmean)
       if (allocated(thick))    deallocate (thick)
       if (allocated(lsmask))   deallocate (lsmask)
+      if (allocated(sst))      deallocate (sst)
+      if (allocated(q850))     deallocate (q850)
+      if (allocated(rh))       deallocate (rh)
+      if (allocated(spfh))     deallocate (spfh)
+      if (allocated(temperature))  deallocate (temperature)
+      if (allocated(omega500)) deallocate (omega500)
       if (allocated(masked_out)) deallocate (masked_out) 
       if (allocated(masked_outc)) deallocate (masked_outc)
       if (allocated(cpshgt)) deallocate (cpshgt)
@@ -7600,7 +7658,7 @@ c     method to remove the vortex:
 c
 c     1. Find the circulation center at 850 hPa. For SHIPS, that finds
 c        the center point that maximizes the symmetric tangential wind
-c        out to 500 km. [For the tracker, I will either use the 
+c        out to 500 km. [For  the tracker, I will either use the 
 c        mean fix for the current lead time or I will use the fix 
 c        position for 850 mb wind circulation].
 c
@@ -10194,10 +10252,10 @@ c           be converted to knots*10 for output (e.g., 1221 = 122.1 kts)
 c
 c     The "71" ID indicates earth-relative winds, the "72" ID indicates
 c     storm-relative winds.  Here are the other IDs that will be used:
-c       81: Tangential winds, earth-relative (m/s)
-c       82: Tangential winds, storm-relative (m/s)
-c       91: Radial winds, earth-relative (m/s)
-c       92: Radial winds, storm-relative (m/s)
+c       81: Tangential winds, earth-relative
+c       82: Tangential winds, storm-relative
+c       91: Radial winds, earth-relative
+c       92: Radial winds, storm-relative
 c
 c     Note that in this example, for this 36h forecast hour, there are
 c     8 entries.  This is so that we can include the wind values for
@@ -10206,7 +10264,7 @@ c     (NEE, SEE, SWE, NWE) and the storm-relative analyses (FRR, BRR,
 c     BLR, FLR).
 c
 c     This message also contains the intensity estimates (in knots)
-c     for every forecast hours  The  conversion for m/s to knots is
+c     for every forecast hour.  The  conversion for m/s to knots is
 c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft,
 c     3600s/h).
 c
@@ -12384,7 +12442,7 @@ c     subroutine for further details.
       if (verb >= 3) then
         print *,' '
         print *,' +++ In get_next_ges after call to get_ij_bounds,'
-        print *,'     getting bounds for the barnes analysis...'
+        print *,'     getting bounds for the  barnes analysis...'
         print *,'     glatmax= ',glatmax,'  glatmin= ',glatmin
         print *,'     glonmax= ',glonmax,'  glonmin= ',glonmin
         print *,'     fixlon= ',fixlon(ist,ifh),'  fixlat= '
@@ -18724,7 +18782,7 @@ c
 c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
-      subroutine getdata_grib (readflag,valid_pt,imax,jmax
+      subroutine getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
      &               ,lugb,lugi,trkrinfo)
 c
@@ -18765,6 +18823,34 @@ c               even there, it's optional.
 c     18.  200 mb u-component
 c     19.  200 mb u-component
 c
+c     For genesis humidity & temperature parameters (if requested), the
+c     list of variables goes as follows:
+c
+c      1.  SST
+c      2.  850 mb specific humidity
+c      3. 1000 mb relative humidity
+c      4.  925 mb relative humidity
+c      5.  800 mb relative humidity
+c      6.  750 mb relative humidity
+c      7.  700 mb relative humidity
+c      8.  650 mb relative humidity
+c      9.  600 mb relative humidity
+c     10. 1000 mb specific humidity
+c     11.  925 mb specific humidity
+c     12.  800 mb specific humidity
+c     13.  750 mb specific humidity
+c     14.  700 mb specific humidity
+c     15.  650 mb specific humidity
+c     16.  600 mb specific humidity
+c     17. 1000 mb temperature
+c     18.  925 mb temperature
+c     19.  800 mb temperature
+c     20.  750 mb temperature
+c     21.  700 mb temperature
+c     22.  650 mb temperature
+c     23.  600 mb temperature
+c     24.  500 mb omega
+c
 c     INPUT:
 c     imax        integer number of pts in i-direction on grid
 c     jmax        integer number of pts in j-direction on grid
@@ -18781,11 +18867,13 @@ c                 tracker run that we are performing.
 c
 c     OUTPUT:
 c     readflag    logical array, indicates if a parm was read in
+c     readgenflag logical array, indicates if a genesis parm was read in
 c     valid_pt    logical array, indicates for each (i,j) if there is
 c                 valid data at the point (used for regional grids)
 
       USE tracked_parms; USE level_parms; USE inparms; USE phase
       USE verbose_output; USE params; USE grib_mod; USE trkrparms
+      USE read_parms; USE genesis_diags
 
       implicit none
 c
@@ -18794,17 +18882,17 @@ c
       type (gribfield) :: gfld
 c
       integer, parameter :: jf=40000000
-      integer, parameter :: nreadparms=19
       real, allocatable :: f(:)
       real :: dmin,dmax,firstval,lastval
       logical(1), allocatable :: lb(:)
       logical(1) valid_pt(imax,jmax),readflag(nreadparms)
+      logical(1) readgenflag(nreadgenparms)
       logical(1) ::  need_to_flip_lats,need_to_flip_lons
       logical(1) file_open
       logical :: unpack=.true.
       logical :: open_grb=.false.
       character*1 :: lbrdflag
-      character*8 :: chparm(nreadparms)
+      character*8 :: chparm(nreadparms),ch_genparm(nreadgenparms)
       CHARACTER(len=8) :: pabbrev
       character (len=10) big_ben(3)
       integer   date_time(8)
@@ -18812,19 +18900,30 @@ c
       integer :: listsec1(13), enable_timing
       integer, intent(in) :: imax,jmax
       integer   igparm(nreadparms),iglev(nreadparms)
-      integer   iglevtyp(nreadparms)
+      integer   genparm(nreadgenparms),genlev(nreadgenparms)
+      integer   ec_genparm(nreadgenparms)
+      integer   ec_genlevtyp(nreadgenparms)
+      integer   ec_genlev(nreadgenparms)
+      integer   iglevtyp(nreadparms),genlevtyp(nreadgenparms)
       integer   ig2_parm_cat(nreadparms),ig2_parm_num(nreadparms)
       integer   ig2_lev_val(nreadparms),ig2_lev_typ(nreadparms)
-      integer   cpsig2_parm_cat(nlevs_cps),cpsig2_parm_num(nlevs_cps)
-      integer   cpsig2_lev_typ(nlevs_cps),cpsig2_lev_val(nlevs_cps)
+      integer   cpsig2_parm_cat(nreadcpsparms)
+      integer   cpsig2_parm_num(nreadcpsparms)
+      integer   cpsig2_lev_typ(nreadcpsparms)
+      integer   cpsig2_lev_val(nreadcpsparms)
+      integer   gensig2_parm_cat(nreadgenparms)
+      integer   gensig2_parm_num(nreadgenparms)
+      integer   gensig2_lev_typ(nreadgenparms)
+      integer   gensig2_lev_val(nreadgenparms)
       integer   ec_igparm(nreadparms),ec_iglev(nreadparms)
       integer   ec_iglevtyp(nreadparms)
-      integer   cpsgparm(nlevs_cps),cpsglev(nlevs_cps)
-      integer   cpsglevtyp(nlevs_cps)
-      integer   ec_cpsgparm(nlevs_cps)
+      integer   cpsgparm(nreadcpsparms)
+      integer   cpsglev(nreadcpsparms)
+      integer   cpsglevtyp(nreadcpsparms)
+      integer   ec_cpsgparm(nreadcpsparms)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
       integer   igvret,ifa,ila,ip,ifh,i,j,k,kj,iret,kf,lugb,lugi
-      integer   jskp,jdisc,np
+      integer   jskp,jdisc,np,igrh,igrhct
       integer   jpdtn,jgdtn,npoints,icount,ipack,krec
       integer   pdt_4p0_vert_level,pdt_4p0_vtime
       integer :: listsec0(2)=(/0,2/)
@@ -18864,6 +18963,21 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
      &              ,100,100,100,1,100,100/
       data iglev    /850,700,850,850,700,700,850,700,0,0,0,500,500,401
      &              ,500,200,0,200,200/
+      data chparm   /'absv','absv','ugrid','vgrid','ugrid','vgrid'
+     &              ,'gphgt','gphgt','mslp','ugrid','vgrid','ugrid'
+     &              ,'vgrid','temp','gphgt','gphgt','lmask'
+     &              ,'ugrid','vgrid'/
+      data genparm   /11,51,7*52,7*51,7*11,39/
+      data genlevtyp /1,23*100/
+      data genlev    /0,850,1000,925,800,750,700
+     &                     ,650,600,1000,925,800,750
+     &                     ,700,650,600,1000,925,800
+     &                     ,750,700,650,600,500/
+
+      data ch_genparm /'sst','spfh','relh','relh','relh','relh','relh'
+     &                      ,'relh','relh','spfh','spfh','spfh','spfh'
+     &                      ,'spfh','spfh','spfh','temp','temp','temp'
+     &                      ,'temp','temp','temp','temp','omega500'/
 
       data cpsgparm     /13*7/
       data ec_cpsgparm  /13*156/
@@ -18878,10 +18992,9 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data ec_iglev    /850,700,850,850,700,700,850,700,0,0,0,500,500
      &                 ,401,500,200,999,200,200/
 
-      data chparm   /'absv','absv','ugrid','vgrid','ugrid','vgrid'
-     &              ,'gphgt','gphgt','mslp','ugrid','vgrid','ugrid'
-     &              ,'vgrid','temp','gphgt','gphgt','lmask'
-     &              ,'ugrid','vgrid'/
+      data ec_genparm   /24*999/
+      data ec_genlevtyp /24*999/
+      data ec_genlev    /24*999/
 
       data ig2_parm_cat /2,2,2,2,2,2,3,3,3,2,2,2,2,0,3,3,2,2,2/
       data ig2_parm_num /10,10,2,3,2,3,5,5,1,2,3,2,3,0,5,5,8,2,3/
@@ -18894,6 +19007,15 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data cpsig2_lev_typ  /13*100/
       data cpsig2_lev_val  /900,850,800,750,700,650,600,550,500,450,400
      &                     ,350,300/
+      data gensig2_parm_cat /3,15*1,7*0,2/
+      data gensig2_parm_num /0,0,1,1,1,1,1,1,1
+     &                          ,0,0,0,0,0,0,0
+     &                          ,0,0,0,0,0,0,0,8/
+      data gensig2_lev_typ /103,23*100/
+      data gensig2_lev_val /0,850,1000,925,800,750,700
+     &                           ,650,600,1000,925,800,750
+     &                           ,700,650,600,1000,925,800
+     &                           ,750,700,650,600,500/
 
 c     Model numbers used: (1) AVN, (2) MRF, (3) UKMET, (4) ECMWF,
 c                (5) NGM, (6) Early Eta, (7) NAVGEM, (8) GDAS,
@@ -18907,6 +19029,8 @@ c                (21) ECMWF Ensemble
 c                (23) FNMOC Ensemble
 c                (24) HWRF Basin-scale
       
+      readgenflag = .false.
+
       if (trkrinfo%gribver == 2) then
 
 c       For GRIB2, we will check to see if the MSLP being searched for
@@ -18993,6 +19117,12 @@ c       water surface) and a level value of 0.
       endif
 
       if (trkrinfo%gribver == 2) then
+
+c       *------------------------------------------------------------*
+c        GRIB2 Read for standard tracker diagnostics
+c
+c        This is the GRIB2 reading section.
+c       *------------------------------------------------------------*
 
         ! Reading from a GRIB v2 file....
 
@@ -19370,8 +19500,11 @@ c             Get parameter abbrev for record that was retrieved
         enddo grib2_standard_parm_read_loop
 
 c       *------------------------------------------------------------*
-c        If we are attempting to determine the cyclone structure,
-c        then read in data now that will allow us to do that.
+c        GRIB2 Read for Cyclone Phase Space diagnostics
+c
+c        If we are attempting to determine the cyclone phase space
+c        diagnostics, then read in the needed cps data now.
+c
 c        This is the GRIB2 reading section.
 c       *------------------------------------------------------------*
 
@@ -19381,7 +19514,7 @@ c       *------------------------------------------------------------*
 
             ! Read in GP Height levels for cyclone phase space...
 
-            grib2_cps_parm_lev_loop: do ip = 1,nlevs_cps
+            grib2_cps_parm_lev_loop: do ip = 1,nreadcpsparms
 
               !
               ! ---  Initialize Variables ---
@@ -19634,11 +19767,445 @@ c               Convert data to 2-d array
 
         endif
 
+c       *------------------------------------------------------------*
+c        GRIB2 Read for genesis diagnostics
+c
+c        If we are attempting to perform genesis diagnostics, then 
+c        read in data now that will allow us to do that.
+c
+c        The order of the variables in the reads is set up so that, 
+c        ideally, we will read in the first 9 fields and not need 
+c        anything else, e.g., SST, q850, and then RH at these 
+c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c        some models, like SHiELD & T-SHiELD, do not have RH at these
+c        levels, but they do have T & q, so in those cases we would 
+c        have to compute RH, and therefore need to read in T & q at
+c        those levels.
+c
+c        This is the GRIB2 reading section.
+c       *------------------------------------------------------------*
+
+        if (genflag == 'y') then
+
+          grib2_gen_parm_loop: do ip = 1,nreadgenparms
+
+            if (gen_read_rh_fields == 'y' ) then
+
+              if (ip == 10) then
+
+                ! The ip index is now at the point where we are past all
+                ! of the reads for the different levels of RH.
+                ! Check the readgenflags for relative humidity.  If not
+                ! enough RH records were read in, then we have to assume
+                ! that RH was not included in the user data, so we will
+                ! instead stay in this Genesis GRIB2 read loop to read
+                ! in q and T to compute RH later on.  If enough RH 
+                ! records were read in, then exit this read loop.
+
+                igrhct = 0
+                do igrh = 3,9
+                  if (readgenflag(igrh)) then
+                    igrhct = igrhct + 1
+                  endif
+                enddo
+
+                if (igrhct >= 2) then
+                  if (verb >= 3) then
+                    print *,' '
+                    print *,'Genesis GRIB2 read: At least 2 RH records'
+                    print *,'were read in, so we will exit the Genesis'
+                    print *,'GRIB2 read loop without reading specific'
+                    print *,'humidity or temperature records.'
+                  endif
+                  need_to_compute_rh_from_q = 'n' 
+                  ! call gf_free (gfld)
+                  exit grib2_gen_parm_loop
+                else
+                  if (verb >= 3) then
+                    print *,' '
+                    print *,'Genesis GRIB2 read: Fewer than 2 RH'
+                    print *,'records were read in, so we will continue'
+                    print *,'in the Genesis GRIB2 read loop, reading'
+                    print *,'specific humidity and temperature records.'
+                  endif
+                  need_to_compute_rh_from_q = 'y' 
+                endif
+
+              endif
+
+            else
+
+              need_to_compute_rh_from_q = 'y'
+ 
+              ! If the ip index is between 3 and 9 (which is for RH
+              ! records) and the user has specified that RH will NOT be
+              ! read in, then skip over the read section for these by
+              ! cycling.
+
+              if (ip >= 3 .and. ip <= 9) then
+                if (verb >= 3) then
+                  print *,' '
+                  print *,'Genesis read NOT requested for RH, ip= ',ip
+                  print *,' '
+                endif
+                cycle grib2_gen_parm_loop
+              endif
+
+            endif
+
+
+            !
+            ! ---  Initialize Variables ---
+            !
+
+            gfld%idsect => NULL()
+            gfld%local => NULL()
+            gfld%list_opt => NULL()
+            gfld%igdtmpl => NULL()
+            gfld%ipdtmpl => NULL()
+            gfld%coord_list => NULL()
+            gfld%idrtmpl => NULL()
+            gfld%bmap => NULL()
+            gfld%fld => NULL()
+
+            if (ip == 1) then    ! ip=1 is for SST
+              jdisc=10 ! discipline = 10 (oceanographic products)
+                       ! for SST
+            else
+              jdisc=0 ! discipline = 0 for all other variables we are
+                      ! currently using in the  tracker
+            endif
+
+            jids=-9999
+            jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
+                                    ! 1 = ens fcst
+            jgdtn=0
+            jgdt=-9999
+            jpdt=-9999
+
+            npoints=0
+            icount=0
+            jskp=0
+
+            jpds = -1
+            jgds = -1
+            j=0
+
+            ! Set defaults for JPDT, then override in array
+            ! assignments below...
+
+            JPDT(1:15)=(/-9999,-9999,-9999,-9999,-9999,-9999,-9999
+     &         ,-9999,-9999,-9999,-9999,-9999,-9999,-9999,-9999/)
+
+            JPDT(1) = gensig2_parm_cat(ip)
+            JPDT(2) = gensig2_parm_num(ip)
+
+            if (inp%lt_units == 'minutes') then
+              JPDT(8) = 0
+              JPDT(9) = iftotalmins(ifh)
+            else
+              JPDT(8) = 1
+              JPDT(9) = ifhours(ifh)
+            endif
+
+            JPDT(10) = gensig2_lev_typ(ip)
+            if (ip > 1) then
+              if (JPDT(10) == 100) then   ! isobaric surface
+                JPDT(12) = gensig2_lev_val(ip) * 100  ! GRIB2 levels 
+                                                      ! are in Pa
+              else
+                if (verb .ge. 3) then
+                  print *,' '
+                  print *,'ERROR in getdata: JPDT(10) array value'
+                  print *,'should only be 100 in this genesis section'
+                  print *,'for GRIB2 data for all variables after the.'
+                  print *,'first variable read in (ip=1, which is SST).'
+                endif
+              endif
+            endif
+
+            if(enable_timing/=0) then
+               call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &              ,date_time)
+               write (6,731) date_time(5),date_time(6),date_time(7)
+            endif
+
+            call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
+     &                 ,jgdt,unpack,krec,gfld,iret)
+
+            if(enable_timing/=0) then
+               call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &              ,date_time)
+               write (6,732) date_time(5),date_time(6),date_time(7)
+            endif
+
+            if ( verb .ge. 3 ) then
+              print *,'iret from getgb2 (Genesis) in getdata = ',iret
+            endif
+
+            if (verb_g2 .ge. 1) then
+              print *,'after getgb2 call(Genesis),'
+     &             ,' value of unpacked = ',gfld%unpacked
+              print *,'after getgb2 (Genesis) call, gfld%ngrdpts = '
+     &               ,gfld%ngrdpts
+              print *,'after getgb2 (Genesis) call, gfld%ibmap = '
+     &               ,gfld%ibmap
+            endif
+
+            if (verb .ge. 3) then
+              print *,' '
+              if (inp%lt_units == 'minutes') then
+                print *,'After getgb2 (Genesis) call, j= ',j
+     &               ,' ifmins= ',iftotalmins(ifh),' parm # (ip) = '
+     &               ,ip,' iret= ',iret
+              else
+                print *,'After getgb2 (Genesis) call, j= ',j
+     &               ,' ifhours= ',ifhours(ifh),' parm # (ip) = '
+     &               ,ip,' iret= ',iret
+              endif
+            endif
+
+            if (iret == 0) then
+
+c             Determine packing information from GRIB2 file.
+c             The default packing is 40  JPEG 2000
+
+              ipack = 40
+
+              if (verb_g2 .ge. 1) then
+                print *,' gfld%idrtnum = ', gfld%idrtnum
+              endif
+
+              !   Set DRT info  ( packing info )
+              if ( gfld%idrtnum.eq.0 ) then      ! Simple packing
+                ipack = 0
+              elseif ( gfld%idrtnum.eq.2 ) then  ! Complex packing
+                ipack = 2
+              elseif ( gfld%idrtnum.eq.3 ) then  ! Complex & spatial
+     &                                           ! packing
+                ipack = 31
+              elseif ( gfld%idrtnum.eq.40.or.gfld%idrtnum.eq.15 )
+     &        then
+                ! JPEG 2000 packing
+                ipack = 40
+              elseif ( gfld%idrtnum.eq.41 ) then  ! PNG packing
+                ipack = 41
+              endif
+
+              if ( verb_g2 .ge. 1 ) then
+                print *,'After check of idrtnum, ipack= ',ipack
+                print *,'Number of gridpts= gfld%ngrdpts= '
+     &                 ,gfld%ngrdpts
+                print *,'Number of elements= gfld%igdtlen= '
+     &                 ,gfld%igdtlen
+                print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
+              endif
+
+              kf = gfld%ngrdpts  ! Number of gridpoints returned 
+                                 ! from read
+
+              do np = 1,kf
+                f(np)  = gfld%fld(np)
+                if (gfld%ibmap == 0) then
+                  lb(np)  = gfld%bmap(np)
+                else
+                  lb(np)  = .true.
+                endif
+              enddo
+
+              readgenflag(ip) = .TRUE.
+              call bitmapchk(kf,lb,f,dmin,dmax)
+
+c             Convert logical bitmap to 2-d array (only need to do 
+c             this once since using same model for all variables).
+c             This should have already been done above in reading 
+c             either the general tracking variables or, if they were
+c             requested, the cyclone phase space variables.
+
+              if (lbrdflag .eq. 'n') then
+                call conv1d2d_logic (imax,jmax,lb,valid_pt
+     &                                         ,need_to_flip_lats)
+                lbrdflag = 'y'
+              endif
+
+              firstval=gfld%fld(1)
+              lastval=gfld%fld(kf)
+
+              if (verb_g2 .ge. 1) then
+                print *,' '
+                print *,' SECTION 0: discipl= ',gfld%discipline
+     &                 ,' gribver= ',gfld%version
+                print *,' '
+                print *,' SECTION 1: '
+
+                do j = 1,gfld%idsectlen
+                  print *,'     sect1, j= ',j,' gfld%idsect(j)= '
+     &                   ,gfld%idsect(j)
+                enddo
+
+                if ( associated(gfld%local).AND.gfld%locallen.gt.0)
+     &          then
+                  print *,' '
+                  print *,' SECTION 2: ',gfld%locallen,' bytes'
+                else
+                  print *,' '
+                  print *,' SECTION 2 DOES NOT EXIST IN THIS RECORD'
+                endif
+
+                print *,' '
+                print *,' SECTION 3: griddef= ',gfld%griddef
+                print *,'            ngrdpts= ',gfld%ngrdpts
+                print *,'            numoct_opt= ',gfld%numoct_opt
+                print *,'            interp_opt= ',gfld%interp_opt
+                print *,'            igdtnum= ',gfld%igdtnum
+                print *,'            igdtlen= ',gfld%igdtlen
+
+                print *,' '
+                print '(a17,i3,a2)',' GRID TEMPLATE 3.'
+     &                ,gfld%igdtnum,': '
+                do j=1,gfld%igdtlen
+                  print *,'    j= ',j,' gfld%igdtmpl(j)= '
+     &                ,gfld%igdtmpl(j)
+                enddo
+
+c               Get parameter abbrev for record that was retrieved
+                print *,' '
+                print *,'     PDT num (gfld%ipdtnum) = '
+     &                 ,gfld%ipdtnum
+                print *,' '
+                print '(a20,i3,a2)',' PRODUCT TEMPLATE 4.'
+     &                 ,gfld%ipdtnum
+     &               ,': '
+                do j=1,gfld%ipdtlen
+                  print *,'    sect 4  j= ',j,' gfld%ipdtmpl(j)= '
+     &                   ,gfld%ipdtmpl(j)
+                enddo
+              endif
+
+              pdt_4p0_vtime      = gfld%ipdtmpl(9)
+              pdt_4p0_vert_level = gfld%ipdtmpl(12)
+
+              pabbrev=param_get_abbrev(gfld%discipline
+     &                ,gfld%ipdtmpl(1),gfld%ipdtmpl(2))
+
+              if (verb .ge. 3) then
+                print *,' '
+                write (6,331)
+ 331            format (' rec#   param     level  byy  bmm  bdd  '
+     &           ,'bhh  '
+     &           ,'fhr      npts  firstval    lastval     minval   '
+     &           ,'   maxval')
+                print '(i5,3x,a8,2x,6i5,2x,i8,4g12.4)'
+     &           ,krec,pabbrev,pdt_4p0_vert_level/100,gfld%idsect(6)
+     &           ,gfld%idsect(7),gfld%idsect(8),gfld%idsect(9)
+     &           ,pdt_4p0_vtime,gfld%ngrdpts,firstval,lastval,dmin
+     &           ,dmax
+              endif
+
+c             Convert data to 2-d array
+
+              select case (ch_genparm(ip))
+                case ('sst')
+                  call conv1d2d_real (imax,jmax,f,sst(1,1)
+     &                                           ,need_to_flip_lats)
+                case ('spfh')
+                  if (jpdt(12) == 85000) then
+                    call conv1d2d_real (imax,jmax,f,q850(1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 100000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 92500) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,2)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 80000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,3)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 75000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,4)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 70000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,5)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 65000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,6)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 60000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,7)
+     &                                             ,need_to_flip_lats)
+                  endif
+                case ('relh')
+                  if (jpdt(12) == 100000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 92500) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,2)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 80000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,3)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 75000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,4)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 70000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,5)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 65000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,6)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 60000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,7)
+     &                                             ,need_to_flip_lats)
+                  endif
+                case ('temp')
+                  if (jpdt(12) == 100000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 92500) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,2)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 80000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,3)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 75000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,4)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 70000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,5)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 65000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,6)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 60000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,7)
+     &                                             ,need_to_flip_lats)
+                  endif
+                case ('omega500')
+                  call conv1d2d_real (imax,jmax,f,omega500(1,1)
+     &                                           ,need_to_flip_lats)
+                case default 
+                  if ( verb .ge. 1 ) then
+                    print *,'!!! ERROR: BAD CH_GENPARM IN GETDATA = '
+     &                     ,ch_genparm(ip)
+                  endif
+
+              end select
+
+            endif
+
+            call gf_free (gfld)
+
+          enddo grib2_gen_parm_loop
+
+        endif
+
       else
 
-        !----------------------------------
-        ! Reading from a GRIB v1 file....
-        !----------------------------------
+c       *------------------------------------------------------------*
+c        GRIB1 Read for standard tracker diagnostics
+c
+c        This is the GRIB1 reading section.
+c       *------------------------------------------------------------*
 
         grib1_read_loop: do ip = 1,nreadparms
               
@@ -19843,8 +20410,12 @@ c           once since using same model for all variables).
         enddo grib1_read_loop
 
 c       *------------------------------------------------------------*
-c        If we are attempting to determine the cyclone structure,
-c        then read in data now that will allow us to do that.
+c        GRIB1 Read for Cyclone Phase Space diagnostics
+c
+c        If we are attempting to determine the cyclone phase space
+c        diagnostics, then read in the needed cps data now.
+c
+c        This is the GRIB1 reading section.
 c       *------------------------------------------------------------*
 
         if (phaseflag == 'y') then
@@ -19853,7 +20424,7 @@ c       *------------------------------------------------------------*
 
             ! Read in GP Height levels for cyclone phase space...
 
-            cps_grib1_lev_loop: do ip = 1,nlevs_cps
+            cps_grib1_lev_loop: do ip = 1,nreadcpsparms
 
               jpds = -1
               jgds = -1
@@ -19878,7 +20449,7 @@ c       *------------------------------------------------------------*
                  call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &                ,date_time)
                  write (6,841) date_time(5),date_time(6),date_time(7)
- 841             format (1x,'TIMING: before getgb-2',i2.2,':',i2.2
+ 841             format (1x,'TIMING: before cps getgb-1',i2.2,':',i2.2
      &                ,':',i2.2)
               endif
               call getgb (lugb,lugi,jf,j,jpds,jgds,
@@ -19887,7 +20458,7 @@ c       *------------------------------------------------------------*
                  call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &                ,date_time)
                  write (6,842) date_time(5),date_time(6),date_time(7)
- 842             format (1x,'TIMING: after getgb-2',i2.2,':',i2.2
+ 842             format (1x,'TIMING: after cps getgb-1',i2.2,':',i2.2
      &                ,':',i2.2)
               endif
 
@@ -19935,6 +20506,290 @@ c               Convert data to 2-d array
 
         endif
 
+c       *------------------------------------------------------------*
+c        GRIB1 Read for genesis diagnostics
+c
+c        If we are attempting to perform genesis diagnostics, then 
+c        read in data now that will allow us to do that.
+c
+c        The order of the variables in the reads is set up so that, 
+c        ideally, we will read in the first 9 fields and not need 
+c        anything else, e.g., SST, q850, and then RH at these 
+c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c        some models, like SHiELD & T-SHiELD, do not have RH at these
+c        levels, but they do have T & q, so in those cases we would 
+c        have to compute RH, and therefore need to read in T & q at
+c        those levels.
+c
+c        This is the GRIB1 reading section.
+c       *------------------------------------------------------------*
+
+        if (genflag == 'y') then
+
+          grib1_gen_parm_loop: do ip = 1,nreadgenparms
+
+            if (gen_read_rh_fields == 'y' ) then
+
+              if (ip == 10) then
+
+                ! The ip index is now at the point where we are past all
+                ! of the reads for the different levels of RH.
+                ! Check the readgenflags for relative humidity.  If not
+                ! enough RH records were read in, then we have to assume
+                ! that RH was not included in the user data, so we will
+                ! instead stay in this Genesis GRIB2 read loop to read
+                ! in q and T to compute RH later on.  If enough RH 
+                ! records were read in, then exit this read loop.
+
+                igrhct = 0
+                do igrh = 3,9
+                  if (readgenflag(igrh)) then
+                    igrhct = igrhct + 1
+                  endif
+                enddo
+
+                if (igrhct >= 2) then
+                  if (verb >= 3) then
+                    print *,' '
+                    print *,'Genesis GRIB1 read: At least 2 RH records'
+                    print *,'were read in, so we will exit the Genesis'
+                    print *,'GRIB1 read loop without reading specific'
+                    print *,'humidity or temperature records.'
+                  endif
+                  need_to_compute_rh_from_q = 'n'
+                  exit grib1_gen_parm_loop
+                else
+                  if (verb >= 3) then
+                    print *,' '
+                    print *,'Genesis GRIB1 read: Fewer than 2 RH'
+                    print *,'records were read in, so we will continue'
+                    print *,'in the Genesis GRIB1 read loop, reading'
+                    print *,'specific humidity and temperature records.'
+                  endif
+                  need_to_compute_rh_from_q = 'y'
+                endif
+
+              endif
+
+            else
+
+              need_to_compute_rh_from_q = 'y'
+
+              ! If the ip index is between 3 and 9 (which is for RH
+              ! records) and the user has specified that RH will NOT be
+              ! read in, then skip over the read section for these by
+              ! cycling.
+
+              if (ip >= 3 .and. ip <= 9) then
+                if (verb >= 3) then
+                  print *,' '
+                  print *,'Genesis read NOT requested for RH, ip= ',ip
+                  print *,' '
+                endif
+                cycle grib1_gen_parm_loop
+              endif
+
+            endif
+
+            jpds = -1
+            jgds = -1
+            j=0
+
+            if (inp%model == 4) then  ! ECMWF hi-res data uses ECMWF
+                                      ! table
+              print *,' '
+              print *,'WARNING: From the namelist, inp%model is set to'
+              print *,'   a value of 4, which is for ECMWF, so in'
+              print *,'   routine getdata_grib, the input jpds(5,6,7)'
+              print *,'   parms are going to have values that are'
+              print *,'   specific for ECMWF GRIB1 data.'
+              print *,' '
+              jpds(5)  = ec_genparm(ip)
+              jpds(6)  = ec_genlevtyp(ip)
+              jpds(7)  = ec_genlev(ip)
+            else   ! All other models use NCEP-standard GRIB table
+              jpds(5)  = genparm(ip)
+              jpds(6)  = genlevtyp(ip)
+              jpds(7)  = genlev(ip)
+            endif
+
+            print *,' '
+            print *,' --- Before getgb, jpds(5)= ',jpds(5)
+            print *,' ---             , jpds(6)= ',jpds(6)
+            print *,' ---             , jpds(7)= ',jpds(7)
+
+            if (jpds(5) == 999) then
+              cycle
+            endif
+
+            if (inp%lt_units == 'minutes') then
+              jpds(14) = iftotalmins(ifh)
+            else
+              jpds(14) = ifhours(ifh)
+            endif
+
+            if(enable_timing/=0) then
+               call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &              ,date_time)
+               write (6,941) date_time(5),date_time(6),date_time(7)
+ 941           format (1x,'TIMING: before genesis getgb-1',i2.2,':',i2.2
+     &              ,':',i2.2)
+            endif
+
+            call getgb (lugb,lugi,jf,j,jpds,jgds,
+     &                       kf,k,kpds,kgds,lb,f,iret)
+
+            if(enable_timing/=0) then
+               call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &              ,date_time)
+               write (6,942) date_time(5),date_time(6),date_time(7)
+ 942           format (1x,'TIMING: after genesis getgb-1',i2.2,':',i2.2
+     &              ,':',i2.2)
+            endif
+
+            if ( verb .ge. 3 ) then
+              print *,' '
+              if (inp%lt_units == 'minutes') then
+                print *,'After getgb (Genesis) call, j= ',j,' k= ',k
+     &               ,' ifmins= ',iftotalmins(ifh),' parm # (ip) = '
+     &               ,ip,' iret= ',iret
+              else
+                print *,'After getgb (Genesis) call, j= ',j,' k= ',k
+     &               ,' ifhours= ',ifhours(ifh),' parm # (ip) = '
+     &               ,ip,' iret= ',iret
+              endif
+            endif
+
+            if (iret == 0) then
+
+              readgenflag(ip) = .true.
+              call bitmapchk(kf,lb,f,dmin,dmax)
+
+              if ( verb .ge. 3 ) then
+                if (inp%lt_units == 'minutes') then
+                  write (6,239)
+                else
+                  write (6,241)
+                endif
+239             format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  '
+     &               ,'fmin   npts  minval       maxval')
+241             format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  '
+     &               ,'fhr   npts  minval       maxval')
+                print '(i4,2x,8i5,i8,2g12.4)',
+     &               k,(kpds(i),i=5,11),kpds(14),kf,dmin,dmax
+              endif
+
+c             Convert data to 2-d array
+
+              select case (ch_genparm(ip))
+                case ('sst')
+                  call conv1d2d_real (imax,jmax,f,sst(1,1)
+     &                                           ,need_to_flip_lats)
+                case ('spfh')
+                  if (jpds(7) == 850) then
+                    call conv1d2d_real (imax,jmax,f,q850(1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 1000) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 925) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,2)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 800) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,3)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 750) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,4)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 700) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,5)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 650) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,6)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 600) then
+                    call conv1d2d_real (imax,jmax,f,spfh(1,1,7)
+     &                                           ,need_to_flip_lats)
+                  endif
+                case ('relh')
+                  if (jpds(7) == 1000) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 925) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,2)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 800) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,3)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 750) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,4)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 700) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,5)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 650) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,6)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 600) then
+                    call conv1d2d_real (imax,jmax,f,rh(1,1,7)
+     &                                           ,need_to_flip_lats)
+                  endif
+                case ('temp')
+                  if (jpds(7) == 1000) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 925) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,2)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 800) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,3)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 750) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,4)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 700) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,5)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 650) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,6)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 600) then
+                    call conv1d2d_real (imax,jmax,f,temperature(1,1,7)
+     &                                           ,need_to_flip_lats)
+                  endif
+                case ('omega500')
+                  call conv1d2d_real (imax,jmax,f,omega500(1,1)
+     &                                           ,need_to_flip_lats)
+                case default
+  
+                  if ( verb .ge. 1 ) then
+                    print *,'!!! ERROR: BAD CH_GENPARM IN GETDATA = '
+     &                     ,ch_genparm(ip)
+                  endif
+  
+                end select
+
+            else
+
+              if ( verb .ge. 3 ) then
+                print *,'!!! NOTE: getgb could not find genesis '
+     &                 ,'parm: ',ch_genparm(ip)
+                print *,'!!!       at level = ',jpds(7)
+                if (inp%lt_units == 'minutes') then
+                  print *,'!!!       Forecast time = '
+     &                 ,iftotalmins(ifh),' minutes'
+                else
+                  print *,'!!!       Forecast time = ',ifhours(ifh)
+     &                   ,' hours'
+                endif
+              endif
+
+            endif
+
+          enddo grib1_gen_parm_loop
+  
+        endif
+
       endif
 c
       deallocate (f)
@@ -19946,9 +20801,9 @@ c
 c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
-      subroutine getdata_netcdf (ncfile_id,readflag,valid_pt,imax,jmax
-     &                  ,ifh,need_to_flip_lats,need_to_flip_lons
-     &                  ,ncfile_tmax,netcdfinfo)
+      subroutine getdata_netcdf (ncfile_id,readflag,readgenflag,valid_pt
+     &                  ,imax,jmax,ifh,need_to_flip_lats
+     &                  ,need_to_flip_lons,ncfile_tmax,netcdfinfo)
 c
 c     ABSTRACT: This subroutine reads the input NetCDF file for the 
 c     tracked parameters for one lead time.
@@ -19985,6 +20840,34 @@ c               even there, it's optional.
 c     18.  200 mb u-component
 c     19.  200 mb u-component
 c
+c     For genesis humidity & temperature parameters (if requested), the
+c     list of variables goes as follows:
+c
+c      1.  SST
+c      2.  850 mb specific humidity
+c      3. 1000 mb relative humidity
+c      4.  925 mb relative humidity
+c      5.  800 mb relative humidity
+c      6.  750 mb relative humidity
+c      7.  700 mb relative humidity
+c      8.  650 mb relative humidity
+c      9.  600 mb relative humidity
+c     10. 1000 mb specific humidity
+c     11.  925 mb specific humidity
+c     12.  800 mb specific humidity
+c     13.  750 mb specific humidity
+c     14.  700 mb specific humidity
+c     15.  650 mb specific humidity
+c     16.  600 mb specific humidity
+c     17. 1000 mb temperature
+c     18.  925 mb temperature
+c     19.  800 mb temperature
+c     20.  750 mb temperature
+c     21.  700 mb temperature
+c     22.  650 mb temperature
+c     23.  600 mb temperature
+c     24.  500 mb omega
+c
 c     If the user has requested to check the cyclone phase space for
 c     this run (phaseflag set to 'y' and phasescheme set to 'cps'), 
 c     then we need to have gp height data for 900-300 mb at every 50
@@ -20007,28 +20890,31 @@ c                 itself in subroutine  read_netcdf_fhours.
 c
 c     OUTPUT:
 c     readflag    logical array, indicates if a parm was read in
+c     readgenflag logical array, indicates if a genesis parm was read in
 c     valid_pt    logical array, indicates for each (i,j) if there is
 c                 valid data at the point (used for regional grids)
 
       USE tracked_parms; USE level_parms; USE inparms; USE phase
-      USE netcdf_parms; USE verbose_output
+      USE netcdf_parms; USE verbose_output; USE read_parms
+      USE genesis_diags
 
       implicit none
 c
       type (netcdfstuff) netcdfinfo
-      integer, parameter :: nreadparms=19,nreadparms_cps=13
       real, allocatable :: f(:)
       real :: dmin,dmax,xmissing_value,xfill_value
       logical(1) valid_pt(imax,jmax),readflag(nreadparms)
+      logical(1) readgenflag(nreadgenparms)
       logical(1) ::  need_to_flip_lats,need_to_flip_lons
       character*1  :: lbrdflag,match_check
       character*30 :: chparm(nreadparms)
-      character*30 :: chparm_cps(nreadparms_cps)
+      character*30 :: chparm_cps(nreadcpsparms)
+      character*30 :: chparm_gen(nreadgenparms)
       integer, intent(in) :: ncfile_id,imax,jmax
       integer :: igvret,ifa,ip,ifh,i,j,k,m,n,ncfile_tmax,nf_get_att_real
       integer :: nf_get_att_double,nf_inq_attlen,imvlen,ifvlen
       integer :: usertime,ncix,missing_val_length,nf_status
-      integer :: nf_inq_varid,varid
+      integer :: nf_inq_varid,varid,igrh,igrhct
 c
       lbrdflag = 'n'
 
@@ -20122,7 +21008,11 @@ c     variables into the chparm array...
       endif
 
       !---------------------------------------------------------------
+      ! NetCDF read for standard tracker diagnostics
+      !
       ! Now go through the read loop for the list of parameters
+      !
+      ! This is the NetCDF reading section.
       !---------------------------------------------------------------
 
       netcdf_standard_parm_read_loop: do ip = 1,nreadparms
@@ -20312,6 +21202,8 @@ c     &               ,"_FillValue",xfill_value)
       enddo netcdf_standard_parm_read_loop
 
 c     *--------------------------------------------------------------*
+c      NetCDF read for Cyclone Phase Space diagnostics
+c
 c      If we are attempting to determine the cyclone structure using
 c      Hart's cyclone phase space, then read in data now that will 
 c      allow us to do that.  If we are instead just using the 
@@ -20350,7 +21242,7 @@ c     *--------------------------------------------------------------*
             print *,' '
           endif
 
-          netcdf_cps_parm_read_loop: do ip = 1,nreadparms_cps
+          netcdf_cps_parm_read_loop: do ip = 1,nreadcpsparms
 
             if (chparm_cps(ip) == 'X' .or. chparm_cps(ip) == 'x') then
               if (verb .ge. 3) then
@@ -20436,6 +21328,269 @@ c     &                   ,"_FillValue",xfill_value)
       
       endif
 
+c     *------------------------------------------------------------*
+c      NetCDF Read for genesis diagnostics
+c
+c      If we are attempting to perform genesis diagnostics, then 
+c      read in data now that will allow us to do that.
+c
+c      The order of the variables in the reads is set up so that, 
+c      ideally, we will read in the first 9 fields and not need 
+c      anything else, e.g., SST, q850, and then RH at these 
+c      levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c      some models, like SHiELD & T-SHiELD, do not have RH at these
+c      levels, but they do have T & q, so in those cases we would 
+c      have to compute RH, and therefore need to read in T & q at
+c      those levels.
+c     *------------------------------------------------------------*
+
+      if (genflag == 'y') then
+
+        chparm_gen(1)  = netcdfinfo%sstname
+        chparm_gen(2)  = netcdfinfo%q850name
+        chparm_gen(3)  = netcdfinfo%rh1000name
+        chparm_gen(4)  = netcdfinfo%rh925name
+        chparm_gen(5)  = netcdfinfo%rh800name
+        chparm_gen(6)  = netcdfinfo%rh750name
+        chparm_gen(7)  = netcdfinfo%rh700name
+        chparm_gen(8)  = netcdfinfo%rh650name
+        chparm_gen(9)  = netcdfinfo%rh600name
+        chparm_gen(10) = netcdfinfo%spfh1000name
+        chparm_gen(11) = netcdfinfo%spfh925name
+        chparm_gen(12) = netcdfinfo%spfh800name
+        chparm_gen(13) = netcdfinfo%spfh750name
+        chparm_gen(14) = netcdfinfo%spfh700name
+        chparm_gen(15) = netcdfinfo%spfh650name
+        chparm_gen(16) = netcdfinfo%spfh600name
+        chparm_gen(17) = netcdfinfo%temp1000name
+        chparm_gen(18) = netcdfinfo%temp925name
+        chparm_gen(19) = netcdfinfo%temp800name
+        chparm_gen(20) = netcdfinfo%temp750name
+        chparm_gen(21) = netcdfinfo%temp700name
+        chparm_gen(22) = netcdfinfo%temp650name
+        chparm_gen(23) = netcdfinfo%temp600name
+        chparm_gen(24) = netcdfinfo%omega500name
+
+        netcdf_gen_parm_loop: do ip = 1,nreadgenparms
+
+          if (gen_read_rh_fields == 'y' ) then
+
+            if (ip == 10) then
+
+              ! The ip index is now at the point where we are past all
+              ! of the reads for the different levels of RH.
+              ! Check the readgenflags for relative humidity.  If not
+              ! enough RH records were read in, then we have to assume
+              ! that RH was not included in the user data, so we will
+              ! instead stay in this Genesis NetCDF read loop to read
+              ! in q and T to compute RH later on.  If enough RH 
+              ! records were read in, then exit this read loop.
+
+              igrhct = 0
+              do igrh = 3,9
+                if (readgenflag(igrh)) then
+                  igrhct = igrhct + 1
+                endif
+              enddo
+
+              if (igrhct >= 2) then
+                if (verb >= 3) then
+                  print *,' '
+                  print *,'Genesis NetCDF read: At least 2 RH records'
+                  print *,'were read in, so we will exit the Genesis'
+                  print *,'NetCDF read loop without reading specific'
+                  print *,'humidity or temperature records.'
+                endif
+                need_to_compute_rh_from_q = 'n'
+                exit netcdf_gen_parm_loop
+              else
+                if (verb >= 3) then
+                  print *,' '
+                  print *,'Genesis NetCDF read: Fewer than 2 RH records'
+                  print *,'were read in, so we will continue in the'
+                  print *,'Genesis NetCDF read loop, reading specific'
+                  print *,'humidity and temperature records....'
+                endif
+                need_to_compute_rh_from_q = 'y'
+              endif
+
+            endif
+
+          else
+
+            need_to_compute_rh_from_q = 'y'
+
+            ! If the ip index is between 3 and 9 (which is for RH
+            ! records) and the user has specified that RH will NOT be
+            ! read in, then skip over the read section for these by
+            ! cycling.
+
+            if (ip >= 3 .and. ip <= 9) then
+              if (verb >= 3) then
+                print *,' '
+                print *,'Genesis read NOT requested for RH, ip= ',ip
+                print *,' '
+              endif
+              cycle netcdf_gen_parm_loop
+            endif
+
+          endif
+
+          if (chparm_gen(ip) == 'X' .or. chparm_gen(ip) == 'x') then
+            if (verb .ge. 3) then
+              print *,' '
+              print *,'!!! NetCDF genesis read NOT requested for '
+     &               ,'parm # ',ip
+            endif
+            cycle netcdf_gen_parm_loop
+          else
+            if (verb .ge. 3) then
+              print *,' '
+              print *,'+++ NetCDF genesis read requested for parm # ',ip
+     &               ,' ... parm= ',chparm_gen(ip)
+            endif
+          endif
+
+          ! As above, we send a 1-d array, "f", to the netcdf read
+          ! routine.   While that routine returns a 2-d array (which 
+          ! we want), depending on the model & grid, we may need to 
+          ! flip the grid in the north-south direction.  I already 
+          ! have a routine for converting data from a 1-d to a 2-d 
+          ! array, and it has the functionality for flipping a grid, 
+          ! so I programmed it as getting a 1-d array from the netcdf
+          ! read routine and send that 1-d array to conv1d2d_real.
+
+          call get_var3_tlev_double (ncfile_id,chparm_gen(ip),imax
+     &                ,jmax,ncix,f,igvret)
+
+          if (verb .ge. 3) then
+            print *,' '
+            print *,'After genesis read, parm= ',chparm_gen(ip),' ifh= '
+     &             ,ifh,' lead time index= ',ltix(ifh),' parm# (ip) = '
+     &             ,ip,' ncix= ',ncix,' igvret= ',igvret
+          endif
+
+          if (igvret == 0) then
+
+c            call bitmapchk(kf,lb,f,dmin,dmax)
+
+            readgenflag(ip) = .true.
+            dmin = minval(f)
+            dmax = maxval(f)
+
+            nf_status = nf_inq_varid (ncfile_id,chparm_gen(ip),varid)
+            nf_status = nf_get_att_real (ncfile_id,varid
+     &                  ,"missing_value",xmissing_value)
+
+            if (verb .ge. 3) then
+              write (6,331)
+ 331          format ('Genesis parmread lead time     parm#'
+     &               ,'        parm_id   '
+     &               ,23x,'minval       maxval')
+
+              write (6,333) ifhours(ifh),ifclockmins(ifh),ip
+     &                     ,chparm_gen(ip),dmin,dmax
+ 333          format ('   ',i3,':',i2.2,22x,i3,10x,a30,1x,2g12.4)
+              write (6,335) chparm_gen(ip),xmissing_value
+ 335          format ('   --- ',a38,' missing value = ',g12.4)
+            endif
+
+            if (ip == 1) then    ! SST
+              call conv1d2d_real (imax,jmax,f,sst(1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 2) then   ! 850 mb specific humidity 
+              call conv1d2d_real (imax,jmax,f,q850(1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 3) then   ! 1000 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 4) then   ! 925 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,2)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 5) then   ! 800 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,3)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 6) then   ! 750 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,4)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 7) then   ! 700 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,5)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 8) then   ! 650 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,6)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 9) then   ! 600 mb relative humidity 
+              call conv1d2d_real (imax,jmax,f,rh(1,1,7)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 10) then   ! 1000 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 11) then   ! 925 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,2)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 12) then   ! 800 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,3)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 13) then   ! 750 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,4)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 14) then   ! 700 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,5)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 15) then   ! 650 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,6)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 16) then   ! 600 mb specific humidity
+              call conv1d2d_real (imax,jmax,f,spfh(1,1,7)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 17) then   ! 1000 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 18) then   !  925 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,2)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 19) then   !  800 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,3)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 20) then   !  750 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,4)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 21) then   !  700 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,5)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 22) then   !  650 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,6)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 23) then   !  600 mb temperature
+              call conv1d2d_real (imax,jmax,f,temperature(1,1,7)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 24) then   !  500 mb omega
+              call conv1d2d_real (imax,jmax,f,omega500(1,1)
+     &                                   ,need_to_flip_lats)
+            else
+              if (verb >= 3) then
+                print *,' '
+                print *,'!!! NOTE: Genesis NetCDF Parm not recognized.'
+                print *,'!!!       ip is > 24.... ip= ',ip
+                print *,'!!!       Forecast time level = ',ifh
+              endif
+            endif
+
+
+          else
+
+            if (verb >= 3) then
+              print *,' '
+              print *,'ERROR: in getdata_netcdf, call to'
+              print *,'get_var3_tlev_double, igvret= ',igvret
+            endif
+
+          endif
+
+        enddo netcdf_gen_parm_loop
+
+      endif
+c
       return
       end
 
@@ -20902,7 +22057,7 @@ c
       USE inparms; USE set_max_parms; USE atcf; USE trkrparms; USE phase
       USE structure; USE gfilename_info; USE contours
       USE verbose_output; USE waitfor_parms; USE netcdf_parms
-      USE tracking_parm_prefs; USE genesis_diags
+      USE tracking_parm_prefs; USE shear_diags; USE genesis_diags
 
       implicit none
 
@@ -20931,7 +22086,8 @@ c
      &       ,user_wants_to_track_thick500850
      &       ,user_wants_to_track_thick200500
      &       ,user_wants_to_track_thick200850
-      namelist/gendiaginfo/shearflag
+      namelist/sheardiaginfo/shearflag
+      namelist/gendiaginfo/genflag,gen_read_rh_fields
 
 c     Set namelist default values:
       use_per_fcst_command='t'
@@ -20970,8 +22126,10 @@ c     Set namelist default values:
   833 continue
       verb = 1
   837 continue
-      read (5,NML=gendiaginfo,END=839)
+      read (5,NML=sheardiaginfo,END=839)
   839 continue
+      read (5,NML=gendiaginfo,END=841)
+  841 continue
 
       print *,'in read_nlists, verb= ',verb
 
@@ -21122,6 +22280,56 @@ c
                                       ! know that a value of 0.25 will
                                       ! be the same as a 6-hour lead 
                                       ! time.
+
+        write (6,531) netcdfinfo%sstname   ! SST
+        write (6,533) netcdfinfo%q850name   ! 850 mb spec humidity
+        write (6,535) netcdfinfo%rh1000name  ! 1000 mb RH
+        write (6,537) netcdfinfo%rh925name  ! 925 mb RH
+        write (6,539) netcdfinfo%rh800name  ! 800 mb RH
+        write (6,541) netcdfinfo%rh750name  ! 750 mb RH
+        write (6,543) netcdfinfo%rh700name  ! 700 mb RH
+        write (6,545) netcdfinfo%rh650name  ! 650 mb RH
+        write (6,547) netcdfinfo%rh600name  ! 600 mb RH
+        write (6,549) netcdfinfo%spfh1000name ! 1000 mb spec humidity
+        write (6,551) netcdfinfo%spfh925name  ! 925 mb spec humidity
+        write (6,553) netcdfinfo%spfh800name  ! 800 mb spec humidity
+        write (6,555) netcdfinfo%spfh750name  ! 750 mb spec humidity
+        write (6,557) netcdfinfo%spfh700name  ! 700 mb spec humidity
+        write (6,559) netcdfinfo%spfh650name  ! 650 mb spec humidity
+        write (6,561) netcdfinfo%spfh600name  ! 600 mb spec humidity
+        write (6,563) netcdfinfo%temp1000name ! 1000 mb Temp
+        write (6,565) netcdfinfo%temp925name  ! 925 mb Temp
+        write (6,567) netcdfinfo%temp800name  ! 800 mb Temp
+        write (6,569) netcdfinfo%temp750name  ! 750 mb Temp
+        write (6,571) netcdfinfo%temp700name  ! 700 mb Temp
+        write (6,573) netcdfinfo%temp650name  ! 650 mb Temp
+        write (6,575) netcdfinfo%temp600name  ! 600 mb Temp
+        write (6,577) netcdfinfo%omega500name ! 500 mb Omega
+
+ 531    format ('NetCDF variable name for SST =               ',a30)
+ 533    format ('NetCDF variable name for 850 spec hum =      ',a30)
+ 535    format ('NetCDF variable name for 1000 mb RH =        ',a30)
+ 537    format ('NetCDF variable name for  925 mb RH =        ',a30)
+ 539    format ('NetCDF variable name for  800 mb RH =        ',a30)
+ 541    format ('NetCDF variable name for  750 mb RH =        ',a30)
+ 543    format ('NetCDF variable name for  700 mb RH =        ',a30)
+ 545    format ('NetCDF variable name for  650 mb RH =        ',a30)
+ 547    format ('NetCDF variable name for  600 mb RH =        ',a30)
+ 549    format ('NetCDF variable name for 1000 mb spec hum =  ',a30)
+ 551    format ('NetCDF variable name for  925 mb spec hum =  ',a30)
+ 553    format ('NetCDF variable name for  800 mb spec hum =  ',a30)
+ 555    format ('NetCDF variable name for  750 mb spec hum =  ',a30)
+ 557    format ('NetCDF variable name for  700 mb spec hum =  ',a30)
+ 559    format ('NetCDF variable name for  650 mb spec hum =  ',a30)
+ 561    format ('NetCDF variable name for  600 mb spec hum =  ',a30)
+ 563    format ('NetCDF variable name for 1000 mb Temp =      ',a30)
+ 565    format ('NetCDF variable name for  925 mb Temp =      ',a30)
+ 567    format ('NetCDF variable name for  800 mb Temp =      ',a30)
+ 569    format ('NetCDF variable name for  750 mb Temp =      ',a30)
+ 571    format ('NetCDF variable name for  700 mb Temp =      ',a30)
+ 573    format ('NetCDF variable name for  650 mb Temp =      ',a30)
+ 575    format ('NetCDF variable name for  600 mb Temp =      ',a30)
+ 577    format ('NetCDF variable name for  500 mb Omega =     ',a30)
 
  300    format ('Total *possible* number of input NetCDF variables,'
      &         ,/,'     including those that are included in the input'
@@ -21277,10 +22485,31 @@ c
         endif
 
         print *,' ' 
-        print *,'Values read in from gendiaginfo namelist: '
+        print *,'Values read in from sheardiaginfo namelist: '
         write (6,161) shearflag
- 161    format ('Shear flag = ',a1)
+ 161    format ('Shear flag = shearflag = ',a1)
         print *,' ' 
+c
+        print *,' '
+        print *,'Values read in from gendiaginfo namelist: '
+        write (6,163) genflag
+ 163    format ('Genesis flag = genflag = ',a1)
+        write (6,165) gen_read_rh_fields
+ 165    format ('Flag to directly read RH fields = '
+     &         ,'gen_read_rh_fields = ',a1)
+
+        if (genflag == 'y' .or. genflag == 'Y') then
+          genflag = 'y'
+        else
+          genflag = 'n'
+        endif
+
+        if (gen_read_rh_fields == 'y' .or. gen_read_rh_fields == 'Y')
+     &  then
+          gen_read_rh_fields = 'y'
+        else
+          gen_read_rh_fields = 'n'
+        endif
 c
       endif
       return
@@ -23738,7 +24967,7 @@ c---------------------------------------------------------------------
       subroutine rvcal (imax,jmax,dlon,dlat,z,vp)
 c
 c     ABSTRACT: This routine calculates the relative vorticity (zeta)
-c     from u,v on an evenly-spaced lat/lon grid. Centered finite 
+c     from u,v on a lat/lon grid. Centered finite
 c     differences are used on the interior points and one-sided 
 c     differences are used on the boundaries.
 c
@@ -23746,10 +24975,12 @@ c     NOTE: There are 3 critical arrays in this subroutine, the first
 c     being zeta and the 2nd and 3rd being u and v.  There is a 
 c     critical difference in the array indexing for the levels.  For
 c     zeta, the array is dimensioned with levels from 1 to 3, with 
-c     1 = 850, 2 = 700, 3 = sfc.  However, there is an extra level 
+c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels
 c     for the winds, such that the level dimension goes 1 = 850, 
-c     2 = 700, 3 = 500, 4 = sfc.  So we need to adjust for that in
-c     this routine.
+c     2 = 700, 3 = 500, 4 = 200, 5 = sfc, and this is annotated now
+c     by the use of the "nlev850", "nlev700" and "levsfc" variables
+c     from module level_parms.  So we need to be sure to properly 
+c     annotate that in this routine.
 c
 c     LOCAL VARIABLES:
 c
