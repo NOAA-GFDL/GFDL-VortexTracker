@@ -8431,6 +8431,49 @@ c
         sst_smooth = -9999.0
       endif
 
+      !----------------------------------------------------------------
+      ! Now get a smoothed, barnes-averaged value of RH at the center
+      ! point.  We will do this for a level that averages 1000 & 925 mb,
+      ! and also for a level that averages 800,750,700,650 & 600 mb.
+      !----------------------------------------------------------------
+
+      print *,' '
+      print *,'xxtim A Now calling get_rh_at_center '
+
+      igrhret = 0
+      re = 125.0
+      ri = 250.0
+      call get_rh_at_center (fixlon(ist,ifh),fixlat(ist,ifh),ist
+     &                ,ifh,imax,jmax,dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,rh_1000_925_smooth,rh_800_600_smooth,readgenflag
+     &                ,already_computed_domain_wide_rh,igrhret)
+
+      print *,' '
+      print *,'xxtim B Just after get_rh_at_center '
+
+      !----------------------------------------------------------------
+      ! Now get a smoothed, barnes-averaged value of 500 mb omega at
+      ! the center point. 
+      !----------------------------------------------------------------
+
+      if (readgenflag(24)) then
+        re = 125.0
+        ri = 250.0
+        igsvret = 0
+        call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
+     &                ,ifh,imax,jmax,omega500(1,1),'omega500',dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,xsmoothval,igsvret)
+        if (igsvret == 0) then
+          omega500_smooth = xsmoothval
+        else
+          omega500_smooth = -9999.0
+        endif
+      else
+        omega500_smooth = -9999.0
+      endif
+
 c
       return
       end
@@ -26602,6 +26645,472 @@ c         loop, and try it again with the smaller re and ri.
 
       enddo radmaxloop
 
+      return
+      end
+c
+c---------------------------------------------------------------------
+c
+c---------------------------------------------------------------------
+      subroutine get_rh_at_center (xcenlon,xcenlat,ist,ifh
+     &              ,imax,jmax,dx,dy,valid_pt,maxstorm
+     &              ,re,ri,trkrinfo,rh_1000_925_smooth,rh_800_600_smooth
+     &              ,readgenflag,already_computed_domain_wide_rh
+     &              ,igrhret)
+c
+c     ABSTRACT: This routine computes smoothed values of RH, averaged
+c     over multiple layers, initially 1000-925 mb and 800-600 mb.
+c     It does this by first calling a routine that will average the
+c     data from various vertical levels together, then by calling a
+c     a routine that uses the  Barnes analysis and values of re and ri
+c     that are also specified in the calling routine.
+c
+c     INPUT:
+c     xcenlon real value of center position at which to compute average
+c     xcenlat real value of center position at which to compute average
+c     ist     Storm number currently being processed
+c     ifh     Forecast hour currently being processed
+c     imax    Max number of pts in x-direction for this grid
+c     jmax    Max number of pts in y-direction for this grid
+c     dx      grid-spacing of the model in the i-direction
+c     dy      grid-spacing of the model in the j-direction
+c     valid_pt Logical; bitmap indicating if valid data at that pt.
+c     maxstorm Max # of storms that can be handled in this run
+c     re      real e-folding radius
+c     ri      real radius of influence
+c     trkrinfo derived type detailing user-specified grid info
+c     readgenflag logical array, indicates if a genesis parm was read in
+c     already_computed_domain_wide_rh character (y/n) indicates if RH
+c             has already been computed across the whole domain for this
+c             forecast hour (this keeps us from re-computing it for 
+c             every storm at each lead time).
+c
+c     OUTPUT:
+c     rh_1000_925_smooth real value of the smoothed value of
+c                 barnes-averaged RH in the 1000-925 mb layer.
+c     rh_800_600_smooth  real value of the smoothed value of
+c                 barnes-averaged RH in the 800-600 mb layer.
+c     igsvret integer return code from this routine
+c
+c     LOCAL:
+
+      USE def_vitals; USE grid_bounds; USE trig_vals
+      USE tracked_parms; USE read_parms; USE trkrparms
+      USE genesis_diags; USE verbose_output
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      integer   ist,ifh,imax,jmax,maxstorm,igsvret,npts,bskip,icut
+      integer   ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret,icutmax
+      integer   icount,ibret,imrhf,ichrret,icmlret,ip,igrhret
+      real, allocatable :: mean_rh(:,:)
+      real      re,ri,xsmoothval,xcenlon,xcenlat,dx,dy,reold,riold
+      real      rh_1000_925_smooth,rh_800_600_smooth
+      character :: already_computed_domain_wide_rh*1
+      logical(1) valid_pt(imax,jmax),readgenflag(nreadgenparms)
+c
+      if (allocated(mean_rh)) deallocate (mean_rh)
+      allocate (mean_rh(imax,jmax),stat=imrhf)
+      if (imrhf /= 0) then
+        print *,' '
+        print *,'!!! ERROR in get_rh_at_center allocating mean_rh'
+        print *,'!!! array, imrhf = ',imrhf
+        stop 93
+        return
+      endif
+
+      !----------------------------------------------------------------
+      ! First call  compute_rh_from_q to get the RH for each of the
+      ! vertical layers we are working on....
+      !----------------------------------------------------------------
+
+      if (verb >= 1) then 
+        print *,'rq1, need_to_compute_rh_from_q= '
+     &         ,need_to_compute_rh_from_q
+        print *,'     already_computed_domain_wide_rh= '
+     &         ,already_computed_domain_wide_rh
+      endif
+
+      if (need_to_compute_rh_from_q == 'y' .and.
+     &    already_computed_domain_wide_rh == 'n') then
+        do ip = 3,9
+          ! This loop starts at 3 because the first RH variable is
+          ! the 3rd variable in the list of genesis variables.
+          call compute_rh_from_q (ist,ifh,imax,jmax,dx,dy,ip
+     &                  ,valid_pt,maxstorm,trkrinfo,readgenflag
+     &                  ,ichrret)
+        enddo
+        already_computed_domain_wide_rh = 'y'
+      endif
+
+      !----------------------------------------------------------------
+      ! Now call  calc_multi_layer_mean for 1000-925 to get the mean
+      ! RH in that layer.
+      !----------------------------------------------------------------
+
+      mean_rh = 0.0
+      icmlret = 0
+      call calc_multi_layer_mean (xcenlon,xcenlat,ist
+     &                ,ifh,imax,jmax,'rh','1000-925',dx,dy
+     &                ,valid_pt,maxstorm,trkrinfo,mean_rh,icmlret)
+
+      if (icmlret == 0) then
+
+        igsvret = 0
+        call get_smooth_value_at_pt (xcenlon,xcenlat,ist
+     &                  ,ifh,imax,jmax,mean_rh(1,1),'mean_rh1',dx,dy
+     &                  ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                  ,xsmoothval,igsvret)
+
+        if (igsvret == 0) then
+          rh_1000_925_smooth = xsmoothval
+        else  
+          rh_1000_925_smooth = -9999.0
+        endif
+
+      else
+        rh_1000_925_smooth = -9999.0
+      endif
+
+      !----------------------------------------------------------------
+      ! Now call  calc_multi_layer_mean for 800-600 to get the mean
+      ! RH in that layer.
+      !----------------------------------------------------------------
+
+      mean_rh = 0.0
+      icmlret = 0
+      call calc_multi_layer_mean (xcenlon,xcenlat,ist
+     &                ,ifh,imax,jmax,'rh','800-600',dx,dy
+     &                ,valid_pt,maxstorm,trkrinfo,mean_rh,icmlret)
+
+      if (icmlret == 0) then
+
+        igsvret = 0
+        call get_smooth_value_at_pt (xcenlon,xcenlat,ist
+     &                  ,ifh,imax,jmax,mean_rh(1,1),'mean_rh8',dx,dy
+     &                  ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                  ,xsmoothval,igsvret)
+
+        if (igsvret == 0) then
+          rh_800_600_smooth = xsmoothval
+        else
+          rh_800_600_smooth = -9999.0
+        endif
+
+      else
+        rh_800_600_smooth = -9999.0
+      endif      
+c
+      return
+      end
+c
+c----------------------------------------------------------------------
+c
+c----------------------------------------------------------------------
+      subroutine compute_rh_from_q (ist,ifh,imax,jmax,dx,dy,ip
+     &                  ,valid_pt,maxstorm,trkrinfo,readgenflag
+     &                  ,ichrret)
+c
+c     ABSTRACT: This routine computes relative humidity across a full
+c     model domain, using T and q.  This will only be called, obviously,
+c     if RH was not available to be read in for this model.  For 
+c     computing saturation vapor pressure (qs), I'm using Tetens
+c     formula, because it includes the variation of latent heat with 
+c     temperature and because it is what HWRF uses.  The form of 
+c     Tetens formula I'm using is from the 2nd edition of the Ronald
+c     Stull book, Meterology for Scientists and Engineers, p. 98.
+c
+c     INPUT:
+c     ist     Storm number currently being processed
+c     ifh     Forecast hour currently being processed
+c     imax    Max number of pts in x-direction for this grid
+c     jmax    Max number of pts in y-direction for this grid
+c     dx      grid-spacing of the model in the i-direction
+c     dy      grid-spacing of the model in the j-direction
+c     ip      integer index for the vertical level for RH
+c     valid_pt Logical; bitmap indicating if valid data at that pt.
+c     maxstorm Max # of storms that can be handled in this run
+c     trkrinfo derived type detailing user-specified grid info
+c     readgenflag logical array, indicates if a genesis parm was read in
+c
+c     OUTPUT:
+c     ichrret integer return code from this routine
+c
+c     LOCAL:
+
+      USE def_vitals; USE grid_bounds; USE trig_vals
+      USE tracked_parms; USE read_parms; USE trkrparms
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      real, parameter :: rd_over_rv=0.622
+      real, parameter :: l_over_rv_water=5423.0
+      real, parameter :: l_over_rv_ice=6139.0
+      real, parameter :: one_over_tnot=0.003663  ! (1/273)
+      real, parameter :: eo=0.611
+      real, parameter :: b=17.2694
+      real, parameter :: t1=273.16
+      real, parameter :: t2=35.86
+      integer   ist,ifh,imax,jmax,maxstorm,ichrret,ip,qix,tix,i,j
+      integer   z,x999ct,rhgt100ct
+      real      dx,dy,penv,es,qs,xminrh,xmaxrh
+      logical(1) valid_pt(imax,jmax),readgenflag(nreadgenparms)
+c
+      select case (ip)
+        case (3); z=1; qix=10; tix=17; penv=100.0;
+        case (4); z=2; qix=11; tix=18; penv= 92.5;
+        case (5); z=3; qix=12; tix=19; penv= 80.0;
+        case (6); z=4; qix=13; tix=20; penv= 75.0;
+        case (7); z=5; qix=14; tix=21; penv= 70.0;
+        case (8); z=6; qix=15; tix=22; penv= 65.0;
+        case (9); z=7; qix=16; tix=23; penv= 60.0;
+        case default;
+          print *,' '
+          print *,'ERROR in subroutine  compute_rh_from_q.  The index'
+          print *,'  ip that indicates the vertical level needs to be'
+          print *,'  in the range of 3-9 is out of range. Here, ip= ',ip
+          stop 95
+      end select
+
+      print *,' '
+      print *,'top of compute_rh_from_q, z= ',z
+      print *,'  qix= ',qix,'  readgenflag(qix)= ',readgenflag(qix)
+      print *,'  tix= ',tix,'  readgenflag(tix)= ',readgenflag(tix)
+
+      if (readgenflag(qix) .and. readgenflag(tix)) then
+
+        rhgt100ct = 0
+
+        jloop: do j = 1,jmax
+
+          iloop: do i = 1,imax
+
+            if (valid_pt(i,j)) then
+
+c             Teten's formula:
+              es = eo * exp((b * (temperature(i,j,z) - t1)) 
+     &                         / (temperature(i,j,z) - t2))
+
+c              ! Teten's formula, temperature dependent 
+c              if (temperature(i,j,z) < 273.0) then
+c                es = eo * exp((21.875 * (temperature(i,j,z)-273.0)) 
+c     &                  / ((temperature(i,j,z)-273.0) + 265.5))
+c              else
+c                es = eo * exp((17.27 * (temperature(i,j,z)-273.0))
+c     &                  / ((temperature(i,j,z)-273.0) + 237.3))
+c              endif
+c
+c              ! Clausius-Clapeyron equation:
+c              if (temperature(i,j,z) < 273.0) then
+c                es = eo * exp(l_over_rv_ice * (one_over_tnot -
+c     &               (1.0 / temperature(i,j,z))))
+c              else
+c                es = eo * exp(l_over_rv_water * (one_over_tnot -
+c     &               (1.0 / temperature(i,j,z))))
+c              endif
+
+              qs = (rd_over_rv * es) / penv
+c              print *,'j= ',j,' i= ',i,' es= ',es,'  qs= ',qs
+              rh(i,j,z) = (spfh(i,j,z) / qs) * 100.0
+
+c              if (spfh(i,j,z) < 0.00000001) then
+c                print *,'qzero: j= ',j,' i= ',i,' z= ',z
+c     &                 ,' spfh(i,j,z)= ',spfh(i,j,z)
+c              endif
+c
+c              if (spfh(i,j,z) ==  0.0000000000) then
+c                print *,'qzero: j= ',j,' i= ',i,' z= ',z
+c     &                 ,' spfh(i,j,z)= ',spfh(i,j,z)
+c              endif
+
+              if (rh(i,j,z) > 100.0) then
+                rhgt100ct = rhgt100ct + 1
+
+c                if (rh(i,j,z) > 102.0) then
+c                  print '(1x,a11,i4,a5,i4,a5,f9.6,a6,f9.6,a6,f9.3)'
+c     &                  ,'rhgt100 j= ',j,'  i= ',i,' es= ',es,'  qs= '
+c     &                  ,qs,'  rh= ',rh(i,j,z)
+c                endif
+
+                rh(i,j,z) = 100.0
+              endif
+
+            endif
+
+          enddo iloop
+
+        enddo jloop
+
+        xmaxrh = -999999.0
+        xminrh =  999999.0
+        x999ct = 0
+
+        jloop2: do j = 1,jmax
+          iloop2: do i = 1,imax
+
+            if (rh(i,j,z) < xminrh) then
+              xminrh = rh(i,j,z)
+            endif
+
+            if (rh(i,j,z) > xmaxrh) then
+              xmaxrh = rh(i,j,z)
+            endif
+
+            if (rh(i,j,z) < 0.0) then
+              x999ct = x999ct + 1
+            endif
+
+          enddo iloop2
+        enddo jloop2
+
+        print *,' '
+        print *,'xxrhstat: xminval= ',xminrh,' xmaxval= ',xmaxrh
+        print *,'x999ct = ',x999ct,'  rhgt100ct= ',rhgt100ct
+      
+      endif
+c
+      return
+      end
+c
+c----------------------------------------------------------------------
+c
+c----------------------------------------------------------------------
+      subroutine calc_multi_layer_mean (xcenlon,xcenlat
+     &                ,ist,ifh,imax,jmax,cvar,clevstr,dx,dy
+     &                ,valid_pt,maxstorm,trkrinfo
+     &                ,xmean_arr,icmlret)
+c
+c     ABSTRACT: This routine computes a multi-layer mean of an input
+c     variable.
+c
+c     INPUT:
+c     xcenlon real value of center position at which to compute average
+c     xcenlat real value of center position at which to compute average
+c     ist     Storm number currently being processed
+c     ifh     Forecast hour currently being processed
+c     imax    Max number of pts in x-direction for this grid
+c     jmax    Max number of pts in y-direction for this grid
+c     cvar    character string that contains variable being searched
+c     clevstr character string that indicates vertical levels being 
+c             included in the vertical layer mean
+c     dx      grid-spacing of the model in the i-direction
+c     dy      grid-spacing of the model in the j-direction
+c     valid_pt Logical; bitmap indicating if valid data at that pt.
+c     maxstorm Max # of storms that can be handled in this run
+c     trkrinfo derived type detailing user-specified grid info
+c
+c     OUTPUT:
+c     xmean_arr real array containing mean field
+c     icmlret integer return code from this routine
+c
+c     LOCAL:
+
+      USE def_vitals; USE grid_bounds; USE trig_vals
+      USE tracked_parms; USE trkrparms
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      integer, allocatable :: point_ct(:,:)
+      integer   ist,ifh,imax,jmax,maxstorm,igsvret,npts,bskip,icut
+      integer   ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret,icutmax
+      integer   icount,ibret,z,zstart,zend,ipc,icmlret,i,j
+      real      xmean_arr(imax,jmax)
+      real      re,ri,xsmoothval,xcenlon,xcenlat,dx,dy,reold,riold
+      real      xmaxrh,xminrh
+      logical(1) valid_pt(imax,jmax)
+      character*1 :: in_grid
+      character(*) :: clevstr,cvar
+c
+      if (allocated(point_ct)) deallocate(point_ct)
+      allocate (point_ct(imax,jmax),stat=ipc)
+      if (ipc /= 0) then
+        print *,' '
+        print *,'!!! ERROR in calc_multi_layer_mean allocating'
+        print *,'!!! point_ct array, ipc = ',ipc
+        print *,'!!! STOPPING EXECUTION'
+        STOP 91
+      endif
+
+      !----------------------------------------------------------------
+      ! First go through and sum up all of the data values on
+      ! all of the vertical levels.
+      !----------------------------------------------------------------
+
+      if (cvar == 'rh' .and. clevstr == '1000-925') then
+        zstart = 1
+        zend   = 2
+      else if (cvar == 'rh' .and. clevstr == '800-600') then
+        zstart = 3
+        zend   = 7
+      endif
+
+c      print *,' '
+c      print *,'in calc_multi_layer_mean, cvar= ',cvar
+c      print *,'  -- clevstr= ',clevstr
+c      print *,'  -- zstart= ',zstart,' zend= ',zend
+
+      point_ct = 0
+
+      zloop: do z = zstart,zend
+
+        jloop: do j= 1,jmax
+        
+          iloop: do i= 1,imax
+
+            if (valid_pt(i,j) .and. rh(i,j,z) > -998.0) then
+              xmean_arr(i,j) = xmean_arr(i,j) + rh(i,j,z)
+              point_ct(i,j)  = point_ct(i,j) + 1
+c              print *,'XL1 z= ',z,' i= ',i,' j= ',j,' xmean_arr(i,j)= '
+c     &               ,xmean_arr(i,j),' point_ct(i,j)= '
+c     &               ,point_ct(i,j)
+            endif
+
+          enddo iloop
+
+        enddo jloop
+
+      enddo zloop
+ 
+      !----------------------------------------------------------------
+      ! Now compute the multi-layer mean.  This code should be able to
+      ! be used no matter what variables & levels were being 
+      ! processed above.
+      !----------------------------------------------------------------
+
+      xminrh = 999999.0
+      xmaxrh = -999999.0
+
+      jloop2: do j= 1,jmax
+
+        iloop2: do i= 1,imax
+
+          if (point_ct(i,j) > 0) then
+            xmean_arr(i,j) = xmean_arr(i,j) / float(point_ct(i,j))
+            if (xmean_arr(i,j) > xmaxrh) then
+              xmaxrh = xmean_arr(i,j)
+            endif
+            if (xmean_arr(i,j) < xminrh) then
+              xminrh = xmean_arr(i,j)
+            endif
+c            print *,'XL2 z= ',z,' i= ',i,' j= ',j,' xmean_arr(i,j)= '
+c     &             ,xmean_arr(i,j),' point_ct(i,j)= '
+c     &             ,point_ct(i,j)
+          else
+            xmean_arr(i,j) = -9999.0
+          endif
+
+        enddo iloop2
+
+      enddo jloop2
+
+      print *,' '
+      print *,'xxmeanstat: lev= ',clevstr,' xmaxrh= ',xmaxrh
+     &       ,' xminrh= ',xminrh
+
+      deallocate (point_ct)
+c
       return
       end
 c
