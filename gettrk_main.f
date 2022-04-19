@@ -714,6 +714,7 @@ c
       integer   waitfor_gfile_status,waitfor_ifile_status,ncfile_tmax
       integer   wait_max_ifile_wait,ivr,r34_good_ct,itha,ilma,inctcv
       integer   date_time(8)
+      integer   igarret
       character (len=10) big_ben(3)
       real      fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real      gridprs(maxstorm,maxtime)
@@ -743,6 +744,7 @@ c
       real      proci_from_tcv,prs_contint_thresh,xprstemp
       real      divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
       real      omega500_smooth,sst_smooth
+      real      axisymet_rmw_dist,axisymet_rmw_val
       integer   enable_timing,igrct,ipfbret,icmc2f,iqwcf
       character(pfc_cmd_len) :: pfc_final
 c
@@ -1197,9 +1199,9 @@ c       Also, for right now, put the value of readflag into all of the
 c       calcparms for parameters 3 through 9.  Note that in getdata we
 c       read in 19 parms, but in this next loop we only check the 
 c       readflags up to maxtp (= 14 as of 7/2015).  That's because
-c       read parms 12 & 13 are for 500 mb u & v, which are not used for 
+c       read parms 12 & 13 are for 500 mb u & v, which are not used for
 c       tracking (only for calculating the deep layer mean wind for
-c       the next guess), and parm 14 is the 300-500 mb mean temperature, 
+c       the next guess), parm 14 is the 300-500 mb mean temperature, 
 c       which is used for determining storm phase, parms 15 & 16 are for
 c       500 & 200 mb hgt, parm 17 is land-sea mask, and parms 18-19 are
 c       200 mb u & v.  Parms 10 & 11 are for the near-surface winds, 
@@ -3328,6 +3330,11 @@ c              if (igmwret /= 0 .and. gridmove_status == 'stopped') then
                 stormswitch(ist) = 2
                 cycle stormloop
               endif
+
+              call get_axisymet_rmw (fixlon(ist,ifh),fixlat(ist,ifh)
+     &                       ,imax,jmax,dx,dy,valid_pt
+     &                       ,trkrinfo,axisymet_rmw_dist
+     &                       ,axisymet_rmw_val,igarret)
 
               ileadtime = nint(fhreal(ifh) * 100.0)
               ifcsthour = ileadtime / 100
@@ -7658,7 +7665,7 @@ c     method to remove the vortex:
 c
 c     1. Find the circulation center at 850 hPa. For SHIPS, that finds
 c        the center point that maximizes the symmetric tangential wind
-c        out to 500 km. [For  the tracker, I will either use the 
+c        out to 500 km. [For the  tracker, I will either use the 
 c        mean fix for the current lead time or I will use the fix 
 c        position for 850 mb wind circulation].
 c
@@ -14403,6 +14410,376 @@ c     that we are sure radmaxwind is within those points.
         print *,'At end of get_max_wind, vmax= ',vmax,' rmax= ',rmax
       endif
 
+      return
+      end
+c
+c-----------------------------------------------------------------------
+c
+c-----------------------------------------------------------------------
+      subroutine get_axisymet_rmw (xcenlon,xcenlat
+     &                       ,imax,jmax,dx,dy,valid_pt
+     &                       ,trkrinfo,axisymet_rmw_dist
+     &                       ,axisymet_rmw_val,igarret)
+c
+c     ABSTRACT: This subroutine calculates the axisymmetric RMW (ARMW),
+c     as opposed to the gridpoint RMW that was found in subroutine
+c     get_max_wind.  We will compute the mean wind in bands that are 
+c     3-km wide, extending from 0 out to 125 km for a first pass.  The
+c     max value is determined, then a check is done to ensure that the 
+c     integral of dV/dr > 0 going out to the diagnosed ARMW, and then
+c     the integral of dV/dr < 0 going outward from the ARMW.  If these
+c     do not, then we will shift the search range to go from 75 km out
+c     to 200 km, check again, and if still needed, try up to two more
+c     times with ranges of 150-275 km and then 225-350 km.  Note that
+c     we do not have to worry about sign of the winds for NHem vs. 
+c     SHem as we do in the wind structure routines, which deal with 
+c     tangential winds.  Here, we are just concerned with wind
+c     magnitude.
+c
+c     INPUT:
+c
+c     xcenlon   fix longitude of storm center for current forecast hour
+c     xcenlat   fix latitude of storm center for current forecast hour
+c     imax      max i dimension of model grid
+c     jmax      max j dimension of model grid
+c     dx        grid spacing in i-direction of model grid
+c     dy        grid spacing in j-direction of model grid
+c     valid_pt  logical bitmap for valid data at a grid point
+c     trkrinfo  derived type detailing user-specified grid info
+c     axisymet_rmw_dist  real distance to the axisymet RMW
+c     axisymet_rmw_val   real value of axisymet wind at axisymet RMW
+c
+c     OUTPUT:
+c    
+c     axisymet_rmw  value of the axisymmetric RMW
+c     igarret   return code from this subroutine
+c
+c     LOCAL:
+c     numdist   Number of discrete radii at which the winds will
+c               be evaluated
+c     rdist     The radii (km) at which winds will be evaluated
+c
+
+      USE grid_bounds; USE tracked_parms; USE trig_vals; USE trkrparms
+      USE verbose_output
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+
+      integer, parameter :: numdist=42,numazim=24
+      real      rdist1(numdist),rdist2(numdist),rdist3(numdist)
+      real      rdist4(numdist),rdist(numdist),azim_ave_wmag(numdist)
+      real      degrees,dx,dy,rmax,xcenlon,xcenlat,vmax
+      real      cosfac,dist,vmag,targlat,targlon,bear,xintrp_u,xintrp_v
+      real      wmag,wmag_sum,maxrmw_wmag,maxrmw_dist
+      real      axisymet_rmw_dist,axisymet_rmw_val,integ_dvdr_thresh
+      real      rising_sum_dvdr,declining_sum_dvdr,dvdr
+      logical(1) valid_pt(imax,jmax)
+      integer   jbeg_hold,jend_hold,bimect,bimwct,imax,jmax
+      integer   igmwret,ilonfix,jlatfix,numipts,numjpts,i,j,ip
+      integer   ibeg,jbeg,iend,jend,igarret,bimct,ibiret1,ibiret2
+      integer   azimuth_ct,maxrmw_ix,rdist_ix,ir,idv_start,idv_end
+      integer   rising_sum_dvdr_ct,declining_sum_dvdr_ct,kr,mr
+      integer   idist,iazim,ird
+      character :: got_good_armw*1,perform_rising_dvdr*1
+c
+      data rdist1/  3.,  6.,  9., 12., 15., 18., 21., 24., 27., 30.
+     &           , 33., 36., 39., 42., 45., 48., 51., 54., 57., 60.
+     &           , 63., 66., 69., 72., 75., 78., 81., 84., 87., 90.
+     &           , 93., 96., 99.,102.,105.,108.,111.,114.,117.,120.
+     &           ,123.,126./
+      data rdist2/ 75., 78., 81., 84., 87., 90., 93., 96., 99.,102.
+     &           ,105.,108.,111.,114.,117.,120.,123.,126.,129.,132.
+     &           ,135.,138.,141.,144.,147.,150.,153.,156.,159.,162.
+     &           ,165.,168.,171.,174.,177.,180.,183.,186.,189.,192.
+     &           ,195.,198./
+      data rdist3/150.,153.,156.,159.,162.,165.,168.,171.,174.,177.
+     &           ,180.,183.,186.,189.,192.,195.,198.,201.,204.,207.
+     &           ,210.,213.,216.,219.,222.,225.,228.,231.,234.,237.
+     &           ,240.,243.,246.,249.,252.,255.,258.,261.,264.,267.
+     &           ,270.,273./
+      data rdist4/225.,228.,231.,234.,237.,240.,243.,246.,249.,252.
+     &           ,255.,258.,261.,264.,267.,270.,273.,276.,279.,282.
+     &           ,285.,288.,291.,294.,297.,300.,303.,306.,309.,312.
+     &           ,315.,318.,321.,324.,327.,330.,333.,336.,339.,342.
+     &           ,345.,348./
+c
+      got_good_armw = 'n'
+      rdist_ix = 1
+      axisymet_rmw_dist = -999.0
+      axisymet_rmw_val  = -999.0
+
+      rdistloop: do while (got_good_armw == 'n' .and.  rdist_ix < 5)
+
+        ! This rdistloop goes through at least one list of radii to
+        ! search over (starting with the rdist1 array), and perhaps up
+        ! to four lists (ending with the rdist4 array), depending on 
+        ! whether or not an acceptable ARMW is found.
+
+        azim_ave_wmag = -999.0
+
+        select case (rdist_ix)
+          case (1); rdist = rdist1
+          case (2); rdist = rdist2
+          case (3); rdist = rdist3
+          case (4); rdist = rdist4
+        end select
+
+        radiusloop: do idist = 1,numdist
+
+          wmag_sum   = 0.0
+          azimuth_ct = 0
+
+          azimloop: do iazim = 1,numazim
+
+            bear = ((iazim-1) * 15.) + 7.5
+
+            call distbear (xcenlat,xcenlon,rdist(idist)
+     &                    ,bear,targlat,targlon)
+
+            call bilin_int_uneven (targlat,targlon
+     &           ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
+     &           ,valid_pt,bimct,-99,ibiret1)
+
+            call bilin_int_uneven (targlat,targlon
+     &           ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
+     &           ,valid_pt,bimct,-99,ibiret2)
+
+            if (ibiret1 == 0 .and. ibiret2 == 0) then
+              wmag = sqrt (xintrp_u**2 + xintrp_v**2)
+              wmag_sum = wmag_sum + wmag
+              azimuth_ct = azimuth_ct + 1
+
+c              if ( verb .ge. 3 ) then
+c                print '(2x,a21,f8.2,a14,f8.2)'
+c     &               ,'   intrp wind speed= '
+c     &               ,wmag,'    (in kts)= ',wmag*1.9427
+c              endif
+
+            endif
+
+          enddo azimloop
+
+          if (azimuth_ct > 0) then
+            ! Compute azimuthally-averaged winds at 
+            ! this distance
+            azim_ave_wmag(idist) = wmag_sum / float(azimuth_ct)
+          else
+            azim_ave_wmag(idist) = -999.0
+          endif
+
+        enddo radiusloop
+
+        if (verb .ge. 3) then
+          print *,' '
+          print *,' In get_axisymet_rmw, azimuthally averaged wind'
+          print *,' values (m/s) follow for rdist_ix= ',rdist_ix
+          print *,' '
+          do ird = 1,numdist
+            write (6,105) ird,rdist(ird),azim_ave_wmag(ird)
+          enddo
+  105     format (1x,5x,'  ix= ',i3,' radius= ',f7.2
+     &           ,' (km)    azim_ave_wmag= ',f7.2,' (m/s)')
+        endif
+
+        !--------------------------------------------------------------
+        ! Now go through the array of azimuthally averaged wind values
+        ! and find the max value.
+        !--------------------------------------------------------------
+
+        maxrmw_wmag = -999.0
+        maxrmw_dist = -999.0
+        maxrmw_ix   =   -999
+
+        find_rmw_loop: do ir = 1,numdist
+
+          if (azim_ave_wmag(ir) > -998.0 .and.
+     &        azim_ave_wmag(ir) > maxrmw_wmag) then
+
+            maxrmw_wmag = azim_ave_wmag(ir)
+            maxrmw_dist = rdist(ir)
+            maxrmw_ix   = ir
+
+          endif
+
+        enddo find_rmw_loop
+
+        if ( verb .ge. 3 ) then
+          print '(2x,a17,i3,2(a15,f8.2,a5),a13,i4)'
+     &          ,'After ARMW loop# ',rdist_ix 
+     &          ,'  maxrmw_wmag= ',maxrmw_wmag,' m/s '
+     &          ,'  maxrmw_dist= ',maxrmw_dist,' km '
+     &          ,'  maxrmw_ix= ',maxrmw_ix
+        endif
+
+        !--------------------------------------------------------------
+        ! Now go through the array of azimuthally averaged wind values
+        ! and ensure that the integral of dV/dr > 0 for radii leading
+        ! up to maxrmw_dist and the integral of dV/dr < 0 for radii 
+        ! extending outward from maxrmw_dist.  For this analysis, look
+        ! at distances up to +/- 50 km from maxrmw_dist.
+        !--------------------------------------------------------------
+
+        perform_rising_dvdr = 'y'
+        integ_dvdr_thresh = 0.10
+
+        ! Find the starting index for the search....
+
+        if (maxrmw_ix < 18) then
+          ! maxrmw_ix is close to the low range of the rdist array.  If
+          ! less than 5, it is possible that this model might not have
+          ! a wind profile for this case that increases from a weaker 
+          ! value out to the RMW, so we will assume that is the case
+          ! and set a flag to not do the check of the integral of 
+          ! dV/dr and just give the test value a nominal passing value
+          ! so it will pass the check further below here.
+          if (maxrmw_ix < 5) then
+            idv_start = maxrmw_ix  ! Need this for declining_sum loop
+            perform_rising_dvdr = 'n'
+            rising_sum_dvdr = integ_dvdr_thresh
+          else
+            idv_start = 1
+          endif
+        else
+          idv_start = maxrmw_ix - 17
+        endif
+
+        ! Find the ending index for the search....
+
+        if (maxrmw_ix > (numdist-17)) then
+          ! maxrmw_ix is close to the upper range of the rdist array.
+          ! If it is any closer than numdist-5 to the upper range, then
+          ! we will not have enough data points to do a proper integral
+          ! of dV/dR, so we will cycle rdistloop in order to start the
+          ! scan all over again with the next set of rdist values.
+          if (maxrmw_ix > (numdist-5)) then
+            if (rdist_ix < 4) then
+              ! Bump up rdist_ix by 1 in order to use the next set of
+              ! rdist array values in the next loop through rdistloop
+              if ( verb .ge. 3 ) then
+                print *,' '
+                print *,' In get_axisymet_rmw, the selected maxrmw_ix'
+                print *,' index is too close to the upper range.  We'
+                print *,' will continue the search again up in the next'
+                print *,' rdist range, with another loop through'
+                print *,' rdistloop.'
+                print *,' rdist_ix= ',rdist_ix,' maxrmw_ix= ',maxrmw_ix
+              endif
+              rdist_ix = rdist_ix + 1
+              cycle rdistloop
+            else
+              if ( verb .ge. 3 ) then
+                print *,' '
+                print *,' In get_axisymet_rmw, the selected maxrmw_ix'
+                print *,' index is too close to the upper range.  We'
+                print *,' are at the maximum rdist index of 4, so we'
+                print *,' have hit the max search range.  We will exit'
+                print *,' the subroutine without finding ARMW.'
+                print *,' rdist_ix= ',rdist_ix,' maxrmw_ix= ',maxrmw_ix
+              endif
+              axisymet_rmw_dist = -999.0
+              axisymet_rmw_val  = -999.0
+              return
+            endif 
+          else
+            ! The maxrmw_ix index is somewhere between numdist-17 and
+            ! numdist-5, so we can calculate the integral of dV/dr, and
+            ! just use the max (numdist) as our ending index.
+            idv_end = numdist
+          endif
+        else
+          idv_end = maxrmw_ix + 17
+        endif
+
+        !---------------------------------------------------------------
+        ! Compute the integral of dV/dr on the rising part of the wind
+        ! profile curve (leading up to the RMW).  Start at idv_start 
+        ! and go up to the index for where we found the maxrmw.
+        !---------------------------------------------------------------
+
+        if (perform_rising_dvdr == 'y') then
+          rising_sum_dvdr    = 0.0
+          rising_sum_dvdr_ct = 0
+
+          do kr = idv_start,maxrmw_ix-1
+            if (azim_ave_wmag(kr) > -998.0 .and.
+     &          azim_ave_wmag(kr+1) > -998.0) then
+              dvdr = azim_ave_wmag(kr+1) - azim_ave_wmag(kr)
+              rising_sum_dvdr    = rising_sum_dvdr + dvdr
+              rising_sum_dvdr_ct = rising_sum_dvdr_ct + 1
+            endif
+          enddo
+        endif
+
+        !---------------------------------------------------------------
+        ! Compute the integral of dV/dr on the declining part of the
+        ! wind profile curve (extending outward from the RMW).  Start
+        ! at the index for where we found the maxrmw and go out to 
+        ! the index we calculated for idv_end.
+        !---------------------------------------------------------------
+
+        declining_sum_dvdr    = 0.0
+        declining_sum_dvdr_ct = 0
+
+        do mr = maxrmw_ix,idv_end-1
+          if (azim_ave_wmag(mr) > -998.0 .and.
+     &        azim_ave_wmag(mr+1) > -998.0) then
+            dvdr = azim_ave_wmag(mr+1) - azim_ave_wmag(mr)
+            declining_sum_dvdr    = declining_sum_dvdr + dvdr
+            declining_sum_dvdr_ct = declining_sum_dvdr_ct + 1
+          endif
+        enddo
+
+        !---------------------------------------------------------------
+        ! Now check to see if rising_sum_dvdr (i.e., the integral of 
+        ! dV/dr on the rising side of the curve) is at least equal
+        ! to the value of integ_dvdr_thresh and also to see if 
+        ! declining_sum_dvdr (the integral of dV/dr on the declining
+        ! side of the curve) is at least equal to the negative value
+        ! of integ_dvdr_thresh or lower.
+        !---------------------------------------------------------------
+
+        if (rising_sum_dvdr >= integ_dvdr_thresh .and.
+     &      declining_sum_dvdr <= (-1.*integ_dvdr_thresh)) then
+          got_good_armw = 'y'
+          axisymet_rmw_dist = rdist(maxrmw_ix)
+          axisymet_rmw_val  = azim_ave_wmag(maxrmw_ix)
+          if (verb .ge. 3) then
+            print *,' '
+            print *,' In get_axisymet_rmw, we have successfully found'
+            print *,' the axisymmetric RMW.'
+            print *,' axisymmetric RMW distance (km) = '
+     &             ,' axisymet_rmw_dist= ',axisymet_rmw_dist
+            print *,' axisymmetric RMW value (m/s) = '
+     &             ,' axisymet_rmw_val= ',axisymet_rmw_val,' (m/s) '
+     &             ,'  (in kts)= ',axisymet_rmw_val*1.9427
+            print *,' rising_sum_dvdr=    ',rising_sum_dvdr
+            print *,' declining_sum_dvdr= ',declining_sum_dvdr
+            print *,' rising/declining threshold= ',integ_dvdr_thresh
+          endif
+        else
+          if (verb .ge. 3) then
+            print *,' '
+            print *,' In get_axisymet_rmw, the integrals for'
+            print *,' rising_sum_dvdr and declining_sum_dvdr did NOT'
+            print *,' meet the thresholds needed to indicate an RMW has'
+            print *,' been found.'
+            print *,' axisymmetric RMW distance (km) = '
+     &             ,' axisymet_rmw_dist= ',axisymet_rmw_dist
+            print *,' axisymmetric RMW value (m/s) = '
+     &             ,' axisymet_rmw_val= ',axisymet_rmw_val,' (m/s) '
+     &             ,'  (in kts)= ',axisymet_rmw_val*1.9427
+            print *,' rising_sum_dvdr=    ',rising_sum_dvdr
+            print *,' declining_sum_dvdr= ',declining_sum_dvdr
+            print *,' rising/declining threshold= ',integ_dvdr_thresh
+          endif
+          rdist_ix = rdist_ix + 1
+          got_good_armw = 'n'
+        endif
+
+      enddo rdistloop
+c
       return
       end
 c
