@@ -8380,6 +8380,57 @@ c
      &                ,divg,igdret)
       endif
 
+      !----------------------------------------------------------------
+      ! Now get a smoothed, barnes-averaged value of q850 at the center
+      ! point. Then multiply the 850 mb divg we just calculated by the 
+      ! smoothed q850 to get the 850 mb moisture convergence (q850conv).
+      !----------------------------------------------------------------
+
+      if (readgenflag(2)) then
+        re = 125.0
+        ri = 250.0
+        igsvret = 0
+        call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
+     &                ,ifh,imax,jmax,q850(1,1),'q850',dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,xsmoothval,igsvret)
+        if (igsvret == 0) then
+          q850_smooth = xsmoothval
+        else
+          q850_smooth = -9999.0
+        endif
+
+      endif
+
+      if (igdret == 0 .and. igsvret == 0) then
+        q850conv = divg * q850_smooth
+      else
+        q850conv = -9999.0
+      endif
+
+      !----------------------------------------------------------------
+      ! Now get a smoothed, barnes-averaged value of SST at the center
+      ! point.  Only do this if we have *both* the  SST and the 
+      ! land-sea mask, otherwise set to missing for this time.
+      !----------------------------------------------------------------
+
+      if (readgenflag(1) .and. readflag(17)) then
+        re = 125.0
+        ri = 250.0
+        igsvret = 0
+        call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
+     &                ,ifh,imax,jmax,sst(1,1),'sst',dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,xsmoothval,igsvret)
+        if (igsvret == 0) then
+          sst_smooth = xsmoothval
+        else
+          sst_smooth = -9999.0
+        endif
+      else
+        sst_smooth = -9999.0
+      endif
+
 c
       return
       end
