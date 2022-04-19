@@ -656,6 +656,10 @@ c     shear      real array containing both the magnitude and direction
 c                of the storm-centered 850-200 mb vertical shear.  In
 c                the 3rd element of the array, index 1 is for shear
 c                magnitude and index 2 is for shear direction.
+c     already_computed_domain_wide_rh character (y/n) indicates if RH
+c             has already been computed across the whole domain for this
+c             forecast hour (this keeps us from re-computing it for 
+c             every storm at each lead time).
 c-----
 c
       USE def_vitals; USE inparms; USE tracked_parms; USE error_parms
@@ -679,6 +683,7 @@ c
       character, allocatable :: vt850_flag(:,:)*1
       character :: r34_check_okay*1,had_to_try_backup_850_vt_check*1
       character :: need_to_expand_r34(4)*1,ncfile_has_hour0*1
+      character :: already_computed_domain_wide_rh*1
       character*(*), intent(in) :: ncfile
       integer :: ncfile_id
       real, allocatable :: prstemp(:),iwork(:)
@@ -745,7 +750,7 @@ c
       real      divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
       real      omega500_smooth,sst_smooth
       real      axisymet_rmw_dist,axisymet_rmw_val
-      integer   enable_timing,igrct,ipfbret,icmc2f,iqwcf
+      integer   enable_timing,igrct,ipfbret,icmc2f,iqwcf,iggdret
       character(pfc_cmd_len) :: pfc_final
 c
       prev_latmax = -999.0
@@ -3524,6 +3529,16 @@ c           from the model forecast data itself, not the obs.
      &                     ,shear,igsret)
             endif
 
+            if ((genflag == 'y' .or. genflag == 'Y') .and. 
+     &           stormswitch(ist) == 1) then
+              call get_gen_diags (imax,jmax,inp,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
+     &                     ,readgenflag,calcparm,maxstorm,trkrinfo
+     &                     ,clon,clat,divg,moist_divg
+     &                     ,rh_800_600_smooth,rh_1000_925_smooth
+     &                     ,omega500_smooth,sst_smooth
+     &                     ,already_computed_domain_wide_rh,iggdret)
+            endif
 
 
 c           Now print out the current fix position and intensity
@@ -8261,6 +8276,184 @@ c     -----------------------------------------------------------------
 c      shear(ist,ifh,2) = shear_dir_from
       shear(ist,ifh,2) = shear_dir_point_to
 
+c
+      return
+      end
+c
+c-----------------------------------------------------------------------
+c
+c-----------------------------------------------------------------------
+      subroutine get_gen_diags (imax,jmax,inp,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
+     &                     ,readgenflag,calcparm,maxstorm,trkrinfo
+     &                     ,clon,clat,divg,moist_divg
+     &                     ,rh_800_600_smooth,rh_1000_925_smooth
+     &                     ,omega500_smooth,sst_smooth
+     &                     ,already_computed_domain_wide_rh,iggdret)
+c
+c     ABSTRACT: This subroutine is the driver for calling various other 
+c     routines to compute diagnostics needed for genesis.
+c
+c     INPUT:
+c     imax     num points is i-direction of input grid
+c     jmax     num points is j-direction of input grid
+c     inp      contains input date and model number information
+c     dx       grid increment in x-direction
+c     dy       grid increment in y-direction
+c     ist      Index for storm number
+c     ifh      Index for forecast hour
+c     fixlon   real array with longitudes of mean fix positions
+c     fixlat   real array with latitudes of mean fix positions
+c     valid_pt Logical bitmap masking non-valid grid points.  This is a
+c              concern for the regional models, which are interpolated 
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              grid points around the edges which have no valid data.
+c     readflag Logical; tells whether or not a variable was read in.
+c     readgenflag Logical; tells whether or not a genesis variable was
+c              read in.
+c     calcparm Logical; tells whether or not a parm has a valid fix
+c                   at this forecast hour
+c     maxstorm max num of storms that can be handled in this run
+c     trkrinfo derived type detailing user-specified grid info
+c     clon     real array containing the longitudes of all of the 
+c              various parameter center fixes that have been found for
+c              all lead times.
+c     clat     real array containing the latitudes of all of the 
+c              various parameter center fixes that have been found for
+c              all lead times.
+c     already_computed_domain_wide_rh character (y/n) indicates if RH
+c             has already been computed across the whole domain for this
+c             forecast hour (this keeps us from re-computing it for 
+c             every storm at each lead time).
+c
+c     OUTPUT:
+c     divg     The  barnes analysis-averaged value of 850 mb divergence,
+c              centered on the fixlat for this lead time.
+c     moist_divg The  barnes analysis-averaged value of the dot product 
+c              of specific humidity (q) * 850 mb divergence, centered 
+c              on the fixlat for this lead time.
+c     rh_800_600_smooth The  barnes analysis-averaged value of 800-600 
+c              mb RH, centered on the fixlat for this lead time.
+c     rh_1000_925_smooth The  barnes analysis-averaged value of 
+c              925-1000 mb RH, centered on the fixlat for this lead 
+c              time.
+c     omega500_smooth  The  barnes analysis-averaged value of 500 mb
+c              omega, centered on the fixlat for this lead time.
+c     sst_smooth The  barnes analysis-averaged value of SST,
+c              centered on the fixlat for this lead time.
+c     iggdret  return code from this subroutine
+c
+
+      USE grid_bounds; USE tracked_parms; USE trig_vals
+      USE level_parms; USE trkrparms; USE inparms; USE set_max_parms
+      USE verbose_output; USE def_vitals; USE read_parms
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      type (datecard) inp
+
+      integer imax,jmax,ist,ifh,maxstorm
+      integer level,iggdret,igdret,ilev,igrhret,igsvret
+      real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
+      real    clon(maxstorm,maxtime,maxtp)
+      real    clat(maxstorm,maxtime,maxtp)
+      real    dx,dy,xcenlon,xcenlat,q850conv,q850_smooth
+      real    rh_1000_925_smooth,rh_800_600_smooth,omega500_smooth
+      real    divg,moist_divg,re,ri,xsmoothval,sst_smooth
+      character :: already_computed_domain_wide_rh*1
+      logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
+      logical(1) readflag(nreadparms),readgenflag(nreadgenparms)
+c
+      !----------------------------------------------------------------
+      ! Call  get_divg, which will call a routine to compute divergence
+      ! over the whole domain and then compute just a barnes-averaged
+      ! value at the center point, returned in the variable "divg".
+      ! In get_divg, I'll be doing this analysis only at 850 mb.
+      !----------------------------------------------------------------
+
+      divg = -9999.0
+      if (readflag(3) .and. readflag(4)) then
+        call get_divg (imax,jmax,inp,dx,dy
+     &                ,ist,ifh,fixlon,fixlat,valid_pt
+     &                ,calcparm,maxstorm,trkrinfo,clon,clat
+     &                ,divg,igdret)
+      endif
+
+c
+      return
+      end
+c
+c-----------------------------------------------------------------------
+c
+c-----------------------------------------------------------------------
+      subroutine get_divg (imax,jmax,inp,dx,dy
+     &                ,ist,ifh,fixlon,fixlat,valid_pt
+     &                ,calcparm,maxstorm,trkrinfo,clon,clat
+     &                ,divg,igdret)
+c
+c     ABSTRACT: This subroutine calls two routines that will return the
+c     area-averaged (Barnes-averaged) value of divergence surrounding
+c     the  tracker-derived fix location at this lead time.  The first
+c     routine will compute divergence over the entire domain, and the 
+c     second routine will compute the  Barnes average of the divergence.
+c
+      USE grid_bounds; USE tracked_parms; USE trig_vals
+      USE level_parms; USE trkrparms; USE inparms; USE set_max_parms
+      USE verbose_output; USE def_vitals; USE read_parms
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      type (datecard) inp
+
+      integer imax,jmax,ist,ifh,maxstorm
+      integer level,iggdret,igdret,ilev,idvgf,idvcret,igsvret
+      real, allocatable :: divg_850(:,:)
+      real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
+      real    clon(maxstorm,maxtime,maxtp)
+      real    clat(maxstorm,maxtime,maxtp)
+      real    dx,dy,xcenlon,xcenlat,divg,xsmoothval,re,ri
+
+      logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
+c
+      if (allocated(divg_850)) deallocate(divg_850)
+      allocate (divg_850(imax,jmax),stat=idvgf)
+      if (idvgf /= 0) then
+        print *,' '
+        print *,'!!! ERROR in sub get_divg allocating divg_850 array,'
+        print *,'!!! idvgf = ',idvgf
+        stop 93
+        return
+      endif
+
+      idvcret = 0
+      call divcal (imax,jmax,dx,dy,divg_850,valid_pt,nlev850,idvcret)
+
+      if (idvcret /= 0) then
+        print *,' '
+        print *,'!!! ERROR in return code from sub divcal'
+        print *,'!!! idvcret = ',idvcret
+        stop 94
+        return
+      endif
+
+      re = 125.0
+      ri = 250.0
+      igsvret = 0
+
+      call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
+     &                ,ifh,imax,jmax,divg_850(1,1),'divg_850',dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,xsmoothval,igsvret)
+
+      if (igsvret == 0) then
+        divg = xsmoothval
+      else
+        divg = -9999.0
+      endif
+
+      if (allocated(divg_850)) deallocate(divg_850)
 c
       return
       end
@@ -18576,6 +18769,183 @@ c
 c----------------------------------------------------------------------
 c
 c----------------------------------------------------------------------
+      subroutine sst_barnes (flon,flat,rlon,rlat,iimax,jjmax,iibeg,jjbeg
+     &        ,iiend,jjend,fxy,defined_pt,bskip,re,ri,favg,icount,ctype
+     &        ,trkrinfo,iret)
+c
+c     ABSTRACT: This routine performs a single-pass barnes anaylsis
+c     of fxy at the point (flon,flat)...  Just like the original 
+c     subroutine  barnes.  The only difference is that this routine 
+c     is meant for SST and will contain an additional check for the 
+c     land-sea mask.  While it would have been easy to code that into
+c     the original barnes subroutine, I didn't want to check 
+c     for land/sea since that routine is the core of the  tracker
+c     program, it gets called zillions of times for other purposes,
+c     and I don't want to slow it down at all with extra code.
+c
+c     INPUT:
+c     flon    Lon value for center point about which barnes anl is done
+c     flat    Lat value for center point about which barnes anl is done
+c     rlon    Array of lon values for each grid point
+c     rlat    Array of lat values for each grid point
+c     iimax   Max number of pts in x-direction on input grid
+c     jjmax   Max number of pts in y-direction on input grid
+c     iibeg   i index for grid point to start barnes anlysis (upp left)
+c     jjbeg   j index for grid point to start barnes anlysis (upp left)
+c     iiend   i index for last grid point in barnes anlysis (low right)
+c     jjend   j index for last grid point in barnes anlysis (low right)
+c     fxy     Real array of data on which to perform barnes analysis
+c     defined_pt Logical; bitmap array used for regional grids
+c     bskip   integer to indicate number of grid points to skip during
+c             a barnes loop, in order to speed processing
+c     re      input e-folding radius for barnes analysis
+c     ri      input influence radius for searching for min/max
+c     ctype   character that lets subroutine know if this is a search
+c             for the next position for the purposes of tc vitals or
+c             for general tracking.  In the case of vitals, in
+c             this barnes subroutine we are more lax and allow the
+c             routine to keep searching even if we are close to the
+c             grid boundary.  In a general tracking search, if we hit
+c             the grid boundary even just once, we exit.
+c     trkrinfo derived type detailing user-specified grid info
+c
+c     OUTPUT:
+c     favg    Average value about the point (flon,flat)
+c     iret    Return code from this subroutine
+c
+      USE trkrparms
+      USE verbose_output; USE tracked_parms
+
+      type (trackstuff) trkrinfo
+
+      real      fxy(iimax,jjmax), rlon(iimax), rlat(jjmax)
+      real      degrees,sea_fract
+      integer   bskip,seact,landct,totct
+      logical(1) defined_pt(iimax,jjmax)
+      character(*) ctype
+
+c     --------------------------
+
+      res = re*re
+      wts = 0.0
+      favg = 0.0
+
+      icount = 0
+      seact  = 0
+      landct = 0
+
+      do jix=jjbeg,jjend,bskip
+        do iix=iibeg,iiend,bskip
+
+          i = iix
+          j = jix
+
+          if (i < 1) then
+            if (trkrinfo%gridtype == 'global') then
+              i = iix + iimax
+            else
+
+              if ( verb .ge. 1 ) then
+                print *,' '
+                print *,'!!! ERROR: i < 1 in subroutine  sst_barnes for'
+                print *,'!!! a non-global grid.  STOPPING....'
+                print *,'!!! i= ',i
+                print *,' '
+              endif
+
+              stop 97
+            endif
+          endif
+
+          if (i > iimax) then
+            if (trkrinfo%gridtype == 'global') then
+              i = iix - iimax
+            else
+
+              if ( verb .ge. 1 ) then
+                print *,' '
+                print *,'!!! ERROR: i > imax in subroutine  sst_barnes'
+                print *,'!!! for a non-global grid.  STOPPING....'
+                print *,'!!! i= ',i,' imax= ',iimax
+                print *,' '
+              endif
+
+              stop 97
+            endif
+          endif
+
+          icount = icount + 1
+
+          call calcdist(flon,flat,rlon(i),rlat(j),dist,degrees)
+
+          if (dist .gt. ri) cycle
+
+          if (defined_pt(i,j)) then
+            if (lsmask(i,j) > 0.5) then
+              if (fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) then
+                ! This is a patch.  Even though this (i,j) is a valid
+                ! point, its zeta value has been set to -999 because a
+                ! neighboring point in subroutine  rvcal was found
+                ! to be out of the grid boundaries.  This also prevents
+                ! -999 values for MSLP at grid edges in HWRF from 
+                ! getting included in the mean calculation, a problem
+                ! diagnosed in October, 2020.
+                cycle
+              endif
+              seact = seact + 1
+              wt   = exp(-1.0*dist*dist/res)
+              wts  = wts + wt
+              favg = favg + wt*fxy(i,j)
+            else
+              landct = landct + 1
+              if (ctype == 'vitals') then
+                continue
+              else
+carw             print *,' '
+carw             print *,'!!! UNDEFINED PT OUTSIDE OF GRID IN BARNES...'
+carw             print *,'!!! i= ',i,' j= ',j
+carw             print *,'!!! flon= ',flon,' flat= ',flat
+carw             print *,'!!! rlon= ',rlon(i),' rlat= ',rlat(j)
+carw             print *,'!!! re= ',re,' ri= ',ri
+carw             print *,'!!! EXITING BARNES....'
+carw             print *,' '
+carw             iret = 95
+carw             return
+              endif
+            endif
+          endif
+
+        enddo
+      enddo
+
+      totct = seact + landct
+      if (totct > 0) then
+        sea_fract = float(seact) / float(totct)
+      else
+        sea_fract = 0.0
+      endif
+
+      if (wts > 1.0E-5 .and. sea_fract > 0.5) then
+        favg = favg/wts
+      else
+        if (verb >= 1) then
+          print *,' '
+          print *,'In sst_barnes, favg is being set to 0.'
+          print *,'  seact= ',seact,' landct= ',landct,' totct= ',totct
+          print *,'  sea_fract= ',sea_fract,' wts= ',wts
+          print *,'  favg before being set to 0 = ',favg
+          print *,' '
+        endif
+        favg = 0.0
+      endif
+      iret = 0
+c
+      return
+      end
+c
+c----------------------------------------------------------------------
+c
+c----------------------------------------------------------------------
       subroutine get_ij_bounds (npts,nhalf,ri,imax,jmax,dx,dy
      &          ,rglatmax,rglatmin,rglonmax,rglonmin,geslon,geslat
      &          ,trkrinfo,ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret)
@@ -25645,6 +26015,541 @@ c
           tmpzeta(ii,jj) = zeta(ii,jj,z) * 1.e5
         enddo
       enddo
+
+      return
+      end
+c
+c---------------------------------------------------------------------
+c
+c---------------------------------------------------------------------
+      subroutine divcal (imax,jmax,dlon,dlat,divx4,vp,w,idvcret)
+c
+c     ABSTRACT: This routine calculates the divergence 
+c     from u,v on a lat/lon grid. Centered finite 
+c     differences are used on the interior points and one-sided 
+c     differences are used on the boundaries.
+c
+c     NOTE: There are 3 critical arrays in this subroutine, the first
+c     being divergence and the 2nd and 3rd being u and v.  There is a 
+c     critical difference in the array indexing for the levels.  For
+c     divergence, the array is dimensioned with levels from 1 to 3, with
+c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels 
+c     for the winds, such that the level dimension goes 1 = 850, 
+c     2 = 700, 3 = 500, 4 = 200, 5 = sfc, and this is annotated now
+c     by the use of the "nlev850", "nlev700" and "levsfc" variables
+c     from module level_parms.  So we need to be sure to properly 
+c     annotate that in this routine.
+c
+c     INPUT:
+c     imax  integer max number of pts in x-direction on input grid
+c     jmax  integer max number of pts in y-direction on input grid
+c     dlon  real grid spacing in x-direction
+c     dlat  real grid spacing in y-direction
+c     vp    Logical; bitmap array used for regional grids
+c     w     integer indicates which index to use for the vertical
+c           level, with 1=850, as described in the doc block above.
+c
+c     OUTPUT
+c     divx4 real array with divergence values to be returned to the
+c           calling routine, scaled up by 1e4
+c     idvcret integer return code from this routine
+c
+c     LOCAL VARIABLES:
+c
+      USE trig_vals; USE grid_bounds
+      USE verbose_output; USE level_parms; USE tracked_parms
+
+      implicit none
+
+      real, parameter :: xsmalldiff = 0.0
+      dimension cosfac(jmax),tanfac(jmax)
+      real, allocatable :: div(:,:)
+      real      divx4(imax,jmax)
+      real      xlondiff,xlatdiff,dlon,dlat,dfix
+      real      dlat_edge,dlat_inter,dlon_edge,dlon_inter
+      real      rlat(jmax),cosfac,tanfac
+      integer   nlat,nlon,i,j,imax,jmax,w
+      integer   ii,jj,idvcret,ida
+      logical(1) vp(imax,jmax)
+c
+      if (allocated(div)) deallocate (div)
+      allocate (div(imax,jmax),stat=ida)
+      if (ida /= 0) then
+        print *,' '
+        print *,'!!! ERROR in sub divcal allocating '
+        print *,'!!! div array.  ida = ',ida
+        idvcret = 94
+        return
+      endif
+
+      print *,' '
+      print *,'top of divcal, imax= ',imax,' jmax= ',jmax
+      print *,'dlon= ',dlon,' dlat= ',dlat
+
+c     --------------------------
+
+c     Calculate grid increments for interior and edge points.
+
+c     IMPORTANT: If dtk is defined in module trig_vals in km, then
+c     we need to multiply by 1000 here to get meters.  If it's defined
+c     as meters, just let it be.  Since the wind values are given in 
+c     meters, that's why we need the dlon values to be in meters.
+
+      if (dtk < 750.) then     ! chances are, dtk was defined as km
+        dfix = 1000.0
+      else                     ! dtk was already defined as meters
+        dfix = 1.0
+      endif
+
+      dlon_edge = dtk * dfix * dlon          ! Di dist over 1 grid pt
+      dlat_edge = dtk * dfix * dlat          ! Dj dist over 1 grid pt
+      dlon_inter = dtk * dfix * 2.0 * dlon   ! Di dist over 2 grid pts
+      dlat_inter = dtk * dfix * 2.0 * dlat   ! Dj dist over 2 grid pts
+
+
+c     Calculate required trig functions.  These are functions of 
+c     latitude.  Remember that the grid must go from north to south.
+c     This north-to-south requirement has 
+c     already been checked in subroutine  getgridinfo.  If necessary,
+c     any flipping of the latitudes was done there, and flipping of
+c     the data, again if necessary, was done in subroutine  getdata.
+
+      do j=2,jmax-1
+         rlat(j) = glatmax - ((j-1) * dlat)
+         cosfac(j) = cos(dtr*rlat(j))
+         tanfac(j) = (tan(dtr*rlat(j)))/erad
+      enddo
+
+c     Set trig factors at end points to closest interior point
+c     to avoid a singularity if the domain includes the poles,
+c     which it will for the global grids (MRF, GDAS, GFS, UKMET,NCE)
+
+      cosfac(1) = cosfac(2)
+      tanfac(1) = tanfac(2)
+      cosfac(jmax) = cosfac(jmax-1)
+      tanfac(jmax) = tanfac(jmax-1)
+
+c     NOTE: These next bits of divergence calculation code assume that 
+c           the input grid is oriented so that point (1,1) is the upper
+c           left-most (NW) and point (imax,jmax) is the lower right-
+c           most point.  Any other grids will probably crash the 
+c           program due to array out of bounds errors.
+c     NOTE: Before each calculation is done, the logical array is 
+c           checked to make sure that all the data points in this 
+c           calculation have valid data (ie., that the points are not
+c           outside a regional model's boundaries).
+
+c
+c !!! IMPORTANT NOTE: While testing this, I uncovered a bug, which was
+c     that I had the "j+1" and "j-1" reversed.  Just from a physical 
+c     understanding, the du/dy term at a point is calculated by taking 
+c     the u value north of the point minus the u value south of the 
+c     point. Intuitively, this is u(j+1) - u(j-1).  However, we have 
+c     designed this program to have the northernmost point as
+c     the beginning of the grid (i.e., for the global grids, j=1 at 90N,
+c     and j increases southward).  Thus, if you would do u(j+1) -
+c     u(j-1), you would actually be taking the u value south of the 
+c     point minus the u value north of the point, EXACTLY THE OPPOSITE
+c     OF WHAT YOU WANT.  Therefore, the divergence calculations have
+c     been changed so that we now have u(j-1) - u(j+1).
+c
+c     UPDATE FEB 2009:  With limited domain grids that have missing
+c     data on them (such as you would have for a grid that has been
+c     converted from a non-lat/lon grid to a lat/lon grid), we were
+c     running into problems below with the setting of div values to
+c     a missing value of -999.  In place of this, the easiest thing to
+c     do is to simply assign a value of zero to the divergence.
+c     No, this is not correct, but it is the easiest workaround for 
+c     this right now.
+c
+c     ---------------
+c     Interior points
+c     ---------------
+
+      if ( verb .ge. 3 ) then
+        print *,'Just before inter divcal, dlon_inter = ',dlon_inter
+     &       ,' dlat_inter = ',dlat_inter
+      endif
+
+      do j=2,jmax-1
+       do i=2,imax-1
+c
+        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+     &      vp(i,j+1) .and. vp(i,j-1)) then
+c 
+          div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
+     &               + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
+     &               - tanfac(j)*v(i,j,w)
+
+        else
+c         div(i,j)= -999.
+          div(i,j)= xsmalldiff / (dlon_inter * cosfac(j))
+     &               + xsmalldiff / (dlat_inter)
+        endif
+c
+       enddo
+      enddo
+c
+c     -----------------------------
+c     Bottom (Southernmost) points
+c     -----------------------------
+c
+      j=jmax
+      do i=2,imax-1
+c
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+     &     vp(i,j-1)) then
+c
+          div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
+     &              + (v(i,j-1,w) - v(i,j,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+       else
+c         div(i,j)= -999.
+         div(i,j)= xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+       endif
+c
+      enddo
+c
+c     --------------------------
+c     Top (Northernmost) points
+c     --------------------------
+c
+      j=1
+      do i=2,imax-1
+c
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+     &     vp(i,j+1)) then
+c
+          div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
+     &              + (v(i,j,w) - v(i,j+1,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+       else
+c         div(i,j)= -999.
+         div(i,j)= xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+       endif
+c
+      enddo
+c
+c     -------------------------------
+c     Left edge (Westernmost) points
+c     -------------------------------
+c
+      i=1
+      do j=2,jmax-1
+c
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.
+     &     vp(i,j-1)) then
+c
+         div(i,j)= (u(i+1,j,w) - u(i,j,w))/(dlon_edge * cosfac(j))
+     &              + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
+     &              - tanfac(j)*v(i,j,w)
+       else
+c         div(i,j)= -999.
+         div(i,j)= xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+       endif
+c
+      enddo
+c
+c     --------------------------------
+c     Right edge (Easternmost) points
+c     --------------------------------
+c
+      i=imax
+      do j=2,jmax-1
+c
+       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.
+     &     vp(i,j-1)) then
+c
+          div(i,j) = (u(i,j,w) - u(i-1,j,w))/(dlon_edge * cosfac(j))
+     &               + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
+     &               - tanfac(j)*v(i,j,w)
+       else
+c         div(i,j)= -999.
+         div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
+     &               + xsmalldiff / (dlat_inter)
+       endif
+c
+      enddo
+c
+c     ---------
+c     SW corner
+c     ---------
+      i=1
+      j=jmax
+      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then
+c
+        div(i,j) = (u(i+1,j,w)-u(i,j,w))/(dlon_edge * cosfac(j))
+     &              + (v(i,j-1,w)-v(i,j,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+      else
+c        div(i,j)= -999.
+        div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+      endif
+c
+c     ---------
+c     NW corner
+c     ---------
+      i=1
+      j=1
+      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) ) then
+c
+        div(i,j) = (u(i+1,j,w) - u(i,j,w))/(dlon_edge * cosfac(j))
+     &              + (v(i,j,w) - v(i,j+1,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+      else
+c        div(i,j)= -999.
+        div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+      endif
+c
+c     ---------
+c     NE corner
+c     ---------
+      i=imax
+      j=1
+      if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) ) then
+c
+        div(i,j) = (u(i,j,w) - u(i-1,j,w))/(dlon_edge * cosfac(j))
+     &              + (v(i,j,w) - v(i,j+1,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+      else
+c        div(i,j)= -999.
+        div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+      endif
+c
+c     ---------
+c     SE corner
+c     ---------
+      i=imax
+      j=jmax
+      if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j-1) ) then
+c
+        div(i,j) = (u(i,j,w)-u(i-1,j,w))/(dlon_edge * cosfac(j))
+     &              + (v(i,j-1,w)-v(i,j,w))/(dlat_edge)
+     &              - tanfac(j)*v(i,j,w)
+      else
+c        div(i,j)= -999.
+        div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
+     &              + xsmalldiff / (dlat_inter)
+      endif
+c
+      do ii=1,imax
+        do jj=1,jmax
+          divx4(ii,jj) = div(ii,jj) * 1.e4
+        enddo
+      enddo
+
+      if (allocated(div)) deallocate (div)
+
+      return
+      end
+c
+c---------------------------------------------------------------------
+c
+c---------------------------------------------------------------------
+      subroutine get_smooth_value_at_pt (xcenlon,xcenlat,ist,ifh
+     &              ,imax,jmax,xarray,cvar,dx,dy,valid_pt,maxstorm
+     &              ,re,ri,trkrinfo,xsmoothval,igsvret)
+c
+c     ABSTRACT: This routine computes one smoothed value of a value from
+c     an input real array.  It does this using the  Barnes analysis and
+c     values of re and ri that are also specified in the calling
+c     routine.
+c
+c     INPUT:
+c     xcenlon real value of center position at which to compute average
+c     xcenlat real value of center position at which to compute average
+c     ist     Storm number currently being processed
+c     ifh     Forecast hour currently being processed
+c     imax    Max number of pts in x-direction for this grid
+c     jmax    Max number of pts in y-direction for this grid
+c     xarray  real array with data values that will be searched here
+c     cvar    character string that contains variable being searched
+c     dx      grid-spacing of the model in the i-direction
+c     dy      grid-spacing of the model in the j-direction
+c     valid_pt Logical; bitmap indicating if valid data at that pt.
+c     maxstorm Max # of storms that can be handled in this run
+c     re      real e-folding radius
+c     ri      real radius of influence
+c     trkrinfo derived type detailing user-specified grid info
+c
+c     OUTPUT:
+c     xsmoothval real smoothed value of the input variable, centered
+c             on the input (xcenlon,xcenlat) point.
+c     igsvret integer return code from this routine
+c
+c     LOCAL:
+
+      USE def_vitals; USE grid_bounds; USE trig_vals
+      USE tracked_parms; USE trkrparms; USE verbose_output
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      integer   ist,ifh,imax,jmax,maxstorm,igsvret,npts,bskip,icut
+      integer   ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret,icutmax
+      integer   icount,ibret
+      real      xarray(imax,jmax)
+      real      re,ri,xsmoothval,xcenlon,xcenlat,dx,dy,reold,riold
+      logical(1) valid_pt(imax,jmax)
+      character*1 :: in_grid
+      character(*) :: cvar
+
+      xsmoothval = -9999.0
+
+c     We will do a barnes analysis on the data from the input array to 
+c     this subroutine near the current fix location in order to get one 
+c     average value that will be returned to the calling routine.  The
+c     call to get_ij_bounds is needed in order to restrict the number of
+c     grid points that are searched in the  barnes subroutine.  See 
+c     Abstract of subroutine  get_next_ges for further details.
+
+      if (verb >= 3) then
+        print *,' '
+        print *,' --- Top of get_smooth_value_at_pt for '
+        print *,'     variable = ',cvar
+      endif
+
+      npts = ceiling(ri/(dtk*((dx+dy)/2)))
+
+      if (verb >= 3) then
+        print *,' '
+        print *,' In get_smooth_value_at_pt for cvar= ',cvar
+        print *,' *** BEFORE *** call to get_ij_bounds'
+        print *,' npts= ',npts,' ri= ',ri
+        print *,' imax= ',imax,' jmax= ',jmax
+        print *,' dx= ',dx,' dy= ',dy
+        print *,' glatmax= ',glatmax,' glatmin= ',glatmin
+        print *,' glonmax= ',glonmax,' glonmin= ',glonmin
+        print *,' xcenlon= ',xcenlon,' xcenlat= ',xcenlat
+        print *,' '
+      endif
+
+      call get_ij_bounds (npts,0,ri,imax,jmax,dx,dy
+     & ,glatmax,glatmin,glonmax,glonmin,xcenlon,xcenlat
+     & ,trkrinfo,ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret)
+
+      if (verb >= 3) then
+        print *,' '
+        print *,' In get_smooth_value_at_pt for cvar= ',cvar
+        print *,' *** AFTER *** call to get_ij_bounds'
+        print *,' npts= ',npts,' ri= ',ri
+        print *,' imax= ',imax,' jmax= ',jmax
+        print *,' dx= ',dx,' dy= ',dy
+        print *,' glatmax= ',glatmax,' glatmin= ',glatmin
+        print *,' glonmax= ',glonmax,' glonmin= ',glonmin
+        print *,' xcenlon= ',xcenlon,' xcenlat= ',xcenlat
+        print *,' ilonfix= ',ilonfix,' jlatfix= ',jlatfix
+        print *,' ibeg= ',ibeg,' iend= ',iend
+        print *,' jbeg= ',jbeg,' jend= ',jend,' igiret= ',igiret
+        print *,' '
+      endif
+      if (igiret /= 0) then
+        if ( verb .ge. 1 ) then
+          print *,' '
+          print *,'!!! ERROR in get_smooth_value_at_pt from call to'
+          print *,'!!! get_ij_bounds, STOPPING processing for '
+          print *,'!!! storm number ',ist
+        endif
+        igsvret = 92
+        return
+      endif
+
+      if (verb >= 3) then
+        print *,' '
+        print *,' +++ In get_smooth_value_at_pt after call'
+        print *,'     to get_ij_bounds getting bounds for '
+        print *,'     the  barnes analysis...'
+        print *,'     cvar= ',cvar
+        print *,'     glatmax= ',glatmax,'  glatmin= ',glatmin
+        print *,'     glonmax= ',glonmax,'  glonmin= ',glonmin
+        print *,'     xcenlon= ',xcenlon,'  xcenlat= ',xcenlat
+        print *,'     ilonfix= ',ilonfix,'  jlatfix= ',jlatfix
+        print *,'     ibeg= ',ibeg,'  iend= ',iend
+        print *,'     jbeg= ',jbeg,'  jend= ',jend
+      endif
+
+      ! Since we are only doing the  barnes analysis centered at one
+      ! point, there is no need to do a speedup in the  barnes 
+      ! analysis, so just set bskip=1.
+
+      bskip = 1
+
+      icut = 0
+      in_grid = 'n'
+
+      if (trkrinfo%type == 'midlat') then
+        icutmax = 2
+      else
+        icutmax = 1
+      endif
+
+      radmaxloop:  do while (icut <= icutmax .and. in_grid == 'n')
+
+        ibret = 0
+
+        if (cvar == 'sst') then
+          call sst_barnes (xcenlon,xcenlat,glon,glat
+     &         ,imax,jmax,ibeg,jbeg,iend,jend,sst(1,1),valid_pt
+     &         ,bskip,re,ri,xsmoothval,icount,'vitals',trkrinfo,ibret)
+        else
+          call barnes (xcenlon,xcenlat,glon,glat
+     &         ,imax,jmax,ibeg,jbeg,iend,jend,xarray(1,1),valid_pt
+     &         ,bskip,re,ri,xsmoothval,icount,cvar,trkrinfo,ibret)
+        endif
+
+        if (ibret == 0) then
+
+          in_grid = 'y'
+
+          if (verb >= 3) then
+            print *,' '
+            print *,' --- In get_smooth_value_at_pt, after call to '
+            print *,'     get smoothval.  mean stats follow:'
+            print *,'     If cvar = sst, then the call was to'
+            print *,'     sst_barnes, for all others it was to barnes.'
+            print *,'     cvar= ',cvar,' xsmoothval= ',xsmoothval
+            print *,'     xcenlon= ',xcenlon,'  xcenlat= ',xcenlat
+          endif
+
+        else
+
+c         ...barnes probably tried to access a pt outside the grid
+c         domain.  So, reduce by half the distance from the center
+c         of the farthest pt that barnes tries to access, exit this
+c         loop, and try it again with the smaller re and ri.
+
+          ibret = 96
+          reold = re
+          riold = ri
+          re = 0.5 * re
+          ri = 0.5 * ri
+          if ( verb .ge. 3 ) then
+            print *,' '
+            print *,'NOTE: While attempting to use the  barnes '
+            print *,'analysis called from get_smooth_value_at_pt,'
+            print *,'the algorithm tried to access a grid point'
+            print *,'that does not have valid data, meaning that'
+            print *,'too large a radius is being searched.  So, the'
+            print *,'two radii, re and ri, are being halved and, if'
+            print *,'the value of icutmax > 0,  the algorithm will'
+            print *,'be run again.  Otherwise, if icutmax = 0, only'
+            print *,'the extrapolation method will be used.'
+            print *,'ibret= ',ibret,' icut= ',icut
+            print *,'Old re = ',reold,' New re (for next loop)= ',re
+            print *,'Old ri = ',riold,' New ri (for next loop)= ',ri
+          endif
+
+          icut = icut + 1
+
+        endif
+
+      enddo radmaxloop
 
       return
       end
