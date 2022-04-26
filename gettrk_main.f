@@ -356,7 +356,7 @@ c     --------------------------------------------------------
       write (6,31) date_time(5),date_time(6),date_time(7)
   31  format (1x,'TIMING: beginning ...  ',i2.2,':',i2.2,':',i2.2)
 
-      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
+c      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
 
       pi = 4. * atan(1.)   ! Both pi and dtr were declared in module 
       dtr = pi/180.0       ! trig_vals, but were not yet defined.
@@ -439,7 +439,7 @@ c
         print *,'baclose: igcret= ',igcret,' iicret= ',iicret
         print *,'baclose: iocret= ',iocret
       endif
-      call w3tage('GETTRK  ')
+c      call w3tage('GETTRK  ')
 c
       stop
       end
@@ -696,7 +696,7 @@ c
       integer   ioaret,ioaxret,ifgcret,ifmret,igugret,isoiret,icccret
       integer   igrret,igmwret,iorret,ignret,iovret,icbret,igucret,ita
       integer   ifilret,ifret,iaret,isret,iotmret,iwa,iisa,sl_counter
-      integer   iicret,igcret,pfcret,igwcret,imbowret,iatret
+      integer   iicret,igcret,pfcret,igwcret,imbowret,iatret,ioapret
       logical(1), allocatable :: valid_pt(:,:)
       logical(1), allocatable :: masked_outc(:,:),masked_out(:,:)
       logical(1) readflag(nreadparms),calcparm(maxtp,maxstorm)
@@ -718,8 +718,7 @@ c
       integer   igsret,issta,iq850a,irha,ispfha,itempa,iomegaa
       integer   waitfor_gfile_status,waitfor_ifile_status,ncfile_tmax
       integer   wait_max_ifile_wait,ivr,r34_good_ct,itha,ilma,inctcv
-      integer   date_time(8)
-      integer   igarret
+      integer   date_time(8),igarret
       character (len=10) big_ben(3)
       real      fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real      gridprs(maxstorm,maxtime)
@@ -734,7 +733,7 @@ c
       real      ike(max_ike_cats)
       real      clon(maxstorm,maxtime,maxtp)
       real      clat(maxstorm,maxtime,maxtp)
-      real      xmaxwind(maxstorm,maxtime),xmeanzeta
+      real      xmaxwind(maxstorm,maxtime)
       real      stderr(maxstorm,maxtime),xval(maxtp),cps_vals(3)
       real      shear(maxstorm,maxtime,2)
       real      gridpoint_maxmin,dist,distnm,xknots,xmaxspeed
@@ -750,8 +749,41 @@ c
       real      divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
       real      omega500_smooth,sst_smooth
       real      axisymet_rmw_dist,axisymet_rmw_val
+      real      x999_lon,x999_lat,xzero_vmax,xzero_minslp,x99_pbar
+      real      x99_rbar,x99_rmax,x999_shrmag,x999_shrdir,x999_sst
+      real      x999_axirmw_dist,x999_axirmw_val,x999_divg
+      real      x999_moist_divg,x999_rh600_800,x999_rh1000_925
+      real      x999_omega500,x999_imzeta,x999_igzeta
       integer   enable_timing,igrct,ipfbret,icmc2f,iqwcf,iggdret
+      integer   izero_fhr,i999_stmspd,i999_stmdir
       character(pfc_cmd_len) :: pfc_final
+      character :: c_undef_wcflag*1
+c
+      ! Define a bunch of missing values for variables to be sent to
+      ! subroutines that write output....
+      x999_lon         = -999.0
+      x999_lat         = -999.0
+      izero_fhr        =    0
+      xzero_vmax       =    0.0
+      xzero_minslp     =    0.0
+      x99_pbar         =  -99.0
+      x99_rbar         =  -99.0
+      x99_rmax         =  -99.0
+      i999_stmspd      = -999
+      i999_stmdir      = -999
+      x999_shrmag      = -999.0
+      x999_shrdir      = -999.0
+      x999_sst         = -999.0
+      x999_axirmw_dist = -999.0
+      x999_axirmw_val  = -999.0
+      x999_divg        = -999.0
+      x999_moist_divg  = -999.0
+      x999_rh600_800   = -999.0
+      x999_rh1000_925  = -999.0
+      x999_omega500    = -999.0
+      x999_imzeta      = -999.0
+      x999_igzeta      = -999.0
+      c_undef_wcflag   = 'u'
 c
       prev_latmax = -999.0
       prev_latmin = -999.0
@@ -846,6 +878,8 @@ c          lugi = 5200
       !--------------------------------------------------------------
 
       ifhloop: do while (ifh <= ifhmax)
+
+        already_computed_domain_wide_rh = 'n'
 
         if ( verb .ge. 3 ) then
           print *,' '
@@ -947,35 +981,47 @@ c          lugi = 5200
 
           null_netcdf_hour0_storm_loop: do inctcv = 1,numtcv
 
-            call output_atcfunix (-999.0
-     &                      ,-999.0,inp,inctcv
-     &                      ,0,0.0
-     &                      ,0.0,vradius,maxstorm,trkrinfo
-     &                      ,-99.0,-99.0,-99.0
-     &                      ,cps_vals,wcore_flag,-999.0
-     &                      ,-999.0,ioaxret)
+          call output_atcfunix (x999_lon
+     &                ,x999_lat,inp,inctcv
+     &                ,izero_fhr,xzero_vmax
+     &                ,xzero_minslp,vradius,maxstorm
+     &                ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                ,x999_shrdir,x999_sst
+     &                ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
             imeanzeta = -99
             igridzeta = -99
+            call output_aext (x999_lon
+     &                ,x999_lat,inp,inctcv
+     &                ,izero_fhr,xzero_vmax
+     &                ,xzero_minslp,vradius,maxstorm
+     &                ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                ,x999_shrdir,x999_sst
+     &                ,x999_axirmw_dist,x999_axirmw_val
+     &                ,x999_divg,x999_moist_divg
+     &                ,x999_rh600_800,x999_rh1000_925
+     &                ,x999_omega500,imeanzeta,igridzeta
+     &                ,ioaxret)
             if (trkrinfo%type == 'midlat' .or.
      &          trkrinfo%type == 'tcgen') then
-              call output_atcf_gen (-999.0   
-     &           ,-999.0,inp,inctcv
-     &           ,0,0.0
-     &           ,0.0,vradius,maxstorm,trkrinfo
-     &           ,-99,-99,-999.0,-999.0,-99.0
-     &           ,cps_vals,'u',imeanzeta,igridzeta,-999.0
-     &           ,-999.0,ioaxret)
+              call output_atcf_gen (x999_lon
+     &           ,x999_lat,inp,inctcv
+     &           ,izero_fhr,xzero_vmax
+     &           ,xzero_minslp,vradius,maxstorm,trkrinfo
+     &           ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
+     &           ,x99_rmax,cps_vals,c_undef_wcflag
+     &           ,imeanzeta,igridzeta
+     &           ,x999_shrmag,x999_shrdir
+     &           ,x999_divg,x999_moist_divg
+     &           ,x999_rh600_800,x999_rh1000_925
+     &           ,x999_omega500,x999_sst
+     &           ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
             endif 
-            call output_atcf_sink (-999.0
-     &                ,-999.0,inp,inctcv
-     &                ,0,0.0
-     &                ,0.0,vradius,maxstorm,trkrinfo
-     &                ,-99,-99,imeanzeta,igridzeta
-     &                ,cps_vals,-999.0,-999.0,ioaxret)
-            call output_hfip (-999.0
-     &                ,-999.0,inp,inctcv
-     &                ,ifh,0.0
-     &                ,0.0,vradius,-99.0,ioaxret)
+            call output_hfip (x999_lon
+     &                ,x999_lat,inp,inctcv
+     &                ,ifh,xzero_vmax
+     &                ,xzero_minslp,vradius,x99_rmax,ioaxret)
 
             if (verb .ge. 3) then
               print *,' ' 
@@ -1135,7 +1181,10 @@ c       First, allocate the working data arrays....
 
         if (iza /= 0 .or. iua /= 0 .or. iha /= 0 .or. ivpa /= 0 .or.
      &      iva /= 0 .or. isa /= 0 .or. icpsa /= 0 .or. ita /= 0 .or.
-     &      itha /= 0 .or. imoa /= 0 .or. imoca /= 0 .or. ilma /= 0) 
+     &      itha /= 0 .or. imoa /= 0 .or. imoca /= 0 .or.
+     &      ilma /= 0 .or. issta /= 0 .or. iq850a /= 0 .or. 
+     &      irha /= 0 .or. ispfha /= 0 .or. itempa /= 0 .or.
+     &      iomegaa /= 0) 
      &     then
           
           if ( verb .ge. 1 ) then
@@ -1145,7 +1194,10 @@ c       First, allocate the working data arrays....
             print *,'!!! iva = ',iva,' isa= ',isa,' icpsa= ',icpsa
             print *,'!!! iksa = ',iksa,' isda= ',isda,' ivpa= ',ivpa
             print *,'!!! ita = ',ita,' imoa= ',imoa,' imoca= ',imoca
-            print *,'!!! itha = ',itha,' ilma= ',ilma
+            print *,'!!! itha = ',itha,' ilma= ',ilma,' issta= ',issta
+            print *,'!!! iq850a = ',iq850a,' irha= ',irha
+            print *,'!!! ispfha= ',ispfha,' itempa= ',itempa
+            print *,'!!! iomegaa= ',iomegaa
           endif
           itret = 94
           return
@@ -1211,7 +1263,7 @@ c       which is used for determining storm phase, parms 15 & 16 are for
 c       500 & 200 mb hgt, parm 17 is land-sea mask, and parms 18-19 are
 c       200 mb u & v.  Parms 10 & 11 are for the near-surface winds, 
 c       which are used in estimating surface winds near the storm, and 
-c       will now also be used as a parameter for position estimates.
+c       will now also be used as a parameter for position estimates.  
 
         idum = 0
         do irf = 1,nreadparms
@@ -1269,13 +1321,32 @@ c       If not enough tracked parms were read in, exit the program....
               if (stormswitch(istmp) /= 3) then
                ileadtime = nint(fhreal(ifh) * 100.0)
                ifcsthour = ileadtime / 100
-               call output_atcfunix (-999.0,-999.0,inp,istmp
-     &                   ,ifcsthour,0.0,0.0,vradius,maxstorm
-     &                   ,trkrinfo,-99.0,-99.0,-99.0,cps_vals
-     &                   ,wcore_flag,shear(ist,ifh,1)
-     &                   ,shear(ist,ifh,2),ioaxret)
-               call output_hfip (-999.0,-999.0,inp,istmp
-     &                   ,ifh,0.0,0.0,vradius,-99.0,ioaxret)
+               call output_atcfunix (x999_lon
+     &                 ,x999_lat,inp,istmp
+     &                 ,ifcsthour,xzero_vmax
+     &                 ,xzero_minslp,vradius,maxstorm
+     &                 ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                 ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                 ,x999_shrdir,x999_sst
+     &                 ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
+               imeanzeta = -99
+               igridzeta = -99
+               call output_aext (x999_lon
+     &                ,x999_lat,inp,istmp
+     &                ,ifcsthour,xzero_vmax
+     &                ,xzero_minslp,vradius,maxstorm
+     &                ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                ,x999_shrdir,x999_sst
+     &                ,x999_axirmw_dist,x999_axirmw_val
+     &                ,x999_divg,x999_moist_divg
+     &                ,x999_rh600_800,x999_rh1000_925
+     &                ,x999_omega500,imeanzeta,igridzeta
+     &                ,ioaxret)
+               call output_hfip (x999_lon
+     &                ,x999_lat,inp,istmp
+     &                ,ifh,xzero_vmax
+     &                ,xzero_minslp,vradius,x99_rmax,ioaxret)
               endif
             enddo
           endif
@@ -2172,28 +2243,40 @@ c           to get a guess position for the next forecast hour.
                       vradius = 0     
                       ileadtime = nint(fhreal(ifh) * 100.0)
                       ifcsthour = ileadtime / 100
-                      call output_atcfunix (-999.0
-     &                    ,-999.0,inp,ist
-     &                    ,ifcsthour,0.0
-     &                    ,0.0,vradius,maxstorm,trkrinfo
-     &                    ,-99.0,-99.0,-99.0
-     &                    ,cps_vals,wcore_flag,-999.0
-     &                    ,-999.0,ioaxret)
+                      call output_atcfunix (x999_lon
+     &                   ,x999_lat,inp,ist
+     &                   ,ifcsthour,xzero_vmax
+     &                   ,xzero_minslp,vradius,maxstorm
+     &                   ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                   ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                   ,x999_shrdir,x999_sst
+     &                   ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
                       imeanzeta = -99
                       igridzeta = -99
-                      call output_atcf_gen (-999.0
-     &                      ,-999.0,inp,ist
-     &                      ,ifcsthour,0.0
-     &                      ,0.0,vradius,maxstorm,trkrinfo
-     &                      ,-99,-99,-999.0,-999.0,-99.0
-     &                      ,cps_vals,'u',imeanzeta,igridzeta,-999.0
-     &                      ,-999.0,ioaxret)
-                      call output_atcf_sink (-999.0
-     &                      ,-999.0,inp,ist
-     &                      ,ifcsthour,0.0
-     &                      ,0.0,vradius,maxstorm,trkrinfo
-     &                      ,-99,-99,imeanzeta,igridzeta
-     &                      ,cps_vals,-999.0,-999.0,ioaxret)
+                      call output_aext (x999_lon
+     &                   ,x999_lat,inp,ist
+     &                   ,ifcsthour,xzero_vmax
+     &                   ,xzero_minslp,vradius,maxstorm
+     &                   ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                   ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                   ,x999_shrdir,x999_sst
+     &                   ,x999_axirmw_dist,x999_axirmw_val
+     &                   ,x999_divg,x999_moist_divg
+     &                   ,x999_rh600_800,x999_rh1000_925
+     &                   ,x999_omega500,imeanzeta,igridzeta
+     &                   ,ioaxret)
+                      call output_atcf_gen (x999_lon
+     &                   ,x999_lat,inp,ist
+     &                   ,ifcsthour,xzero_vmax
+     &                   ,xzero_minslp,vradius,maxstorm,trkrinfo
+     &                   ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
+     &                   ,x99_rmax,cps_vals,c_undef_wcflag
+     &                   ,imeanzeta,igridzeta
+     &                   ,x999_shrmag,x999_shrdir
+     &                   ,x999_divg,x999_moist_divg
+     &                   ,x999_rh600_800,x999_rh1000_925
+     &                   ,x999_omega500,x999_sst
+     &                   ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
                     endif
                     cycle stormloop     
                   endif
@@ -2970,10 +3053,9 @@ c     &           c    ,rlastbar,icccret)
                   !
                   ! --------------------------------------------
 
-                  print *,'At pt isi, isiret3= ',isiret3
-                  print *,'At pt isi, isastorm(3)= ',isastorm(3)
-                  print *,'At pt isi, type= trkrinfo%type == '
-     &                   ,trkrinfo%type
+c                  print *,'At pt isi, isiret3= ',isiret3
+c                  print *,'At pt isi, isastorm(3)= ',isastorm(3)
+c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
 
                   if (isiret3 == 0 .and. isastorm(3) == 'Y' .and.
      &              trkrinfo%type == 'tracker') then
@@ -3529,7 +3611,7 @@ c           from the model forecast data itself, not the obs.
      &                     ,shear,igsret)
             endif
 
-            if ((genflag == 'y' .or. genflag == 'Y') .and. 
+            if ((genflag == 'y' .or. genflag == 'Y') .and.
      &           stormswitch(ist) == 1) then
               call get_gen_diags (imax,jmax,inp,dx,dy
      &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
@@ -3570,16 +3652,6 @@ c           knots (1.9427) is explained in output_atcf.
 
               if (leadtime_check == 0) then
 
-                ifcsthour = ileadtime / 100
-
-                call output_atcfunix (fixlon(ist,ifh)
-     &                    ,fixlat(ist,ifh),inp,ist
-     &                    ,ifcsthour,xmaxwind(ist,ifh)
-     &                    ,gridprs(ist,ifh),vradius,maxstorm
-     &                    ,trkrinfo,plastbar,rlastbar,rmax,cps_vals
-     &                    ,wcore_flag,shear(ist,ifh,1)
-     &                    ,shear(ist,ifh,2),ioaxret)
-
                 ! Get the storm motion vector and the speed of 
                 ! motion so that we can output this in the 
                 ! atcfunix file.
@@ -3598,7 +3670,7 @@ c           knots (1.9427) is explained in output_atcf.
                 if ( verb .ge. 3 ) then
                   write (6,617) istmspd,istmdir,ignret
  617              format (1x,'+++ RPT_STORM_MOTION: istmspd= ',i5
-     &                 ,' (kts*10)    istmdir= ',i5,' rcc= ',i3)
+     &                 ,' kts(*10)    istmdir= ',i5,' rcc= ',i3)
                 endif
 
                 ! Call a routine to find the mean & max relative
@@ -3612,24 +3684,50 @@ c           knots (1.9427) is explained in output_atcf.
      &                 ,trkrinfo,imeanzeta,igridzeta,readflag
      &                 ,valid_pt,ist,ifh,maxstorm,inp,igzvret)
 
+                ifcsthour = ileadtime / 100 
+
+                call output_atcfunix (fixlon(ist,ifh)
+     &                    ,fixlat(ist,ifh),inp,ist
+     &                    ,ifcsthour,xmaxwind(ist,ifh)
+     &                    ,gridprs(ist,ifh),vradius,maxstorm
+     &                    ,trkrinfo,plastbar,rlastbar,rmax,cps_vals
+     &                    ,wcore_flag,istmspd,istmdir,shear(ist,ifh,1)
+     &                    ,shear(ist,ifh,2),sst_smooth
+     &                    ,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
+
+                call output_aext (fixlon(ist,ifh)
+     &                    ,fixlat(ist,ifh),inp,ist
+     &                    ,ifcsthour,xmaxwind(ist,ifh)
+     &                    ,gridprs(ist,ifh),vradius,maxstorm
+     &                    ,trkrinfo,plastbar,rlastbar,rmax,cps_vals
+     &                    ,wcore_flag,istmspd,istmdir,shear(ist,ifh,1)
+     &                    ,shear(ist,ifh,2),sst_smooth
+     &                    ,axisymet_rmw_dist,axisymet_rmw_val
+     &                    ,divg,moist_divg
+     &                    ,rh_800_600_smooth,rh_1000_925_smooth
+     &                    ,omega500_smooth,imeanzeta,igridzeta
+     &                    ,ioaxret)
+
                 if (trkrinfo%type == 'midlat' .or.
      &              trkrinfo%type == 'tcgen') then
                   call output_atcf_gen (fixlon(ist,ifh)
      &               ,fixlat(ist,ifh),inp,ist
      &               ,ifcsthour,xmaxwind(ist,ifh)
      &               ,gridprs(ist,ifh),vradius,maxstorm,trkrinfo
-     &               ,istmspd,istmdir,plastbar,rlastbar,rmax,cps_vals
-     &               ,wcore_flag,imeanzeta,igridzeta,shear(ist,ifh,1)
-     &               ,shear(ist,ifh,2),ioaxret)
+     &               ,istmspd,istmdir,plastbar,rlastbar
+     &               ,rmax,cps_vals,wcore_flag
+     &               ,imeanzeta,igridzeta
+     &               ,shear(ist,ifh,1),shear(ist,ifh,2)
+     &               ,divg,moist_divg
+     &               ,rh_800_600_smooth,rh_1000_925_smooth
+     &               ,omega500_smooth,sst_smooth
+     &               ,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
                 endif
 
-                call output_atcf_sink (fixlon(ist,ifh)
-     &                    ,fixlat(ist,ifh),inp,ist
-     &                    ,ifcsthour,xmaxwind(ist,ifh)
-     &                    ,gridprs(ist,ifh),vradius,maxstorm
-     &                    ,trkrinfo,istmspd,istmdir,imeanzeta
-     &                    ,igridzeta,cps_vals,plastbar,rlastbar
-     &                    ,ioaxret)
+                call output_atcf_parms (fixlon(ist,ifh),fixlat(ist,ifh)
+     &               ,inp,ist,ifh,ifcsthour,xmaxwind(ist,ifh)
+     &               ,gridprs(ist,ifh),maxstorm,trkrinfo
+     &               ,clon,clat,calcparm,xval,ioapret)
 
                 if (inp%model == 12 .and. ifcsthour == 0) then
                   ! Write vitals for GFS ens control analysis
@@ -3643,9 +3741,10 @@ c           knots (1.9427) is explained in output_atcf.
               ! routine, which will be called for every lead time
               ! that is processed....
 
-              call output_hfip (fixlon(ist,ifh),fixlat(ist,ifh),inp,ist
-     &                        ,ifh,xmaxwind(ist,ifh)
-     &                        ,gridprs(ist,ifh),vradius,rmax,ioaxret)
+              call output_hfip (fixlon(ist,ifh)
+     &                  ,fixlat(ist,ifh),inp,ist
+     &                  ,ifh,xmaxwind(ist,ifh)
+     &                  ,gridprs(ist,ifh),vradius,rmax,ioaxret)
             else
 
               if ( verb .ge. 3 ) then
@@ -3673,6 +3772,8 @@ c           knots (1.9427) is explained in output_atcf.
                 vradius = 0
                 ileadtime = nint(fhreal(ifh) * 100.0)
                 ifcsthour = ileadtime / 100
+
+                print *,'ctx inp%model= ',inp%model
 
                 if (inp%model == 1 .or. inp%model == 8 .or. 
      &              inp%model == 22) then                
@@ -3749,25 +3850,58 @@ c           knots (1.9427) is explained in output_atcf.
      &                   ,' YMDH: ',i10)
 
                   call output_atcfunix (slonfg(ist,ifh)
-     &                      ,slatfg(ist,ifh),inp,ist
-     &                      ,ifcsthour,tcv_max_wind_ms
-     &                      ,tcv_mslp_pa,vradius,maxstorm,trkrinfo
-     &                      ,plastbar,rlastbar,-99.0
-     &                      ,cps_vals,wcore_flag,shear(ist,ifh,1)
-     &                      ,shear(ist,ifh,2),ioaxret)
+     &                  ,slatfg(ist,ifh),inp,ist
+     &                  ,ifcsthour,tcv_max_wind_ms
+     &                  ,tcv_mslp_pa,vradius,maxstorm
+     &                  ,trkrinfo,plastbar,rlastbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,istmspd,istmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
+
+                  imeanzeta = -99
+                  igridzeta = -99
+                  call output_aext (slonfg(ist,ifh)
+     &                  ,slatfg(ist,ifh),inp,ist
+     &                  ,ifcsthour,tcv_max_wind_ms
+     &                  ,tcv_mslp_pa,vradius,maxstorm
+     &                  ,trkrinfo,plastbar,rlastbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,istmspd,istmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val
+     &                  ,x999_divg,x999_moist_divg
+     &                  ,x999_rh600_800,x999_rh1000_925
+     &                  ,x999_omega500,imeanzeta,igridzeta
+     &                  ,ioaxret)
+
                 else
 
                   ! For all other models, we print out missing 
                   ! data values at tau=00h if the  tracker was 
                   ! unable to find the storm....
 
-                  call output_atcfunix (-999.0
-     &                      ,-999.0,inp,ist
-     &                      ,ifcsthour,0.0
-     &                      ,0.0,vradius,maxstorm,trkrinfo
-     &                      ,-99.0,-99.0,-99.0
-     &                      ,cps_vals,wcore_flag,shear(ist,ifh,1)
-     &                      ,shear(ist,ifh,2),ioaxret)
+                  call output_atcfunix (x999_lon
+     &                  ,x999_lat,inp,ist
+     &                  ,ifcsthour,xzero_vmax
+     &                  ,xzero_minslp,vradius,maxstorm
+     &                  ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
+
+                  imeanzeta = -99
+                  igridzeta = -99
+                  call output_aext (x999_lon
+     &                  ,x999_lat,inp,ist
+     &                  ,ifcsthour,xzero_vmax
+     &                  ,xzero_minslp,vradius,maxstorm
+     &                  ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val
+     &                  ,x999_divg,x999_moist_divg
+     &                  ,x999_rh600_800,x999_rh1000_925
+     &                  ,x999_omega500,imeanzeta,igridzeta
+     &                  ,ioaxret)
 
                 endif
 
@@ -3775,24 +3909,23 @@ c           knots (1.9427) is explained in output_atcf.
                 igridzeta = -99
                 if (trkrinfo%type == 'midlat' .or.
      &              trkrinfo%type == 'tcgen') then
-                  call output_atcf_gen (-999.0   
-     &               ,-999.0,inp,ist
-     &               ,ifcsthour,0.0
-     &               ,0.0,vradius,maxstorm,trkrinfo
-     &               ,-99,-99,-999.0,-999.0,-99.0
-     &               ,cps_vals,'u',imeanzeta,igridzeta,-999.0
-     &               ,-999.0,ioaxret)
+                  call output_atcf_gen (x999_lon
+     &               ,x999_lat,inp,ist
+     &               ,ifcsthour,xzero_vmax
+     &               ,xzero_minslp,vradius,maxstorm,trkrinfo
+     &               ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
+     &               ,x99_rmax,cps_vals,c_undef_wcflag
+     &               ,imeanzeta,igridzeta
+     &               ,x999_shrmag,x999_shrdir
+     &               ,x999_divg,x999_moist_divg
+     &               ,x999_rh600_800,x999_rh1000_925
+     &               ,x999_omega500,x999_sst
+     &               ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
                 endif
-                call output_atcf_sink (-999.0
-     &                    ,-999.0,inp,ist
-     &                    ,ifcsthour,0.0
-     &                    ,0.0,vradius,maxstorm,trkrinfo
-     &                    ,-99,-99,imeanzeta,igridzeta
-     &                    ,cps_vals,-999.0,-999.0,ioaxret)
-                call output_hfip (-999.0
-     &                    ,-999.0,inp,ist
-     &                    ,ifh,0.0
-     &                    ,0.0,vradius,-99.0,ioaxret)
+                call output_hfip (x999_lon
+     &                    ,x999_lat,inp,ist
+     &                    ,ifh,xzero_vmax
+     &                    ,xzero_minslp,vradius,x99_rmax,ioaxret)
 
                 if (trkrinfo%type == 'tracker') then
                   ! Update 11/11: For a 'tracker' run, i.e., one in 
@@ -3892,35 +4025,47 @@ c           data, so we'll just output the genesis vitals record.
               vradius = 0
               ileadtime = nint(fhreal(ifh) * 100.0)
               ifcsthour = ileadtime / 100
-              call output_atcfunix (-999.0
-     &                  ,-999.0,inp,ist
-     &                  ,ifcsthour,0.0
-     &                  ,0.0,vradius,maxstorm,trkrinfo
-     &                  ,-99.0,-99.0,-99.0
-     &                  ,cps_vals,wcore_flag,shear(ist,ifh,1)
-     &                  ,shear(ist,ifh,2),ioaxret)
+              call output_atcfunix (x999_lon
+     &                  ,x999_lat,inp,ist
+     &                  ,ifcsthour,xzero_vmax
+     &                  ,xzero_minslp,vradius,maxstorm
+     &                  ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
               imeanzeta = -99
               igridzeta = -99
+              call output_aext (x999_lon
+     &                  ,x999_lat,inp,ist
+     &                  ,ifcsthour,xzero_vmax
+     &                  ,xzero_minslp,vradius,maxstorm
+     &                  ,trkrinfo,x99_pbar,x99_rbar,x99_rmax,cps_vals
+     &                  ,wcore_flag,i999_stmspd,i999_stmdir,x999_shrmag
+     &                  ,x999_shrdir,x999_sst
+     &                  ,x999_axirmw_dist,x999_axirmw_val
+     &                  ,x999_divg,x999_moist_divg
+     &                  ,x999_rh600_800,x999_rh1000_925
+     &                  ,x999_omega500,imeanzeta,igridzeta
+     &                  ,ioaxret)
               if (trkrinfo%type == 'midlat' .or.
      &            trkrinfo%type == 'tcgen') then
-                call output_atcf_gen (-999.0
-     &             ,-999.0,inp,ist
-     &             ,ifcsthour,0.0
-     &             ,0.0,vradius,maxstorm,trkrinfo
-     &             ,-99,-99,-999.0,-999.0,-99.0
-     &             ,cps_vals,'u',imeanzeta,igridzeta,-999.0
-     &             ,-999.0,ioaxret)
+                call output_atcf_gen (x999_lon
+     &             ,x999_lat,inp,ist
+     &             ,ifcsthour,xzero_vmax
+     &             ,xzero_minslp,vradius,maxstorm,trkrinfo
+     &             ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
+     &             ,x99_rmax,cps_vals,c_undef_wcflag
+     &             ,imeanzeta,igridzeta
+     &             ,x999_shrmag,x999_shrdir
+     &             ,x999_divg,x999_moist_divg
+     &             ,x999_rh600_800,x999_rh1000_925
+     &             ,x999_omega500,x999_sst
+     &             ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
               endif
-              call output_atcf_sink (-999.0
-     &                  ,-999.0,inp,ist
-     &                  ,ifcsthour,0.0
-     &                  ,0.0,vradius,maxstorm,trkrinfo
-     &                  ,-99,-99,imeanzeta,igridzeta
-     &                  ,cps_vals,-999.0,-999.0,ioaxret)
-              call output_hfip (-999.0
-     &                  ,-999.0,inp,ist
-     &                  ,ifh,0.0
-     &                  ,0.0,vradius,-99.0,ioaxret)
+              call output_hfip (x999_lon
+     &                  ,x999_lat,inp,ist
+     &                  ,ifh,xzero_vmax
+     &                  ,xzero_minslp,vradius,x99_rmax,ioaxret)
             endif
 
           case (3)
@@ -7687,9 +7832,9 @@ c
 c     2. Calculate the azimuthally averaged radial and tangential wind
 c        at each pressure level as a function of radius. At each level,
 c        find the radius where the symmetric tangential wind decreases
-c        to 1 m/s (r-outer). That radius nearly always decreases with
+c        to 1 m/s (r_outer). That radius nearly always decreases with
 c        height. Subtract the azimuthally averaged tangential and radial
-c        winds out to r = r-outer at each level to remove the vortex. 
+c        winds out to r = r_outer at each level to remove the vortex. 
 c
 c     3. Average the Cartesian horizontal wind components after the
 c        vortex removal over an area out to 500 km radius at 850 and 
@@ -7749,7 +7894,6 @@ c     *NOTE: For all of these above Local arrays with the u- and
 c            v-components, in the arrays, there is a numlev 
 c            variable.  numlev=1 is for 850 mb, and numlev=2
 c            is for 200 mb.
-
 
       USE grid_bounds; USE tracked_parms; USE trig_vals
       USE level_parms; USE trkrparms; USE inparms; USE set_max_parms
@@ -7821,7 +7965,7 @@ c     ------------------------------------------------------------------
 
       if (verb >= 1) then
         print *,' '
-        print *,'XXX xxshear'
+        print *,'xxshear'
         print *,'In get_shear A, xcenlon= ',xcenlon,' xcenlat= ',xcenlat
         if (verb .ge. 3) then
           print *,' '
@@ -7845,10 +7989,6 @@ c     through 352.5.  Note that the outer loop of this process is for
 c     vertical level ("levelloop1"), where we will first do all of the
 c     analysis for 850 mb, and then next for 200 mb.
 c     ------------------------------------------------------------------
-
-      if (verb >= 1) then
-        print *,' '
-      endif
 
       levelloop1: do ilev = 1,2
 
@@ -7893,18 +8033,18 @@ c     ------------------------------------------------------------------
      &          ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
      &          ,valid_pt,bimct,ifh,ibiret2)
 
-            if (verb >= 1) then
-              print *,' '
-              print '(6x,a13,i3,a8,f8.2)','  ^^^ iazim= ',iazim
-     &               ,'  bear= ',bear
-              print '(8x,5(a11,f7.2))','  xcenlat= ',xcenlat
-     &               ,'  xcenlon= ',xcenlon
-     &               ,'   rdist=  ',rdist(idist),'  targlat= ',targlat
-     &               ,'  targlon= ',targlon
-              print '(19x,a10,f7.2,35x,a9,f7.2)',' xcenlon= '
-     &               ,360.-xcenlon
-     &               ,'targlon= ',360.-targlon
-            endif
+c            if (verb >= 1) then
+c              print *,' '
+c              print '(6x,a13,i3,a8,f8.2)','  ^^^ iazim= ',iazim
+c     &               ,'  bear= ',bear
+c              print '(8x,5(a11,f7.2))','  xcenlat= ',xcenlat
+c     &               ,'  xcenlon= ',xcenlon
+c     &               ,'   rdist=  ',rdist(idist),'  targlat= ',targlat
+c     &               ,'  targlon= ',targlon
+c              print '(19x,a10,f7.2,35x,a9,f7.2)',' xcenlon= '
+c     &               ,360.-xcenlon
+c     &               ,'targlon= ',360.-targlon
+c            endif
 
             if (ibiret1 == 0 .and. ibiret2 == 0) then
               call getvrvt (xcenlon,xcenlat,targlon,targlat
@@ -7927,15 +8067,15 @@ c     ------------------------------------------------------------------
               return
             endif
 
-            if (verb >= 1) then
-              print *,' '
-              print '(8x,2(a12,f7.2),2(a8,i3))','  xintrp_u= '
-     &               ,xintrp_u,'  xintrp_v= ',xintrp_v
-     &               ,' iazim= ',iazim,' idist= ',idist
-              print '(8x,2(a24,f7.2))','  vr(iazim,idist,ilev)= '
-     &               ,vr(iazim,idist,ilev),'  vt(iazim,idist,ilev)= '
-     &               ,vt(iazim,idist,ilev)
-            endif
+c            if (verb >= 1) then
+c              print *,' '
+c              print '(8x,2(a12,f7.2),2(a8,i3))','  xintrp_u= '
+c     &               ,xintrp_u,'  xintrp_v= ',xintrp_v
+c     &               ,' iazim= ',iazim,' idist= ',idist
+c              print '(8x,2(a24,f7.2))','  vr(iazim,idist,ilev)= '
+c     &               ,vr(iazim,idist,ilev),'  vt(iazim,idist,ilev)= '
+c     &               ,vt(iazim,idist,ilev)
+c            endif
 
           enddo azimloop1
 
@@ -7981,20 +8121,20 @@ c     ------------------------------------------------------------------
           level = 200
         endif
 
-        if (verb >= 1) then
-          print *,' '
-          print *,' +++ Find r(=outer), ilev= ',ilev,'  level= ',level
-          print *,' '
-          do idist = 1,numdist
-            print *,' '
-            print '(4x,a8,i3,2(a10,i4),a16,f6.1,2(a11,f7.2))'
-     &               ,'  ilev= ',ilev
-     &               ,'   level= ',level,'  idist=  ',idist
-     &               ,'  rdist(idist)= ',rdist(idist)
-     &               ,'  vt_mean= ',vt_mean(idist,ilev)
-     &               ,'  vr_mean= ',vr_mean(idist,ilev)
-          enddo
-        endif
+c        if (verb >= 1) then
+c          print *,' '
+c          print *,' +++ Find r(=outer), ilev= ',ilev,'  level= ',level
+c          print *,' '
+c          do idist = 1,numdist
+c            print *,' '
+c            print '(4x,a8,i3,2(a10,i4),a16,f6.1,2(a11,f7.2))'
+c     &               ,'  ilev= ',ilev
+c     &               ,'   level= ',level,'  idist=  ',idist
+c     &               ,'  rdist(idist)= ',rdist(idist)
+c     &               ,'  vt_mean= ',vt_mean(idist,ilev)
+c     &               ,'  vr_mean= ',vr_mean(idist,ilev)
+c          enddo
+c        endif
 
         max_dist_index(ilev) = numdist
         found_vt_ge_1_flag = 'n'
@@ -8059,12 +8199,12 @@ c     ------------------------------------------------------------------
           max_dist_index(ilev) = -999
         endif
 
-        if (verb >= 1) then
-          print *,' '
-          print '(6x,a26,i3,a9,i5,a24,i5)','     Find r(=outer) ilev= '
-     &               ,ilev,'  level= ',level
-     &               ,'  max_dist_index(ilev)= ',max_dist_index(ilev)
-        endif
+c        if (verb >= 1) then
+c          print *,' '
+c          print '(6x,a26,i3,a9,i5,a24,i5)','     Find r(=outer) ilev= '
+c     &               ,ilev,'  level= ',level
+c     &               ,'  max_dist_index(ilev)= ',max_dist_index(ilev)
+c        endif
 
 c       ----------------------------------------------------------------
 c       Now go through the radii and the azimuths again, and this time
@@ -8276,6 +8416,17 @@ c     -----------------------------------------------------------------
 c      shear(ist,ifh,2) = shear_dir_from
       shear(ist,ifh,2) = shear_dir_point_to
 
+      if (verb >= 1) then
+        print *,' '
+        print *,'At end of get_shear: '
+        print '(2x,a8,i4,a6,i4,a31,f8.2)','   ist= ',ist,' ifh= ',ifh
+     &             ,' shear(ist,ifh,1) = shear_mag= '
+     &             ,shear(ist,ifh,1)
+        print '(2x,22x,a40,f8.2)'
+     &             ,' shear(ist,ifh,2) = shear_dir_point_to= '
+     &             ,shear(ist,ifh,2)
+      endif
+
 c
       return
       end
@@ -8399,7 +8550,7 @@ c
         else
           q850_smooth = -9999.0
         endif
-
+ 
       endif
 
       if (igdret == 0 .and. igsvret == 0) then
@@ -8458,8 +8609,8 @@ c
       !----------------------------------------------------------------
 
       if (readgenflag(24)) then
-        re = 125.0
-        ri = 250.0
+        re = 125.0 
+        ri = 250.0 
         igsvret = 0
         call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
      &                ,ifh,imax,jmax,omega500(1,1),'omega500',dx,dy
@@ -8467,13 +8618,12 @@ c
      &                ,xsmoothval,igsvret)
         if (igsvret == 0) then
           omega500_smooth = xsmoothval
-        else
+        else  
           omega500_smooth = -9999.0
-        endif
-      else
+        endif 
+      else  
         omega500_smooth = -9999.0
       endif
-
 c
       return
       end
@@ -8508,7 +8658,7 @@ c
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
       real    dx,dy,xcenlon,xcenlat,divg,xsmoothval,re,ri
-
+      
       logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
 c
       if (allocated(divg_850)) deallocate(divg_850)
@@ -9349,7 +9499,8 @@ c-----------------------------------------------------------------------
       subroutine output_atcfunix (outlon,outlat,inp,ist
      &         ,ifcsthour,vmaxwind,xminmslp,vradius,maxstorm
      &         ,trkrinfo,plastbar,rlastbar,rmax,cps_vals
-     &         ,wcore_flag,shear_mag,shear_dir,ioaxret)
+     &         ,wcore_flag,istmspd,istmdir,shear_mag,shear_dir
+     &         ,sst_smooth,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
 
 c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
 c     storm at an input forecast hour in the new ATCF UNIX format.  
@@ -9419,9 +9570,15 @@ c               asymmetry); (2) is for lower level (600-900 mb) thermal
 c               wind; (3) is for upper level (300-600 mb) thermal wind.
 c     wcore_flag character for value of 300-500 mb warm core: y, n, or 
 c               'u' for undetermined.
+c     istmspd   integer storm translation speed.
+c     istmdir   integer storm motion vector direction (to).
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
+c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     axisymet_rmw_dist real distance to axisymmetric RMW
+c     axisymet_rmw_val  real value of axisymmetric RMW
+c
 c     OUTPUT:
 c     ioaxret   integer return code from this subroutine
 c     
@@ -9432,8 +9589,10 @@ c     storm     An array of type tcvcard.  Use this for the storm ID
 c
 
       USE def_vitals; USE inparms; USE set_max_parms; USE atcf
-      USE trkrparms; USE phase; USE genesis_diags
+      USE trkrparms; USE phase; USE shear_diags; USE genesis_diags
       USE verbose_output
+
+      implicit none
 
       type (datecard) inp
       type (trackstuff) trkrinfo
@@ -9441,16 +9600,36 @@ c
       real    cps_vals(3)
       real    outlon,outlat,rmax,mslp_outp_adj
       real    vmaxwind,conv_ms_knots,xminmslp,plastbar,rlastbar
-      real    shear_mag,shear_dir
+      real    shear_mag,shear_dir,sst_smooth
+      real    axisymet_rmw_dist,axisymet_rmw_val
       integer intlon,intlat,irmax,output_fhr,ic,iplastbar,irlastbar
-      integer ishear_mag,ishear_dir
+      integer ishear_mag,ishear_dir,istmspd,istmdir,isst,ioaxret
+      integer irmw_dist,irmw_val,maxstorm,ist,ifh,ifcsthour
       integer vradius(3,4),icps_vals(3)
       character  basinid*2,clatns*1,clonew*1,wcore_flag*1
       character comma_fill1*48,comma_fill2*31,comma_filler*79
+      character comma_fill1n*27,comma_fill2n*44
 
       if ( verb .ge. 3 ) then
         print *,'TTT top of atcfunix, ist= ',ist,' ifh= ',ifcsthour
       endif
+
+      print *,' '
+      print *,'segx, outlon= ',outlon,' outlat= ',outlat
+      print *,'  ist= ',ist,' ifcsthour= ',ifcsthour
+      print *,'  vmaxwind= ',vmaxwind,' xminmslp= ',xminmslp
+      print *,'  vradius= ',vradius
+      print *,'  maxstorm= ',maxstorm
+      print *,'  plastbar= ',plastbar,' rlastbar= ',rlastbar
+      print *,'  rmax= ',rmax
+      print *,'  cps_vals= ',cps_vals
+      print *,'  wcore_flag= ',wcore_flag
+      print *,'  istmspd= ',istmspd,' istmdir= ',istmdir
+      print *,'  shear_mag= ',shear_mag,' shear_dir= ',shear_dir
+      print *,'  sst_smooth= ',sst_smooth
+      print *,'  axisymet_rmw_dist= ',axisymet_rmw_dist
+      print *,'  axisymet_rmw_val=  ',axisymet_rmw_val
+      print *,'  ioaxret= ',ioaxret
 
       if (xminmslp == 999999.0) xminmslp = 0.0
 
@@ -9577,6 +9756,34 @@ c     real to integer.
         endif
       enddo
 
+      if (istmspd < -998) then
+        istmspd = -99
+      endif
+
+      if (istmdir < -998) then
+        istmdir = -99
+      endif
+
+      if (sst_smooth > -998.0) then
+        isst = nint(sst_smooth * 10)
+      else
+        isst = -99
+      endif
+
+      if (axisymet_rmw_dist >= 0.0) then
+        irmw_dist = nint(axisymet_rmw_dist * 0.539638)  ! convert from
+                                                        ! km to nm
+      else
+        irmw_dist = -99
+      endif
+
+      if (axisymet_rmw_val >= 0.0) then
+        irmw_val = nint(axisymet_rmw_val * 1.9427)  ! convert from
+                                                    ! m/s to knots
+      else
+        irmw_val = -99
+      endif
+
       if (wcore_flag == 'y'.or. wcore_flag == 'Y') then
         wcore_flag = 'Y'
       elseif (wcore_flag == 'n' .or. wcore_flag == 'N') then
@@ -9604,9 +9811,12 @@ c     real to integer.
         ishear_dir = -99
       endif
 
-      comma_fill1 = ',   0,   0,    ,   0,    ,   0,   0,           ,'
-      comma_fill2 = '  ,   ,    ,   0,   0,   0,   0'
-      comma_filler = comma_fill1//comma_fill2
+c      comma_fill1 = ',   0,   0,    ,   0,    ,   0,   0,           ,'
+c      comma_fill2 = '  ,   ,    ,   0,   0,   0,   0'
+c      comma_filler = comma_fill1//comma_fill2
+
+      comma_fill1n = ',   0,   0,    ,   0,    , '
+      comma_fill2n = ',           ,  ,   ,    ,   0,   0,   0,   0'
 
       if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') then
 
@@ -9626,8 +9836,11 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  34, NEQ'
      &        ,vradius(1,1),vradius(1,2),vradius(1,3),vradius(1,4)
-     &        ,iplastbar,irlastbar,irmax,0,0
-     &        ,ishear_mag,ishear_dir,stcvtype(ist)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,stcvtype(ist)
 
         if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
      &      vradius(2,3) > 0 .or. vradius(2,4) > 0) then
@@ -9638,8 +9851,11 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  50, NEQ'
      &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
-     &        ,iplastbar,irlastbar,irmax,0,0
-     &        ,ishear_mag,ishear_dir,stcvtype(ist)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,stcvtype(ist)
         endif
 
         if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
@@ -9651,8 +9867,11 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  64, NEQ'
      &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
-     &        ,iplastbar,irlastbar,irmax,0,0
-     &        ,ishear_mag,ishear_dir,stcvtype(ist)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,stcvtype(ist)
         endif
 
       else
@@ -9664,9 +9883,10 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  34, NEQ'
      &        ,vradius(1,1),vradius(1,2),vradius(1,3),vradius(1,4)
-     &        ,iplastbar,irlastbar,irmax,comma_filler,icps_vals(1)
-     &        ,icps_vals(2),icps_vals(3),wcore_flag,int(wcore_depth*10)
-     &        ,ishear_mag,ishear_dir
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
 
         if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
      &      vradius(2,3) > 0 .or. vradius(2,4) > 0) then
@@ -9677,9 +9897,10 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)         
      &        ,'XX,  50, NEQ'          
      &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
-     &        ,iplastbar,irlastbar,irmax,comma_filler,icps_vals(1)
-     &        ,icps_vals(2),icps_vals(3),wcore_flag,int(wcore_depth*10)
-     &        ,ishear_mag,ishear_dir
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
         endif
 
         if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
@@ -9691,9 +9912,10 @@ c     real to integer.
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  64, NEQ'
      &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
-     &        ,iplastbar,irlastbar,irmax,comma_filler,icps_vals(1)
-     &        ,icps_vals(2),icps_vals(3),wcore_flag,int(wcore_depth*10)
-     &        ,ishear_mag,ishear_dir
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
         endif
 
       endif
@@ -9704,20 +9926,533 @@ c     real to integer.
 
    81 format (a2,', ',a2,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
-     &       ,2(', ',i4),', ',i3,a79,',       THERMO PARAMS'
+     &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
+     &       ,',       THERMO PARAMS'
      &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
-     &       ,i3)
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3))
    91 format (a2,', ',a4,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
-     &       ,2(', ',i4),', ',i3,2(', ',i3),', SHR82, ',i4,', ',i3,', '
-     &       ,a3)
+     &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
+     &       ,',       THERMO PARAMS'
+     &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3)', ',a3)
 
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(64)
 
       return
       end
+c
+c-----------------------------------------------------------------------
+c
+c-----------------------------------------------------------------------
+      subroutine output_aext (outlon,outlat,inp,ist
+     &         ,ifcsthour,vmaxwind,xminmslp,vradius,maxstorm
+     &         ,trkrinfo,plastbar,rlastbar,rmax,cps_vals
+     &         ,wcore_flag,istmspd,istmdir,shear_mag,shear_dir
+     &         ,sst_smooth,axisymet_rmw_dist,axisymet_rmw_val
+     &         ,divg,moist_divg
+     &         ,rh_800_600_smooth,rh_1000_925_smooth
+     &         ,omega500_smooth,imeanzeta,igridzeta,ioaxret)
 
+c     ABSTRACT: This subroutine  is very similar to subroutine
+c     output_atcfunix, however it also writes out additional 
+c     parameters on the end that are not part of the standard 
+c     ATCF format.  As of March 2022, that includes these parms:
+c       
+c       850 mb convergence
+c       850 mb moisture convergence
+c       800-600 mb layer mean RH
+c       1000-925 mb layer mean RH
+c       500 mb omega
+c       SST
+c
+c     INPUT:
+c     outlon    longitude  fix position for this storm at this time 
+c               which is to be written out to the  output file
+c     outlat    latitude  fix position for this storm at this time 
+c               which is to be written out to the  output file
+c     inp       contains input date and model number information
+c     ist       the number storm that we're processing (can be 1-15)
+c     ifcsthr   the current forecast hour being output
+c     vmaxwind  the max surface wind for this storm at this fcst hour
+c     xminmslp  the min mslp for this storm at this fcst hour
+c     vradius   Contains the distance from the storm fix position to
+c               each of the various wind threshhold distances in each
+c               quadrant. (3,4) ==> (# of threshholds, # of quadrants)
+c     maxstorm  max # of storms that can be handled
+c     plastbar  pressure of the outermost closed isobar
+c     rlastbar  radius (nm) of the outermost closed isobar
+c     rmax      radius of max winds (n mi).... it was already converted
+c               from km to n mi in subroutine  get_max_wind
+c     cps_vals  real array with the values for the 3 cyclone phase 
+c               space parameters: (1) is for Parameter B (thermal
+c               asymmetry); (2) is for lower level (600-900 mb) thermal
+c               wind; (3) is for upper level (300-600 mb) thermal wind.
+c     wcore_flag character for value of 300-500 mb warm core: y, n, or 
+c               'u' for undetermined.
+c     istmspd   integer storm translation speed.
+c     istmdir   integer storm motion vector direction (to).
+c     shear_mag real magnitude of 850-200 mb vertical shear.
+c     shear_dir real vector direction the 850-200 mb vertical shear
+c               is heading to.
+c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     axisymet_rmw_dist real distance to axisymmetric RMW
+c     axisymet_rmw_val  real value of axiysymmetric RMW
+c     divg      real barnes-averaged 850 mb convergence
+c     moist_divg real barnes-averaged 850 mb moisture convergence
+c     rh_800_600_smooth real barnes-averaged 800-600 mb layer mean RH
+c     rh_1000_925_smooth real barnes-averaged 1000-925 mb layer mean RH
+c     omega500_smooth real barnes-averaged 500 mb omega
+c     imeanzeta array with values of mean 850 & 700 zeta
+c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
+c
+c     OUTPUT:
+c     ioaxret   integer return code from this subroutine
+c     
+c     LOCAL:
+c     intlon    integer that holds the value of outlon*10
+c     intlat    integer that holds the value of outlat*10
+c     storm     An array of type tcvcard.  Use this for the storm ID
+c
+
+      USE def_vitals; USE inparms; USE set_max_parms; USE atcf
+      USE trkrparms; USE phase; USE shear_diags; USE genesis_diags
+      USE verbose_output; USE level_parms
+
+      type (datecard) inp
+      type (trackstuff) trkrinfo
+
+      real    cps_vals(3)
+      real    outlon,outlat,rmax,mslp_outp_adj
+      real    axisymet_rmw_dist,axisymet_rmw_val
+      real    vmaxwind,conv_ms_knots,xminmslp,plastbar,rlastbar
+      real    shear_mag,shear_dir,sst_smooth,divg,moist_divg
+      real    rh_800_600_smooth,rh_1000_925_smooth,omega500_smooth
+      integer intlon,intlat,irmax,output_fhr,ic,iplastbar,irlastbar
+      integer ishear_mag,ishear_dir,istmspd,istmdir,isst
+      integer irmw_dist,irmw_val
+      integer idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+      integer vradius(3,4),icps_vals(3)
+      integer imeanzeta(nlevgrzeta),igridzeta(nlevgrzeta)
+      character  basinid*2,clatns*1,clonew*1,wcore_flag*1
+      character comma_fill1*48,comma_fill2*31,comma_filler*79
+      character comma_fill1n*27,comma_fill2n*44
+c
+      if ( verb .ge. 3 ) then
+        print *,'TXX top of atcfunix_ext, ist= ',ist,' ifh= ',ifcsthour
+      endif
+
+      if (xminmslp == 999999.0) xminmslp = 0.0
+
+      if (xminmslp < 1100.0) then
+        ! Pressure units are in mb...
+        mslp_outp_adj = 1.0
+      elseif (xminmslp >80000.0) then
+        ! Pressure units are in Pa...
+        mslp_outp_adj = 100.0
+      else
+        if (verb .ge. 3) then
+          print *,' '
+          print *,'ERROR: Something wrong in subroutine'
+          print *,'       output_aext.  The mslp value'
+          print *,'       (xminmslp) is not in range.'
+          print *,'       xminmslp = ',xminmslp
+          print *,'       EXITING....'
+          print *,' '
+          stop 95
+        endif
+      endif
+
+c     First convert all of the lat/lon values from reals into integers.
+c     These integer values must be 10x their real value (eg. 125.4 will
+c     be written out as 1254).  Convert the lon values so that they go
+c     from 0-180E or 0-180W, and convert the lat values so that they are
+c     positive and use 'N' or 'S' to differentiate hemispheres.
+
+      conv_ms_knots = 1.9427
+
+      if (outlon < -998.0 .or. outlat < -998.0) then
+        intlon = 0
+        intlat = 0
+        clonew = ' '
+        clatns = ' '
+      else
+        if (outlon >= 180.0) then
+          intlon = 3600 - int(outlon * 10. + 0.5)
+          clonew = 'W'
+        else
+          intlon = int(outlon * 10. + 0.5)
+          clonew = 'E'
+        endif
+        intlat = int(abs(outlat) * 10. + 0.5)
+        if (outlat < 0.0) then
+          clatns = 'S'
+        else
+          clatns = 'N'
+        endif
+      endif
+
+      if ( verb .ge. 3 ) then
+        print *,' '
+        print *,'in output_aext, tcv_storm_id= '
+     &       ,storm(ist)%tcv_storm_id
+        print *,'in output_aext, tcv_storm_id(3:3)= '
+     &       ,storm(ist)%tcv_storm_id(3:3)
+      endif
+
+      select case (storm(ist)%tcv_storm_id(3:3))
+        case ('L','l');  basinid = 'AL'
+        case ('E','e');  basinid = 'EP'
+        case ('C','c');  basinid = 'CP'
+        case ('W','w');  basinid = 'WP'
+        case ('O','o');  basinid = 'SC'
+        case ('T','t');  basinid = 'EC'
+        case ('U','u');  basinid = 'AU'
+        case ('P','p');  basinid = 'SP'
+        case ('S','s');  basinid = 'SI'
+        case ('B','b');  basinid = 'BB'
+!zhang        case ('A','a');  basinid = 'NA'
+        case ('A','a');  basinid = 'AA'
+        case ('Q','q');  basinid = 'SL'
+        case default;    basinid = 'HC'
+      end select
+
+      if (atcfname(1:2) == 'SP') then
+        ! Add 3 for SREF to account for the 3-hour off-synoptic
+        ! time offset....
+        output_fhr = ifcsthour + 3
+      else
+        output_fhr = ifcsthour
+      endif
+
+      if (rmax == -99.0) then
+        irmax = -99
+      else    
+        irmax = int(rmax + 0.5)
+      endif
+
+      if (trkrinfo%want_oci) then
+        if (plastbar > 0.0) then
+          iplastbar = int(plastbar/mslp_outp_adj + 0.5)
+        else
+          iplastbar = -99
+        endif
+        if (rlastbar > 0.0) then
+          irlastbar = int(rlastbar + 0.5)
+        else
+          irlastbar = -99
+        endif
+      else
+        iplastbar = -99
+        irlastbar = -99
+      endif
+
+      if ( verb .ge. 3 ) then
+        print *, 'output: rlastbar=',rlastbar,' irlastbar=',irlastbar
+        print *, 'output: plastbar=',plastbar,' iplastbar=',iplastbar
+      endif
+
+c     Now convert all of the cyclone phase space parameter values from
+c     real to integer.
+
+      do ic = 1,3
+        if (cps_vals(ic) > -9999.0) then
+          if (cps_vals(ic) >= 0.0) then
+            icps_vals(ic) = int(cps_vals(ic)*10. + 0.5)
+          else
+            icps_vals(ic) = int(cps_vals(ic)*10. - 0.5)
+          endif
+        else
+          icps_vals(ic) = -9999
+        endif
+      enddo
+
+      if (istmspd < -998) then
+        istmspd = -99
+      endif
+
+      if (istmdir < -998) then
+        istmdir = -99
+      endif
+
+      if (axisymet_rmw_dist >= 0.0) then
+        irmw_dist = nint(axisymet_rmw_dist * 0.539638)  ! convert from
+                                                        ! km to nm
+      else
+        irmw_dist = -99
+      endif
+
+      if (axisymet_rmw_val >= 0.0) then
+        irmw_val = nint(axisymet_rmw_val * 1.9427)  ! convert from
+                                                    ! m/s to knots
+      else
+        irmw_val = -99
+      endif
+
+      if (wcore_flag == 'y'.or. wcore_flag == 'Y') then
+        wcore_flag = 'Y'
+      elseif (wcore_flag == 'n' .or. wcore_flag == 'N') then
+        wcore_flag = 'N'
+      elseif (wcore_flag == 'u' .or. wcore_flag == 'U') then
+        wcore_flag = 'U'
+      else
+        wcore_flag = 'U'
+      endif
+
+      if (shearflag == 'y' .or. shearflag == 'Y') then
+        if (shear_mag > -998.0) then
+          ! Convert the shear from m/s to knots for the output
+          ishear_mag = int(((shear_mag*1.9427)*10.)+ 0.5)
+        else
+          ishear_mag = -99
+        endif
+        if (shear_dir > -998.0) then
+          ishear_dir = int(shear_dir + 0.5)
+        else
+          ishear_dir = -99
+        endif
+      else
+        ishear_mag = -99
+        ishear_dir = -99
+      endif
+
+      if (genflag == 'y' .or. genflag == 'Y') then
+
+        if (divg > -998.0) then
+          idivg = int ((divg * 1e6) + 0.5)
+        else
+          idivg = -99
+        endif
+
+        if (moist_divg > -998.0) then
+          imoistdivg = int ((moist_divg * 1e6) + 0.5)
+        else
+          imoistdivg = -99
+        endif
+
+        if (rh_800_600_smooth > -998.0) then
+          irh_800_600 = int ((rh_800_600_smooth * 10) + 0.5)
+          if (irh_800_600 > 1000) then
+            irh_800_600 = 1000
+          endif
+        else
+          irh_800_600 = -99
+        endif
+
+        if (rh_1000_925_smooth > -998.0) then
+          irh_1000_925 = int ((rh_1000_925_smooth * 10) + 0.5)
+          if (irh_1000_925 > 1000) then
+            irh_1000_925 = 1000
+          endif
+        else
+          irh_1000_925 = -99
+        endif
+
+        if (omega500_smooth > -998.0) then
+          iomega500 = int ((omega500_smooth * 100) + 0.5)
+        else
+          iomega500 = -99
+        endif
+
+        if (sst_smooth > -998.0) then
+          isst = nint (sst_smooth * 10)
+        else
+          isst = -99
+        endif
+
+      else
+        idivg        = -99
+        imoistdivg   = -99
+        irh_800_600  = -99
+        irh_1000_925 = -99
+        iomega500    = -99
+        isst         = -99
+      endif
+
+
+
+c      comma_fill1 = ',   0,   0,    ,   0,    ,   0,   0,           ,'
+c      comma_fill2 = '  ,   ,    ,   0,   0,   0,   0'
+c      comma_filler = comma_fill1//comma_fill2
+
+      comma_fill1n = ',   0,   0,    ,   0,    , '
+      comma_fill2n = ',           ,  ,   ,    ,   0,   0,   0,   0'
+
+      if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') then
+
+        if (stcvtype(ist) == 'FOF') then
+          ! If this is a TC vitals-described storm (i.e., one that is
+          ! numbered by JTWC or NHC), then leave the basinid as is.
+          ! Otherwise, we want to use the "basinid" location as a 
+          ! label to identify what type of run this is.
+          if (trkrinfo%type == 'midlat') basinid = 'ML'
+          if (trkrinfo%type == 'tcgen')  basinid = 'TG'
+        endif
+
+        print *,' '
+        print *,'xx68 - output_aext'
+        print *,'basinid= ',basinid
+        print *,'tcv_storm_id= ',adjustr(storm(ist)%tcv_storm_id)
+        print *,'atcfymdh= ',atcfymdh,' atcfname= ',adjustr(atcfname)
+        print *,'output_fhr= ',output_fhr
+        print *,'intlat= ',intlat,' clatns= ',clatns
+        print *,'intlon= ',intlon,' clonew= ',clonew
+        print *,'int_wind_kts= ',int((vmaxwind*conv_ms_knots) + 0.5)
+        print *,'int_mslp= ',int(xminmslp/mslp_outp_adj + 0.5)
+        print *,'filler= ','XX,  34, NEQ'
+        print *,'vradius(1-4)= ',vradius(1,1),vradius(1,2),vradius(1,3)
+     &         ,vradius(1,4)
+        print *,'iplastbar= ',iplastbar,' irlastbar= ',irlastbar
+        print *,'irmax= ',irmax
+        print *,'comma_fill1n= ',comma_fill1n
+        print *,'istmdir= ',istmdir,' istmspd= ',istmspd
+        print *,'comma_fill2n= ',comma_fill2n
+        print *,'icps_vals(1)= ',icps_vals(1)
+        print *,'icps_vals(2)= ',icps_vals(2)
+        print *,'icps_vals(3)= ',icps_vals(3)
+        print *,'wcore_flag= ',wcore_flag
+        print *,'int(wcore_depth*10)= ',int(wcore_depth*10)
+        print *,'ishear_mag= ',ishear_mag,' ishear_dir= ',ishear_dir
+        print *,'isst= ',isst
+        print *,'irmw_dist= ',irmw_dist,' irmw_val= ',irmw_val
+        print *,'idivg= ',idivg,' imoistdivg= ',imoistdivg
+        print *,'irh_800_600= ',irh_800_600
+        print *,'irh_1000_925= ',irh_1000_925
+        print *,'iomega500= ',iomega500
+        print *,'imeanzeta(1)= ',imeanzeta(1)
+        print *,'igridzeta(1)= ',igridzeta(1)
+        print *,'imeanzeta(2)= ',imeanzeta(2)
+        print *,'igridzeta(2)= ',igridzeta(2)
+
+        write (68,91) basinid,adjustr(storm(ist)%tcv_storm_id)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  34, NEQ'
+     &        ,vradius(1,1),vradius(1,2),vradius(1,3),vradius(1,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+     &        ,stcvtype(ist)
+
+        if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
+     &      vradius(2,3) > 0 .or. vradius(2,4) > 0) then
+          write (68,91) basinid,adjustr(storm(ist)%tcv_storm_id)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  50, NEQ'
+     &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+     &        ,stcvtype(ist)
+        endif
+
+        if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
+     &      vradius(3,3) > 0 .or. vradius(3,4) > 0) then
+          write (68,91) basinid,adjustr(storm(ist)%tcv_storm_id)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  64, NEQ'
+     &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+     &        ,stcvtype(ist)
+        endif
+
+      else
+
+        write (68,81) basinid,storm(ist)%tcv_storm_id(1:2)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  34, NEQ'
+     &        ,vradius(1,1),vradius(1,2),vradius(1,3),vradius(1,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+
+        if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
+     &      vradius(2,3) > 0 .or. vradius(2,4) > 0) then
+          write (68,81) basinid,storm(ist)%tcv_storm_id(1:2)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)                   
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)         
+     &        ,'XX,  50, NEQ'          
+     &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+        endif
+
+        if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
+     &      vradius(3,3) > 0 .or. vradius(3,4) > 0) then
+          write (68,81) basinid,storm(ist)%tcv_storm_id(1:2)
+     &        ,atcfymdh
+     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  64, NEQ'
+     &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
+     &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
+     &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
+     &        ,wcore_flag,int(wcore_depth*10)
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
+     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
+        endif
+
+      endif
+
+      if ( verb .ge. 3 ) then
+        print *,'rmax= ',rmax,'  irmax= ',irmax
+      endif
+
+   81 format (a2,', ',a2,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
+     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
+     &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
+     &       ,',       THERMO PARAMS'
+     &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),', ',i7,8(', ',i4))
+   91 format (a2,', ',a4,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
+     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
+     &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
+     &       ,',       THERMO PARAMS'
+     &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),', ',i7,8(', ',i4)
+     &       ,', ',a3)
+
+c     bug fix for IBM: flush the output stream so it actually writes
+      flush(68)
+
+      return
+      end
+
+c
 c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
@@ -10547,9 +11282,9 @@ c
 c     The "71" ID indicates earth-relative winds, the "72" ID indicates
 c     storm-relative winds.  Here are the other IDs that will be used:
 c       81: Tangential winds, earth-relative
-c       82: Tangential winds, storm-relative
+c       82: Tangential winds, storm motion-relative
 c       91: Radial winds, earth-relative
-c       92: Radial winds, storm-relative
+c       92: Radial winds, storm motion-relative
 c
 c     Note that in this example, for this 36h forecast hour, there are
 c     8 entries.  This is so that we can include the wind values for
@@ -11168,7 +11903,10 @@ c-----------------------------------------------------------------------
      &         ,ifcsthour,vmaxwind,xminmslp,vradius,maxstorm
      &         ,trkrinfo,istmspd,istmdir,plastbar,rlastbar,rmax
      &         ,cps_vals,wcore_flag,imeanzeta,igridzeta
-     &         ,shear_mag,shear_dir,ioaxret)
+     &         ,shear_mag,shear_dir,divg,moist_divg
+     &         ,rh_800_600_smooth,rh_1000_925_smooth
+     &         ,omega500_smooth,sst_smooth
+     &         ,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
 
 c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
 c     storm at an input forecast hour in a modified atcfunix format.  
@@ -11250,6 +11988,9 @@ c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
+c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     axisymet_rmw_dist real distance to axisymmetric RMW
+c     axisymet_rmw_val  real value of axisymmetric RMW
 c 
 c     OUTPUT:
 c     ioaxret   integer return code from this subroutine
@@ -11262,7 +12003,7 @@ c
 
       USE def_vitals; USE inparms; USE set_max_parms; USE atcf
       USE trkrparms; USE gen_vitals; USE level_parms
-      USE verbose_output
+      USE verbose_output; USE shear_diags; USE genesis_diags
 
       type (gencard) gstm
       type (datecard) inp
@@ -11271,11 +12012,15 @@ c
       real    outlon,outlat,plastbar,rlastbar,rmax
       real    vmaxwind,conv_ms_knots,xminmslp,mslp_outp_adj
       real    cps_vals(3)
-      real    shear_mag,shear_dir
+      real    shear_mag,shear_dir,axisymet_rmw_dist,axisymet_rmw_val
+      real    divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
+      real    omega500_smooth,sst_smooth
       integer intlon,intlat,istmspd,istmdir,iplastbar,irlastbar,irmax
       integer ivtl,ivtu,iparamb,output_fhr,ishear_mag,ishear_dir
       integer vradius(3,4)
       integer imeanzeta(nlevgrzeta),igridzeta(nlevgrzeta)
+      integer idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500,isst
+      integer irmw_dist,irmw_val
       character  basinid*2,clatns*1,clonew*1,wcore_flag*1
 
       if ( verb .ge. 3) then
@@ -11396,19 +12141,19 @@ c     identifier at the beginning of the modified atcfunix record.
 
       endif
 
-      if (plastbar > -990.0) then
+      if (plastbar > 0.0) then
         iplastbar = int(plastbar/mslp_outp_adj + 0.5)
       else
         iplastbar = -999
       endif
 
-      if (rlastbar > -990.0) then
+      if (rlastbar > 0.0) then
         irlastbar = int(rlastbar + 0.5)
       else
         irlastbar = -999
       endif
 
-      if (rmax > -90.0) then
+      if (rmax > 0.0) then
         irmax = int(rmax + 0.5)
       else
         irmax = -99
@@ -11461,6 +12206,73 @@ c     identifier at the beginning of the modified atcfunix record.
         ishear_dir = -99
       endif
 
+      if (axisymet_rmw_dist >= 0.0) then
+        irmw_dist = nint(axisymet_rmw_dist * 0.539638)  ! convert from
+                                                        ! km to nm
+      else
+        irmw_dist = -99
+      endif
+
+      if (axisymet_rmw_val >= 0.0) then
+        irmw_val = nint(axisymet_rmw_val * 1.9427)  ! convert from
+                                                    ! m/s to knots
+      else
+        irmw_val = -99
+      endif
+
+      if (genflag == 'y' .or. genflag == 'Y') then
+
+        if (divg > -998.0) then
+          idivg = int ((divg * 1e6) + 0.5)
+        else
+          idivg = -99
+        endif
+
+        if (moist_divg > -998.0) then
+          imoistdivg = int ((moist_divg * 1e6) + 0.5)
+        else
+          imoistdivg = -99
+        endif
+
+        if (rh_800_600_smooth > -998.0) then
+          irh_800_600 = int ((rh_800_600_smooth * 10) + 0.5)
+          if (irh_800_600 > 1000) then
+            irh_800_600 = 1000
+          endif
+        else
+          irh_800_600 = -99
+        endif
+
+        if (rh_1000_925_smooth > -998.0) then
+          irh_1000_925 = int ((rh_1000_925_smooth * 10) + 0.5)
+          if (irh_1000_925 > 1000) then
+            irh_1000_925 = 1000
+          endif
+        else
+          irh_1000_925 = -99
+        endif
+
+        if (omega500_smooth > -998.0) then
+          iomega500 = int ((omega500_smooth * 100) + 0.5)
+        else
+          iomega500 = -99
+        endif
+
+        if (sst_smooth > -998.0) then
+          isst = int ((sst_smooth * 10) + 0.5)
+        else
+          isst = -99
+        endif
+
+      else
+        idivg        = -99
+        imoistdivg   = -99
+        irh_800_600  = -99
+        irh_1000_925 = -99
+        iomega500    = -99
+        isst         = -99
+      endif
+
       select case (storm(ist)%tcv_storm_id(3:3))
         case ('L','l');  basinid = 'AL'
         case ('E','e');  basinid = 'EP'
@@ -11494,6 +12306,45 @@ c     identifier at the beginning of the modified atcfunix record.
         if (trkrinfo%type == 'tcgen')  basinid = 'TG'
       endif
 
+      print *,' '
+      print *,'xx66 - output_atcf_gen:'
+      print *,'basinid= ',basinid
+      print *,'tcv_storm_id= ',adjustr(storm(ist)%tcv_storm_id)
+      print *,'gstm%gv_gen_date= ',gstm%gv_gen_date
+      print *,'gstm%gv_gen_fhr= ',gstm%gv_gen_fhr
+      print *,'gstm%gv_gen_lat= ',gstm%gv_gen_lat
+      print *,'gstm%gv_gen_latns= ',gstm%gv_gen_latns
+      print *,'gstm%gv_gen_lon= ',gstm%gv_gen_lon
+      print *,'gstm%gv_gen_lonew= ',gstm%gv_gen_lonew
+      print *,'gstm%gv_gen_type= ',gstm%gv_gen_type
+      print *,'atcfymdh= ',atcfymdh,' atcfname= ',adjustr(atcfname)
+      print *,'output_fhr= ',output_fhr
+      print *,'intlat= ',intlat,' clatns= ',clatns
+      print *,'intlon= ',intlon,' clonew= ',clonew
+      print *,'int_wind_kts= ',int((vmaxwind*conv_ms_knots) + 0.5)
+      print *,'int_mslp= ',int(xminmslp/mslp_outp_adj + 0.5)
+      print *,'filler= ','XX,  34, NEQ'
+      print *,'vradius(1-4)= ',vradius(1,1),vradius(1,2),vradius(1,3)
+     &       ,vradius(1,4)
+      print *,'iplastbar= ',iplastbar,' irlastbar= ',irlastbar
+      print *,'irmax= ',irmax
+      print *,'istmdir= ',istmdir,' istmspd= ',istmspd
+      print *,'iparamb= ',iparamb
+      print *,'ivtl= ',ivtl
+      print *,'ivtu= ',ivtu
+      print *,'wcore_flag= ',wcore_flag
+      print *,'ishear_mag= ',ishear_mag,' ishear_dir= ',ishear_dir
+      print *,'isst= ',isst
+      print *,'irmw_dist= ',irmw_dist,' irmw_val= ',irmw_val
+      print *,'idivg= ',idivg,' imoistdivg= ',imoistdivg
+      print *,'irh_800_600= ',irh_800_600
+      print *,'irh_1000_925= ',irh_1000_925
+      print *,'iomega500= ',iomega500
+      print *,'imeanzeta(1)= ',imeanzeta(1)
+      print *,'igridzeta(1)= ',igridzeta(1)
+      print *,'imeanzeta(2)= ',imeanzeta(2)
+      print *,'igridzeta(2)= ',igridzeta(2)
+
       write (66,87) basinid,adjustr(storm(ist)%tcv_storm_id)
      &      ,gstm%gv_gen_date,gstm%gv_gen_fhr,gstm%gv_gen_lat
      &      ,gstm%gv_gen_latns,gstm%gv_gen_lon
@@ -11507,7 +12358,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &      ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &      ,istmdir,istmspd
      &      ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &      ,ishear_mag,ishear_dir
+     &      ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &      ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
 
       if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
      &    vradius(2,3) > 0 .or. vradius(2,4) > 0) then
@@ -11524,7 +12376,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &        ,istmdir,istmspd
      &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,ishear_mag,ishear_dir
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
       endif
 
       if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
@@ -11542,14 +12395,16 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &        ,istmdir,istmspd
      &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,ishear_mag,ishear_dir
+     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
       endif
 
    87 format (a2,', ',a4,', ',i10.10,'_F',i3.3,'_',i3.3,a1,'_',i4.4,a1
      &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
      &       ,', ',3(i4,', '),3(i6,', '),a1,2(', ',i4),4(', ',i4)
-     &       ,', SHR82, ',i4,', ',i3)
+     &       ,', SHR82, ',i4,', ',i3,3(', ',i4),', ',i7
+     &       ,4(', ',i4))
 
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(66)
@@ -11561,129 +12416,57 @@ c
 c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
-      subroutine output_atcf_sink (outlon,outlat,inp,ist
-     &         ,ifcsthour,vmaxwind,xminmslp,vradius,maxstorm
-     &         ,trkrinfo,istmspd,istmdir,imeanzeta,igridzeta
-     &         ,cps_vals,plastbar,rlastbar,ioaxret)
-
+      subroutine output_atcf_parms (xmeanlon,xmeanlat
+     &               ,inp,ist,ifh,ifcsthour,vmaxwind
+     &               ,xminmslp,maxstorm,trkrinfo
+     &               ,clon,clat,calcparm,xval,ioapret)
+c
 c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
 c     storm at an input forecast hour in a modified atcfunix format.  
-c     The "sink" in the subroutine name indicates that this output
-c     contains the whole kitchen sink of forecast storm info.
-c     The reason that it's called "modified" is that the format is 
-c     slightly different from the standard TPC-accepted atcfunix 
-c     format that they use for TCs.  Specifically, the first part that
-c     identifies the storm is different, and the part after the radii
-c     data is different.  Here's an example of the TPC standard 
-c     atcfunix format:
-c
-c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  34,
-c             NEQ,  242,  163,  124,  208
-c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  50,
-c             NEQ,  155,  000,  000,  000
-c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  64,
-c             NEQ,  000,  000,  000,  000
-c
-c     (NOTE: Each of the above lines beginning with "AL" is output as 
-c            a single line of text.... they're just broken up into 2 
-c            lines here for readability.)
-c
-c     Here's an example of the modified output format for the same 
-c     storm.  Note that the lat/lon identifier in the new storm id at
-c     the beginning of the record is different from that shown later
-c     in the record.  The reason is that the lat/lon identifier will
-c     indicate the lat/lon at which the storm was *first* found in
-c     the model.  The position may be either found within this run 
-c     of the  tracker, or that position may have been pulled from the
-c     tcvitals or gen_vitals record:
-c
-c     2000092500_F000_206N_0623W_13L, 2000092500, 03, GFSO, 036
-c       , 243N, 675W,  42, 995, XX,  34, NEQ,  242,  163,  124,  208
-c       , PLAS, RLAS, RMX, DIR, SPD,   B,   VTU,   VTL
-c       , Z8MN, Z8MX, Z7MN, Z7MX
-c
-c     As noted above, there is extra info at the end, after the 
-c     "34, NEQ,  242,  163,  124,  208" radii info.  Here is a key 
-c     to indicate what these items are:
-c
-c     PLAS:  Pressure (mb) of last closed isobar
-c     RLAS:  Radius of the last closed isobar in nm, 0 - 9999 nm.
-c     RMX:   Radius of max winds, 0 - 999 nm.
-c     DIR:   Direction of storm motion.
-c     SPD:   Speed of storm motion (m/s * 10).
-c     B:     Hart's CPS "Parameter B" thickness asymmetry value (m).
-c     VTL:   Hart's CPS thermal wind (Lower, 900-600) value.
-c     VTU:   Hart's CPS thermal wind (Upper, 600-300) value.
-c     Z8MN:  Mean value of 850 mb zeta surrounding storm.
-c     Z8MX:  Max value of 850 mb zeta near storm.
-c     Z7MN:  Mean value of 700 mb zeta surrounding storm.
-c     Z7MX:  Max value of 700 mb zeta near storm.
-c
-c     This message also contains the intensity estimates (in knots) 
-c     for every forecast hour.  The  conversion for m/s to knots is 
-c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft, 
-c     3600s/h).
-c
-c     NOTE: The longitudes that are passed into this subroutine are
-c     given in 0 - 360, increasing eastward.  The format for the 
-c     atcfunix system requires that the  output be 0-180E or
-c     0-180W, so we must adjust the values, if needed.  Also, the
-c     values for southern latitudes must be positive (use 'N' and 
-c     'S' to distinguish Northern/Southern Hemispheres).
+c     The purpose is to output the lat/lon fix positions and values
+c     for these  tracker parameters: zeta850, zeta700, circ850, circ700,
+c     gph850, gph700, MSLP, circsfc, zetasfc.
 c
 c     INPUT:
-c     outlon    longitude  fix position for this storm at this time 
-c               which is to be written out to the  output file
-c     outlat    latitude  fix position for this storm at this time 
-c               which is to be written out to the  output file
+c     xmeanlon  real longitude fix position for this storm at this time
+c     xmeanlat  real latitude  fix position for this storm at this time
 c     inp       contains input date and model number information
-c     ist       the number storm that we're processing (can be 1-15)
+c     ist       the number storm that we're processing
+c     ifh       the index for the current lead time
 c     ifcsthr   the current forecast hour being output
 c     vmaxwind  the max surface wind for this storm at this fcst hour
 c     xminmslp  the min mslp for this storm at this fcst hour
-c     vradius   Contains the distance from the storm fix position to
-c               each of the various wind threshhold distances in each
-c               quadrant. (3,4) ==> (# of threshholds, # of quadrants)
 c     maxstorm  max # of storms that can be handled
-c     istmspd   speed of storm translation
-c     istmdir   direction of storm motion
-c     cps_vals  Hart's cyclone phase space values: (1) is for parameter
-c               B (thickness asymmetry), (2) and (3) are for thermal
-c               wind values.
-c     imeanzeta array with values of mean 850 & 700 zeta
-c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
-c     plastbar  pressure of last closed isobar (pa)
-c     rlastbar  radius of last closed isobar (nm)
+c     trkrinfo  derived type that holds/describes various tracker parms
+c     clon      real array contains positions of every parm fix lon
+c     clat      real array contains positions of every parm fix lat
+c     calcparm  Logical; Tells whether or not this parm's location fix
+c               for this storm at this lead time was used for the mean
+c               fix position or not.
+c     xval      real array with the values of the individual parms
 c 
 c     OUTPUT:
-c     ioaxret   integer return code from this subroutine
-c     
-c     LOCAL:
-c     intlon    integer that holds the value of outlon*10
-c     intlat    integer that holds the value of outlat*10
-c     storm     An array of type tcvcard.  Use this for the storm ID
-c
+c     ioapret   integer return code from this subroutine
 
       USE def_vitals; USE inparms; USE set_max_parms; USE atcf
-      USE trkrparms; USE gen_vitals
-      USE verbose_output
+      USE trkrparms; USE gen_vitals; USE verbose_output
 
       type (gencard) gstm
       type (datecard) inp
       type (trackstuff) trkrinfo
-c
-      real    cps_vals(3)
-      real    outlon,outlat,mslp_outp_adj
-      real    vmaxwind,conv_ms_knots,xminmslp,plastbar,rlastbar
-      integer intlon,intlat,istmspd,istmdir,iplastbar,irlastbar
-      integer iparamb,ivtl,ivtu,output_fhr
-      integer vradius(3,4)
-      integer imeanzeta(2),igridzeta(2)
-      character  basinid*2,clatns*1,clonew*1
 
-      if ( verb .ge. 3 ) then
-        print *,'+++ Top of output_atcf_sink, ist= ',ist,' ifh= '
-     &       ,ifcsthour
+      real    xmeanlon,xmeanlat,vmaxwind,xminmslp
+      real    clon(maxstorm,maxtime,maxtp),clat(maxstorm,maxtime,maxtp)
+      real    xval(maxtp)
+      integer ist,ifcsthour,maxstorm,ioapret,intmeanlon,intmeanlat
+      integer ip,icc,output_fhr,k,intlonew,intlatns,ifh
+      integer iclon(9),iclat(9),icxval(9)
+      character :: icvalid(9)*1,clatns*1,clonew*1
+      logical(1) calcparm(maxtp,maxstorm)
+c
+      if ( verb .ge. 3) then
+        print *,'+++ Top of output_atcf_parms, ist= ',ist,' ifh= '
+     &         ,ifcsthour
       endif
 
       if (xminmslp == 999999.0) xminmslp = 0.0
@@ -11708,59 +12491,38 @@ c
       endif
 
 c     First convert all of the lat/lon values from reals into integers.
-c     These integer values must be 10x their real value (eg. 125.4 will
-c     be written out as 1254).  Convert the lon values so that they go
-c     from 0-180E or 0-180W, and convert the lat values so that they are
-c     positive and use 'N' or 'S' to differentiate hemispheres.
+c     These integer values must be 100x their real value (eg. 125.42
+c     be written out as 12542).  Leave longitudes in original 
+c     0-360E format ('W' and 'E' will not be printed out).
 
       conv_ms_knots = 1.9427
 
-      if (outlon < -998.0 .or. outlat < -998.0) then
-        intlon = 0
-        intlat = 0
-        clonew = ' '
-        clatns = ' '
+      if (xmeanlon < -998.0 .or. xmeanlat < -998.0) then
+        intmeanlon = 0
+        intmeanlat = 0
+        intlonew   = 0
+        intlatns   = 0
+        clonew     = ' '
+        clatns     = ' '
       else
-        if (outlon >= 180.0) then
-          intlon = 3600 - int(outlon * 10. + 0.5)
-          clonew = 'W'
+        if (xmeanlon > 359.9950 .and. xmeanlon < 360.0) then
+          intmeanlon = 0.0
         else
-          intlon = int(outlon * 10. + 0.5)
-          clonew = 'E'
+          intmeanlon = nint (xmeanlon*100)
         endif
-        intlat = int(abs(outlat) * 10. + 0.5)
-        if (outlat < 0.0) then
-          clatns = 'S'
-        else
-          clatns = 'N'
-        endif
-      endif
-
-      select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
-        case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
-        case ('Q','q');  basinid = 'SL'
-        case default;    basinid = 'HC'
-      end select
-
-      if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') then
-
-        if (stcvtype(ist) == 'FOF') then
-          ! If this is a TC vitals-described storm (i.e., one that is
-          ! numbered by JTWC or NHC), then leave the basinid as is.
-          ! Otherwise, we want to use the "basinid" location as a 
-          ! label to identify what type of run this is.
-          if (trkrinfo%type == 'midlat') basinid = 'ML'
-          if (trkrinfo%type == 'tcgen')  basinid = 'TG'
+        intmeanlat = nint (xmeanlat*100)
+        if (xmeanlon >= 180.0) then
+          intlonew = 3600 - int(xmeanlon * 10. + 0.5)
+          clonew = 'W' 
+        else  
+          intlonew = int(xmeanlon * 10. + 0.5)
+          clonew = 'E' 
+        endif 
+        intlatns = int(abs(xmeanlat) * 10. + 0.5)
+        if (xmeanlat < 0.0) then
+          clatns = 'S' 
+        else  
+          clatns = 'N' 
         endif
       endif
 
@@ -11769,14 +12531,14 @@ c     at forecast time = 00h even if the storm cannot be found, here
 c     we don't want to do that.  So check the lat & lon positions and
 c     exit this subroutine now if they're both zero.
 
-      if (intlat == 0 .and. intlon == 0) then
+      if (intmeanlat == 0 .and. intmeanlon == 0) then
         if ( verb .ge. 3 ) then
           print *,' '
-          print *,'+++ Currently inside  output_atcf_gen.  The reported'
-          print *,'+++ longitude and latitude are both zero, so that '
-          print *,'+++ means that the  tracker could not get a fix '
-          print *,'+++ for this storm at this hour.  Therefore, we will'
-          print *,'+++ NOT write out an atcf_gen record for this'
+          print *,'+++ Currently inside  output_atcf_parms.  The'
+          print *,'+++ reported longitude and latitude are both zero,'
+          print *,'+++ so that means that the  tracker could not get a'
+          print *,'+++ fix for this storm at this hour.  Therefore, we'
+          print *,'+++ will NOT write out an atcf_parms record for this'
           print *,'+++ storm & forecast hour.'
           print *,'+++ '
           print *,'+++ ist= ',ist
@@ -11804,7 +12566,7 @@ c     identifier at the beginning of the modified atcfunix record.
         continue    ! Just use the info off the genesis vitals record
 
       else
-          
+
         ! This storm was found on the fly during
         ! this run and there was no previous vitals record for
         ! this system.  The information that will be used to 
@@ -11818,60 +12580,29 @@ c     identifier at the beginning of the modified atcfunix record.
      &                   + inp%bhh
 
         gstm%gv_gen_fhr   = ifcsthour
-        gstm%gv_gen_lat   = intlat
+        gstm%gv_gen_lat   = intlatns
         gstm%gv_gen_latns = clatns
-        gstm%gv_gen_lon   = intlon
+        gstm%gv_gen_lon   = intlonew
         gstm%gv_gen_lonew = clonew
         gstm%gv_gen_type  = 'FOF'
 
-        ! Transfer all this local "gstm" data back into the 
-        ! saved "gstorm" array for use in subsequent fcst hrs...
-
-        gstorm(ist) = gstm
-
       endif
 
-      if (plastbar > -990.0) then
-        iplastbar = int(plastbar/mslp_outp_adj + 0.5)
-      else
-        iplastbar = -999
-      endif
-
-      if (rlastbar > -990.0) then
-        irlastbar = int(rlastbar + 0.5)
-      else
-        irlastbar = -999
-      endif
-
-      if (cps_vals(1) > -9999.0) then
-        if (cps_vals(1) >= 0.0) then
-          iparamb = int(cps_vals(1)*10 + 0.5)
-        else
-          iparamb = int(cps_vals(1)*10 - 0.5)
-        endif
-      else
-        iparamb = -999
-      endif
-
-      if (cps_vals(2) > -9999.0) then
-        if (cps_vals(2) >= 0.0) then
-          ivtl = int(cps_vals(2)*10 + 0.5)
-        else
-          ivtl = int(cps_vals(2)*10 - 0.5)
-        endif
-      else
-        ivtl = -9999
-      endif
-
-      if (cps_vals(3) > -9999.0) then
-        if (cps_vals(3) >= 0.0) then
-          ivtu = int(cps_vals(3)*10 + 0.5)
-        else
-          ivtu = int(cps_vals(3)*10 - 0.5)
-        endif
-      else
-        ivtu = -9999
-      endif
+      select case (storm(ist)%tcv_storm_id(3:3))
+        case ('L','l');  basinid = 'AL'
+        case ('E','e');  basinid = 'EP'
+        case ('C','c');  basinid = 'CP'
+        case ('W','w');  basinid = 'WP'
+        case ('O','o');  basinid = 'SC'
+        case ('T','t');  basinid = 'EC'
+        case ('U','u');  basinid = 'AU'
+        case ('P','p');  basinid = 'SP'
+        case ('S','s');  basinid = 'SI'
+        case ('B','b');  basinid = 'BB'
+        case ('A','a');  basinid = 'AA'
+        case ('Q','q');  basinid = 'SL'
+        case default;    basinid = 'HC'
+      end select
 
       if (atcfname(1:2) == 'SP') then
         ! Add 3 for SREF to account for the 3-hour off-synoptic
@@ -11881,93 +12612,72 @@ c     identifier at the beginning of the modified atcfunix record.
         output_fhr = ifcsthour
       endif
 
-      write (68,87) basinid,storm(ist)%tcv_storm_id
+      if (stcvtype(ist) == 'FOF') then
+        ! If this is a TC vitals-described storm (i.e., one that is
+        ! numbered by JTWC or NHC), then leave the basinid as is.
+        ! Otherwise, we want to use the "basinid" location as a
+        ! label to identify what type of run this is.
+        if (trkrinfo%type == 'midlat') basinid = 'ML'
+        if (trkrinfo%type == 'tcgen')  basinid = 'TG'
+      endif
+
+      iclat = 0
+      iclon = 0
+      icvalid = 'n'
+      icc = 0
+      parmloop: do ip = 1,maxtp
+
+        if (ip == 4 .or. ip == 6 .or. ip > 11) then
+          cycle parmloop
+        endif
+
+        icc = icc + 1
+
+        if (calcparm(ip,ist)) then
+
+          icvalid(icc) = 'y'
+          iclon(icc) = nint (clon(ist,ifh,ip)*100)
+          iclat(icc) = nint (clat(ist,ifh,ip)*100)
+
+          if (ip == 1 .or. ip == 2 .or. ip == 11) then
+            ! Scale vorticity up by 1e5, then multiply by 10
+            icxval(icc) = nint(xval(ip)*1e5 * 10)
+          else if (ip == 3 .or. ip == 5 .or. ip == 10) then
+            ! Scale circulation down by 1e6, then multiply by 10
+            icxval(icc) = nint(xval(ip)*1e-6 * 10)
+          else
+            ! Multiply other variables -- GPH & MSLP -- by 10
+            icxval(icc) = nint(xval(ip) * 10)
+          endif
+
+        else
+
+          icvalid(icc) = 'n'
+
+        endif
+
+      enddo parmloop
+
+      write (81,87) basinid,adjustr(storm(ist)%tcv_storm_id)
      &      ,gstm%gv_gen_date,gstm%gv_gen_fhr,gstm%gv_gen_lat
      &      ,gstm%gv_gen_latns,gstm%gv_gen_lon
      &      ,gstm%gv_gen_lonew,gstm%gv_gen_type
      &      ,atcfymdh
-     &      ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
+     &      ,adjustr(atcfname),output_fhr,intmeanlat,intmeanlon
      &      ,int((vmaxwind*conv_ms_knots) + 0.5)
      &      ,int(xminmslp/mslp_outp_adj + 0.5)
-     &      ,'XX,  34, NEQ'
-     &      ,vradius(1,1),vradius(1,2),vradius(1,3),vradius(1,4)
-     &      ,iplastbar,irlastbar,-99,istmdir,istmspd
-     &      ,iparamb,ivtl,ivtu
-     &      ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &      ,storm(ist)%tcv_storm_name
+     &      ,(icvalid(k),iclat(k),iclon(k),icxval(k),k=1,9)
 
-      if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
-     &    vradius(2,3) > 0 .or. vradius(2,4) > 0) then
-        write (68,87) basinid,storm(ist)%tcv_storm_id
-     &        ,gstm%gv_gen_date,gstm%gv_gen_fhr,gstm%gv_gen_lat
-     &        ,gstm%gv_gen_latns,gstm%gv_gen_lon
-     &        ,gstm%gv_gen_lonew,gstm%gv_gen_type
-     &        ,atcfymdh
-     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
-     &        ,int(xminmslp/mslp_outp_adj + 0.5)
-     &        ,'XX,  50, NEQ'
-     &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
-     &        ,iplastbar,irlastbar,-99,istmdir,istmspd
-     &        ,iparamb,ivtl,ivtu
-     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,storm(ist)%tcv_storm_name
-      endif
-
-      if (vradius(3,1) > 0 .or. vradius(3,2) > 0 .or.
-     &    vradius(3,3) > 0 .or. vradius(3,4) > 0) then
-        write (68,87) basinid,storm(ist)%tcv_storm_id
-     &        ,gstm%gv_gen_date,gstm%gv_gen_fhr,gstm%gv_gen_lat
-     &        ,gstm%gv_gen_latns,gstm%gv_gen_lon
-     &        ,gstm%gv_gen_lonew,gstm%gv_gen_type
-     &        ,atcfymdh
-     &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
-     &        ,int(xminmslp/mslp_outp_adj + 0.5)
-     &        ,'XX,  64, NEQ'
-     &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
-     &        ,iplastbar,irlastbar,-99,istmdir,istmspd
-     &        ,iparamb,ivtl,ivtu
-     &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,storm(ist)%tcv_storm_name
-      endif
-
-c   87 format (i10.10,'_',i3.3,a1,'_',i4.4,a1,'_',a3,', ',5i2.2
-c     &       ,', 03, ',a4,', ',i3.3,', ',i3,a1
-c     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4))
-
-c   87 format (a2,', ',a4,', ',i10.10,'_F',i3.3,'_',i3.3,a1,'_',i4.4,a1
-c     &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
-c     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
-c     &       ,', ',2(i4,', '),4(i3,', '),2(i5,', '),4(i4,', '),a9)
-
-   87 format (a2,', ',a4,', ',i10.10,'_F',i3.3,'_',i3.3,a1,'_',i4.4,a1
-     &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
-     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
-     &       ,', ',2(i4,', '),i3,', ',2(i4,', '),3(i6,', '),4(i6,', ')
-     &       ,a9)
-
-c      write (68,87) gstm%gv_gen_date,gstm%gv_gen_lat
-c     &      ,gstm%gv_gen_latns,gstm%gv_gen_lon
-c     &      ,gstm%gv_gen_lonew,gstm%gv_gen_type
-c     &      ,inp%bcc,inp%byy,inp%bmm,inp%bdd,inp%bhh
-c     &      ,adjustr(atcfname),ifcsthour,intlat,clatns,intlon,clonew
-c     &      ,int((vmaxwind*conv_ms_knots) + 0.5)
-c     &      ,int(xminmslp/100.0 + 0.5)
-c     &      ,'XX,  34, NEQ'
-c     &      ,istmspd,istmdir,imeanzeta(1),igridzeta(1)
-c     &      ,imeanzeta(2),igridzeta(2)
-c
-c   87 format (i10.10,'_',i3.3,a1,'_',i4.4,a1,'_',a3,', ',5i2.2
-c     &       ,', 03, ',a4,', ',i3.3,', ',i3,a1
-c     &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,6(', ',i4))
+87    format (a2,', ',a4,', ',i10.10,'_F',i3.3,'_',i3.3,a1,'_',i4.4,a1
+     &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i5
+     &       ,', ',i5,', ',i3,', ',i4,9(', ',a1,', ',i5,', ',i5,', '
+     &       ,i6))
 
 c     bug fix for IBM: flush the output stream so it actually writes
-      flush(68)
-
+      flush(81)
+c
       return
       end
-
 c
 c---------------------------------------------------------------------
 c
@@ -12476,13 +13186,15 @@ c
       real      yoldcosfac,xdistmove_last,xdistmove_last_perhour
       real      ynewavglat,ynewcosfac,xdegnew,dx,dy,re,ri,ubar,vbar
       real      wgttot,uavg,vavg,reold,riold,barnlat,barnlon,wt_total
-      real      tmp_fix_lon_curr,tmp_fix_lon_prev
+      real      tmp_fix_lon_curr,tmp_fix_lon_prev,conv_ms_knots
+      real      stmspdkts
       character*1 :: in_grid, extrap_flag, barnes_flag
       character(*)  ctype
       logical(1) valid_pt(imax,jmax),readflag(14)
 c
       in_grid = 'n'
       extrap_flag = 'y'
+      conv_ms_knots = 1.9427
 
       ileadtime = nint(fhreal(ifh) * 100.0)
       ifcsthour = ileadtime / 100
@@ -13224,11 +13936,14 @@ c     is requested.
       call calcdist (fixlon(ist,ifh),fixlat(ist,ifh)
      &              ,slonfg(ist,ifh+1),slatfg(ist,ifh+1),dist,degrees)
 
-      ! convert distance from km to meters, then get speed in m/s.
+      ! convert distance from km to meters, then get speed in m/s,
+      ! then convert again to knots and multiply by 10.
 
       distm   = dist * 1000.
       stmspd  = distm / dt
-      istmspd = int ((stmspd * 10) + 0.5)
+
+      stmspdkts = stmspd * conv_ms_knots
+      istmspd = int ((stmspdkts * 10) + 0.5)
 
       xincr = slonfg(ist,ifh+1) - fixlon(ist,ifh)
       yincr = slatfg(ist,ifh+1) - fixlat(ist,ifh)
@@ -17639,7 +18354,7 @@ c     ABSTRACT: This subroutine finds the maximum and mean zeta values
 c     at 850 & 700 mb, near a storm center.  It is called from 
 c     subroutine  tracker, and its purpose is to report these values 
 c     that will then be written out to a special, modified version of 
-c     the atcfunix file.
+c     the atcfunix file (the "atcf_gen" file).
 
       USE tracked_parms; USE radii; USE trig_vals; USE set_max_parms
       USE trkrparms; USE level_parms; USE grid_bounds; USE inparms
@@ -17651,13 +18366,13 @@ c     the atcfunix file.
       type (datecard) inp
 
       logical(1) readflag(14),valid_pt(imax,jmax),compflag
-      character  cmaxmin*3,cvort_maxmin*3
+      character  cmaxmin*3,cvort_maxmin*3,csmooth_var*8
       real     fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
-      real     gridpoint_maxmin,xmeanzeta,dx,dy,re,ri,parmlon,parmlat
+      real     gridpoint_maxmin,dx,dy,re,ri,parmlon,parmlat,xsmoothval
       integer  igridzeta(nlevgrzeta),imeanzeta(nlevgrzeta)
       integer  n,ix1,ix2,ilev,npts,imax,jmax,igzvret,ilonfix,jlatfix
       integer  idum,jdum,ibeg,jbeg,iend,jend,igiret,icount,iuret
-      integer  ifilret,ist,ifh,ifmret,maxstorm
+      integer  ifilret,ist,ifh,ifmret,maxstorm,igsvret
 
 c     First, call  get_ij_bounds in order to get the (i,j) coordinates
 c     of the (fixlon,fixlat) position that we need to search around.
@@ -17739,12 +18454,12 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
       report_zeta_loop: do n=1,2
 
         gridpoint_maxmin = -99.0
-        xmeanzeta = -99.0
-        compflag  = .true.
+        xsmoothval = -99.0
+        compflag   = .true.
 
         select case (n)
-          case (1); ilev=850  ! For 850 mb
-          case (2); ilev=700  ! For 700 mb
+          case (1); ilev=850; csmooth_var='zeta850'   ! For 850 mb
+          case (2); ilev=700; csmooth_var='zeta700'   ! For 700 mb
         end select
 
         if (zeta(ilonfix,jlatfix,n) > -9990.0) then
@@ -17761,30 +18476,37 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
             cvort_maxmin = 'min'
           endif
 
-          call find_maxmin (imax,jmax,dx,dy,'zeta'
-     &       ,zeta(1,1,n),cvort_maxmin,ist,fixlon(ist,ifh)
-     &       ,fixlat(ist,ifh),glon,glat,valid_pt,trkrinfo
-     &       ,compflag,parmlon,parmlat,xmeanzeta
-     &       ,glatmax,glatmin,glonmax,glonmin,inp%modtyp,ifmret)
-          if (ifmret == 0) then   ! Out of regional grid bounds
-            imeanzeta(n) = int ((xmeanzeta * 1e6) + 0.5)
+          re = 125.0
+          ri = 250.0
+          igsvret = 0
+          call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh)
+     &                ,ist,ifh,imax,jmax,zeta(1,1,n),csmooth_var,dx,dy
+     &                ,valid_pt,maxstorm,re,ri,trkrinfo
+     &                ,xsmoothval,igsvret)
+          if (igsvret == 0) then
+            imeanzeta(n) = int ((xsmoothval * 1e6) + 0.5)
           else
+            ! Out of regional grid bounds
             imeanzeta(n) = -99
             igridzeta(n) = -99
 
             if ( verb .ge. 3 ) then
               write (6,*) ' '
-              write (6,519) 
-              write (6,520) 
-              write (6,521) 
+              write (6,519)
+              write (6,520)
+              write (6,521)
+              write (6,523)
             endif
 
- 519        format (1x,' The call to find_maxmin in get_zeta_values')
- 520        format (1x,' returned a nonzero return code.  The search')
- 521        format (1x,' for zeta values will not be done.')
+ 519        format (1x,' The call to get_smooth_value_at_pt in')
+ 520        format (1x,' get_zeta_values returned a non-zero return')
+ 521        format (1x,' code.  The search for zeta values will not')
+ 523        format (1x,' be done.  Missing values will be assigned.')
             exit report_zeta_loop  ! If out of grid bounds at 850, 
                                    ! then will also be out at 700...
+            
           endif 
+
         else
             imeanzeta(n) = -99
             igridzeta(n) = -99
@@ -17792,10 +18514,10 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
         endif
 
         if ( verb .ge. 3 ) then
-          write (6,621) n,ilev,xmeanzeta,imeanzeta(n)
+          write (6,621) n,ilev,xsmoothval,imeanzeta(n)
  621      format (1x,'+++ RPT_MEAN_ZETA: n= ',i2,' lev= ',i4
-     &         ,' xmeanzeta= ',f9.6,'  imeanzeta (*1e6)= ',i8)
-          write (6,*) '  --- mean zeta raw = ',xmeanzeta
+     &         ,' xsmoothval= ',f9.6,'  imeanzeta (*1e6)= ',i8)
+          write (6,*) '  --- mean zeta raw = ',xsmoothval
         endif
      
         ! -----------------------------------------------
@@ -17805,7 +18527,7 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
      
         call fix_latlon_to_ij (imax,jmax,dx,dy
      &     ,zeta(1,1,n),cvort_maxmin,valid_pt,fixlon(ist,ifh)
-     &     ,fixlat(ist,ifh),xmeanzeta,idum,jdum
+     &     ,fixlat(ist,ifh),xsmoothval,idum,jdum
      &     ,gridpoint_maxmin,'tracker'
      &     ,'xxxxxxx',glatmax,glatmin,glonmax,glonmin
      &     ,trkrinfo,ifilret)
@@ -17834,7 +18556,8 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
       endif
         
  631  format(1x,'#---------------------------------------------------#')
- 633  format(1x,'# End of loop to get 850 & 700 zeta for atcf file.  #')
+ 633  format(1x,'# End of loop to get 850 & 700 zeta for atcf_gen'
+     &         ,' file.  #')
  635  format(1x,'#---------------------------------------------------#')
 
       return
@@ -18830,6 +19553,12 @@ c     --------------------------
             wt   = exp(-1.0*dist*dist/res)
             wts  = wts + wt
             favg = favg + wt*fxy(i,j)
+c            if (ctype == 'mean_rh1' .or. ctype == 'mean_rh8') then
+c              if (verb >= 1) then
+c                print *,'rhbarnes, ctype= ',ctype,' i= ',i,' j= ',j
+c     &                 ,' fxy(i,j)= ',fxy(i,j)
+c              endif
+c            endif 
           else
             if (ctype == 'vitals') then
               continue
@@ -18996,7 +19725,7 @@ c     --------------------------
                 continue
               else
 carw             print *,' '
-carw             print *,'!!! UNDEFINED PT OUTSIDE OF GRID IN BARNES...'
+carw             print *,'!!! UNDEFINED PT OUTSIDE OF GRID IN BARNES....'
 carw             print *,'!!! i= ',i,' j= ',j
 carw             print *,'!!! flon= ',flon,' flat= ',flat
 carw             print *,'!!! rlon= ',rlon(i),' rlat= ',rlat(j)
@@ -19008,7 +19737,7 @@ carw             return
               endif
             endif
           endif
-
+ 
         enddo
       enddo
 
@@ -19808,6 +20537,7 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
      &              ,'gphgt','gphgt','mslp','ugrid','vgrid','ugrid'
      &              ,'vgrid','temp','gphgt','gphgt','lmask'
      &              ,'ugrid','vgrid'/
+
       data genparm   /11,51,7*52,7*51,7*11,39/
       data genlevtyp /1,23*100/
       data genlev    /0,850,1000,925,800,750,700
@@ -19825,7 +20555,6 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data cpsglevtyp /13*100/
       data cpsglev    /900,850,800,750,700,650,600,550,500,450,400
      &                ,350,300/
-
       data ec_igparm   /999,999,131,132,131,132,156,156,151,165,166
      &                 ,131,132,130,156,156,999,131,132/
       data ec_iglevtyp /100,100,100,100,100,100,100,100,1,0,0,100,100
@@ -19869,9 +20598,9 @@ c                (20) NCEP Ensemble RELOCATION
 c                (21) ECMWF Ensemble
 c                (23) FNMOC Ensemble
 c                (24) HWRF Basin-scale
-      
-      readgenflag = .false.
 
+      readgenflag = .false.
+      
       if (trkrinfo%gribver == 2) then
 
 c       For GRIB2, we will check to see if the MSLP being searched for
@@ -19964,8 +20693,6 @@ c        GRIB2 Read for standard tracker diagnostics
 c
 c        This is the GRIB2 reading section.
 c       *------------------------------------------------------------*
-
-        ! Reading from a GRIB v2 file....
 
         grib2_standard_parm_read_loop: do ip = 1,nreadparms
 
@@ -21154,7 +21881,6 @@ c           once since using same model for all variables).
      &                                           ,need_to_flip_lats)
               lbrdflag = 'y'
             endif
-
 
             select case (chparm(ip))
               case ('absv')
@@ -22417,7 +23143,6 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
               endif
             endif
 
-
           else
 
             if (verb >= 3) then
@@ -22434,7 +23159,6 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
 c
       return
       end
-
 c
 c------------------------------------------------------------------
 c
@@ -23121,7 +23845,6 @@ c
                                       ! know that a value of 0.25 will
                                       ! be the same as a 6-hour lead 
                                       ! time.
-
         write (6,531) netcdfinfo%sstname   ! SST
         write (6,533) netcdfinfo%q850name   ! 850 mb spec humidity
         write (6,535) netcdfinfo%rh1000name  ! 1000 mb RH
@@ -25390,7 +26113,7 @@ c     rotation left "empty" spots on the lat/lon grid where there is
 c     no data.  Then when searching in find_maxmin, we were running
 c     barnes iterations from these lat/lon locations where there was
 c     no data, which would give artificially low values at those
-c     lat/lon locations (because the barnes scheme would only include
+c     lat/lon locations (because the  barnes scheme would only include
 c     points that were relatively far away where there was valid data).
 c     So in this routine, we call subroutine  fix_latlon_to_ij in order
 c     to get the nearest (i,j) coordinates, and then we check all of
@@ -25595,7 +26318,7 @@ c     opposed to having 4 points set up as in the box above.
 c
 c     UPDATE (4-Feb-2011): For fine resolution grids, it is 
 c     possible to have the gridpoint max/min be more than 1 or 2 grid
-c     points away from the barnes-averaged max.  So allow for this
+c     points away from the  barnes-averaged max.  So allow for this
 c     here, with a check of grdspc ((dx+dy)/2) below and the 
 c     addition of the "grfact" multiplier for fine resolution grids.
 
@@ -25808,7 +26531,7 @@ c---------------------------------------------------------------------
       subroutine rvcal (imax,jmax,dlon,dlat,z,vp)
 c
 c     ABSTRACT: This routine calculates the relative vorticity (zeta)
-c     from u,v on a lat/lon grid. Centered finite
+c     from u,v on a lat/lon grid. Centered finite 
 c     differences are used on the interior points and one-sided 
 c     differences are used on the boundaries.
 c
@@ -25816,7 +26539,7 @@ c     NOTE: There are 3 critical arrays in this subroutine, the first
 c     being zeta and the 2nd and 3rd being u and v.  There is a 
 c     critical difference in the array indexing for the levels.  For
 c     zeta, the array is dimensioned with levels from 1 to 3, with 
-c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels
+c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels 
 c     for the winds, such that the level dimension goes 1 = 850, 
 c     2 = 700, 3 = 500, 4 = 200, 5 = sfc, and this is annotated now
 c     by the use of the "nlev850", "nlev700" and "levsfc" variables
@@ -26232,7 +26955,6 @@ c     NOTE: Before each calculation is done, the logical array is
 c           checked to make sure that all the data points in this 
 c           calculation have valid data (ie., that the points are not
 c           outside a regional model's boundaries).
-
 c
 c !!! IMPORTANT NOTE: While testing this, I uncovered a bug, which was
 c     that I had the "j+1" and "j-1" reversed.  Just from a physical 
@@ -26259,7 +26981,7 @@ c
 c     ---------------
 c     Interior points
 c     ---------------
-
+    
       if ( verb .ge. 3 ) then
         print *,'Just before inter divcal, dlon_inter = ',dlon_inter
      &       ,' dlat_inter = ',dlat_inter
@@ -26268,7 +26990,7 @@ c     ---------------
       do j=2,jmax-1
        do i=2,imax-1
 c
-        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
      &      vp(i,j+1) .and. vp(i,j-1)) then
 c 
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
@@ -26291,11 +27013,11 @@ c
       j=jmax
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
      &     vp(i,j-1)) then
 c
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
-     &              + (v(i,j-1,w) - v(i,j,w))/(dlat_edge)
+     &              + (v(i,j-1,w) - v(i,j,w))/(dlat_edge) 
      &              - tanfac(j)*v(i,j,w)
        else
 c         div(i,j)= -999.
@@ -26312,7 +27034,7 @@ c
       j=1
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.  
      &     vp(i,j+1)) then
 c
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
@@ -26333,7 +27055,7 @@ c
       i=1
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.  
      &     vp(i,j-1)) then
 c
          div(i,j)= (u(i+1,j,w) - u(i,j,w))/(dlon_edge * cosfac(j))
@@ -26354,13 +27076,13 @@ c
       i=imax
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.
+       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.  
      &     vp(i,j-1)) then
 c
           div(i,j) = (u(i,j,w) - u(i-1,j,w))/(dlon_edge * cosfac(j))
      &               + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
      &               - tanfac(j)*v(i,j,w)
-       else
+       else 
 c         div(i,j)= -999.
          div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
      &               + xsmalldiff / (dlat_inter)
@@ -26373,7 +27095,7 @@ c     SW corner
 c     ---------
       i=1
       j=jmax
-      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then
+      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then 
 c
         div(i,j) = (u(i+1,j,w)-u(i,j,w))/(dlon_edge * cosfac(j))
      &              + (v(i,j-1,w)-v(i,j,w))/(dlat_edge)
@@ -26543,6 +27265,7 @@ c     Abstract of subroutine  get_next_ges for further details.
         print *,' jbeg= ',jbeg,' jend= ',jend,' igiret= ',igiret
         print *,' '
       endif
+
       if (igiret /= 0) then
         if ( verb .ge. 1 ) then
           print *,' '
@@ -28416,7 +29139,6 @@ c              not if we just delete them now.
       integer, allocatable ::  temp_mask_i_loc(:)
       integer, allocatable ::  temp_mask_j_loc(:)
       integer, allocatable ::  ringposi(:),ringposj(:)
-      real,allocatable :: ringpos(:,:)
       real       fxy(imax,jmax),contvals(maxconts)
       real       contlo,conthi,xcentval,contlo_next,conthi_next
       real       dist,degrees,rlast_distsum,plastbar,rlastbar

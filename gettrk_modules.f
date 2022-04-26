@@ -403,7 +403,6 @@ c
         integer, parameter :: nlev500=3 ! winds.  Used in get_uv_center.
         integer, parameter :: nlev200=4 ! 200 mb winds are in array 
                                         ! position #4 as of 2021.
-        integer, parameter :: nlevs_cps=13 ! # levs for Hart's CPS
         real, save      :: wgts(nlevg)  ! Wghts for use in get_next_ges
         data wgts /0.25, 0.50, 0.25/    ! 850, 700 & 500 mb wgts
       end module level_parms
