@@ -246,12 +246,21 @@ c
                                             ! analyzed (y/n)?
         character*1 , save ::   ikeflag     ! Will IKE & SDP be
                                             ! computed (y/n)?
+        real, save :: radii_pctile  ! The percentile that is used in
+                             ! the new (2022) wind radii scheme for
+                             ! determining the representative wind
+                             ! value within each quadrant radial band.
       end module structure
 c
       module shear_diags
         character*1 , save ::   shearflag   ! Will vertical shear
                                             ! be analyzed (y/n)?
       end module shear_diags
+c
+      module sst_diags
+        character*1 , save ::   sstflag     ! Will SST 
+                                            ! be analyzed (y/n)?
+      end module sst_diags
 c
       module genesis_diags
         character*1 , save ::   genflag        ! Will genesis diags
@@ -408,11 +417,11 @@ c
       end module level_parms
 c
       module read_parms
-        integer, parameter :: nreadparms=19 ! max # of parameters to
+        integer, parameter :: nreadparms=20 ! max # of parameters to
                                             ! read in for standard parms
         integer, parameter :: nreadcpsparms=13 ! max # of parameters to
                                             ! read in for Hart's CPS
-        integer, parameter :: nreadgenparms=24 ! max # of parameters to
+        integer, parameter :: nreadgenparms=23 ! max # of parameters to
                                             ! read in for genesis parms
       end module read_parms
 c
