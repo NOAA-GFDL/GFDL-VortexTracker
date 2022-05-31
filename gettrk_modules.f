@@ -246,11 +246,33 @@ c
                                             ! analyzed (y/n)?
         character*1 , save ::   ikeflag     ! Will IKE & SDP be
                                             ! computed (y/n)?
+        real, save :: radii_pctile  ! The percentile that is used in
+                             ! the new (2022) wind radii scheme for
+                             ! determining the representative wind
+                             ! value within each quadrant radial band.
       end module structure
 c
-      module genesis_diags
+      module shear_diags
         character*1 , save ::   shearflag   ! Will vertical shear
                                             ! be analyzed (y/n)?
+      end module shear_diags
+c
+      module sst_diags
+        character*1 , save ::   sstflag     ! Will SST 
+                                            ! be analyzed (y/n)?
+      end module sst_diags
+c
+      module genesis_diags
+        character*1 , save ::   genflag        ! Will genesis diags
+                                               ! be analyzed and
+                                               ! reported (y/n)?
+        character*1 , save ::   gen_read_rh_fields ! Will RH fields be
+                                               ! read in directly (y/n)?
+        character*1 , save ::   need_to_compute_rh_from_q ! Will spec.
+                                               ! humidity (q) fields be
+                                               ! read in to compute RH
+                                               ! if RH is not read in?
+                                               ! (y/n)
       end module genesis_diags
 c     
       module tracked_parms
@@ -263,6 +285,12 @@ c
           real, save, allocatable  ::  cpshgt(:,:,:)
           real, save, allocatable  ::  thick(:,:,:)
           real, save, allocatable  ::  lsmask(:,:)
+          real, save, allocatable  ::  sst(:,:)
+          real, save, allocatable  ::  q850(:,:)
+          real, save, allocatable  ::  rh(:,:,:)
+          real, save, allocatable  ::  spfh(:,:,:)
+          real, save, allocatable  ::  temperature(:,:,:)
+          real, save, allocatable  ::  omega500(:,:)
           integer, save, allocatable :: ifhours(:)  
           integer, save, allocatable :: iftotalmins(:)
           integer, save, allocatable :: ifclockmins(:)
@@ -375,16 +403,27 @@ c
                                             ! gridded zeta values 
         integer, parameter :: nlevzeta=3 ! # tracked levs for zeta
         integer, parameter :: nlevthick=3 ! # tracked levs for thickness
+        integer, parameter :: nlevmoist=7 ! # tracked levs for moisture
+                                          ! & temp for genesis
+                                          ! applications (q,rh,temp).
         integer, parameter :: levsfc=5  ! array position of sfc winds.
         integer, parameter :: nlev850=1 ! array position in u and v
         integer, parameter :: nlev700=2 ! arrays for 850, 700 & 500
         integer, parameter :: nlev500=3 ! winds.  Used in get_uv_center.
         integer, parameter :: nlev200=4 ! 200 mb winds are in array 
                                         ! position #4 as of 2021.
-        integer, parameter :: nlevs_cps=13 ! # levs for Hart's CPS
         real, save      :: wgts(nlevg)  ! Wghts for use in get_next_ges
         data wgts /0.25, 0.50, 0.25/    ! 850, 700 & 500 mb wgts
       end module level_parms
+c
+      module read_parms
+        integer, parameter :: nreadparms=20 ! max # of parameters to
+                                            ! read in for standard parms
+        integer, parameter :: nreadcpsparms=13 ! max # of parameters to
+                                            ! read in for Hart's CPS
+        integer, parameter :: nreadgenparms=23 ! max # of parameters to
+                                            ! read in for genesis parms
+      end module read_parms
 c
       module trig_vals
         real, save :: pi, dtr
@@ -462,13 +501,37 @@ c
           character*30 ::  z400name   ! 400 mb gp height
           character*30 ::  z350name   ! 350 mb gp height
           character*30 ::  z300name   ! 300 mb gp height
-          character*30 ::  time_name  ! Name of time variable
+          character*30 ::  time_name  ! Name of time variable,
                                       ! usually "time"
           character*30 ::  lon_name   ! longitudes
           character*30 ::  lat_name   ! latitudes
           character*30 ::  time_units ! "days" or "hours"
           character*30 ::  u200name   ! 200 mb u-comp
           character*30 ::  v200name   ! 200 mb v-comp
+          character*30 ::  sstname    ! SST
+          character*30 ::  q850name   ! 850 mb specific humidity
+          character*30 ::  rh1000name ! 1000 mb RH
+          character*30 ::  rh925name  ! 925 mb RH
+          character*30 ::  rh800name  ! 800 mb RH
+          character*30 ::  rh750name  ! 750 mb RH
+          character*30 ::  rh700name  ! 700 mb RH
+          character*30 ::  rh650name  ! 650 mb RH
+          character*30 ::  rh600name  ! 600 mb RH
+          character*30 ::  spfh1000name ! 1000 mb specific humidity
+          character*30 ::  spfh925name ! 925 mb specific humidity
+          character*30 ::  spfh800name ! 800 mb specific humidity
+          character*30 ::  spfh750name ! 750 mb specific humidity
+          character*30 ::  spfh700name ! 700 mb specific humidity
+          character*30 ::  spfh650name ! 650 mb specific humidity
+          character*30 ::  spfh600name ! 600 mb specific humidity
+          character*30 ::  temp1000name ! 1000 mb temperature
+          character*30 ::  temp925name ! 925 mb temperature
+          character*30 ::  temp800name ! 800 mb temperature
+          character*30 ::  temp750name ! 750 mb temperature
+          character*30 ::  temp700name ! 700 mb temperature
+          character*30 ::  temp650name ! 650 mb temperature
+          character*30 ::  temp600name ! 600 mb temperature
+          character*30 ::  omega500name ! 500 mb omega
         end type netcdfstuff
         real, save, allocatable    :: netcdf_file_time_values(:)
         integer, save, allocatable :: nctotalmins(:)
