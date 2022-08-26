@@ -1163,8 +1163,11 @@ c       First, allocate the working data arrays....
         itempa  = 0
         iomegaa = 0
 
-        if (genflag == 'y') then
+        if (sstflag == 'y' .or. sstflag == 'Y') then
           allocate (sst(imax,jmax),stat=issta)
+        endif
+
+        if (genflag == 'y') then
           allocate (q850(imax,jmax),stat=iq850a)
           allocate (rh(imax,jmax,nlevmoist),stat=irha)
           allocate (spfh(imax,jmax,nlevmoist),stat=ispfha)
@@ -3677,7 +3680,8 @@ c                 c---   radmax = radmax + 50.0
             !       COMPUTE AREA-AVERAGED SST
             ! 
             ! If the user has requested so, then call a routine to 
-            ! compute the 200-850 mb vertical shear.
+            ! compute the area-averaged SST in the vicinity of the
+            ! tracker-diagnosed center fix.
             !
             !--------------------------------------------------------
 
@@ -9846,11 +9850,10 @@ c     positive and use 'N' or 'S' to differentiate hemispheres.
         case ('O','o');  basinid = 'SC'
         case ('T','t');  basinid = 'EC'
         case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-!zhang        case ('A','a');  basinid = 'NA'
-        case ('A','a');  basinid = 'AA'
+        case ('P','p');  basinid = 'SH'
+        case ('S','s');  basinid = 'SH'
+        case ('B','b');  basinid = 'IO'
+        case ('A','a');  basinid = 'IO'
         case ('Q','q');  basinid = 'SL'
         case default;    basinid = 'HC'
       end select
