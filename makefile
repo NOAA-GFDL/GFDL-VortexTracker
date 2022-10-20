@@ -26,11 +26,11 @@ LIBS    = -L$(NETCDF_FORTRAN_PATH)  \
 
 LDFLAGS= 
 
-FFLAGS= -g -O0 -fp-stack-check -gen-interfaces -warn interfaces \
-        -check all -debug all -traceback -heap-arrays 10 -msse2 -init=zero \
+FFLAGS= -pg -O2 -shared-intel -shared-libgcc -fp-stack-check -gen-interfaces -warn interfaces \
+        -check all -debug all -traceback -heap-arrays 10 -init=zero -fno-omit-frame-pointer \
         -align  -I $(INC_GRIB) -I $(INCNCDF) -I $(INCNCDC) -I $(INCHDF) -integer-size 32 -real-size 32
 
-CFLAGS= -g -O0
+CFLAGS= -pg -O2 -shared-intel -shared-libgcc -fno-omit-frame-pointer
 
 gettrk:      gettrk_main.f gettrk_modules.o module_waitfor.o cwaitfor.o
 	@echo " "

@@ -250,6 +250,19 @@ c
                              ! the new (2022) wind radii scheme for
                              ! determining the representative wind
                              ! value within each quadrant radial band.
+        real, save :: radii_free_pass_pctile  ! If the percentile value
+                             ! of R34 in this band is at least this 
+                             ! great, then bypass all further checking
+                             ! and consider the R34 value to be at this
+                             ! radius.  You should make this something
+                             ! substantial, i.e., not just 95.0, but 
+                             ! something like 67.0, meaning at least 
+                             ! 1/3 of points in this band must > 34 kts
+                             ! in order to "get the free pass".
+        real, save :: radii_width_thresh ! The width (in km) that is
+                             ! used in the new (2022) wind radii scheme
+                             ! for checking how wide -- or how robust --
+                             ! an R34 value is.
       end module structure
 c
       module shear_diags
