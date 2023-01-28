@@ -22,6 +22,10 @@ add_executable(
     module_waitfor.f
     cwaitfor.c
 )
+install(
+    TARGETS
+    gettrk
+)
 
 # Find required libraries for the build
 find_package(NetCDF
