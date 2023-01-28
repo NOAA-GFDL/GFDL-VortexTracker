@@ -1,3 +1,9 @@
+gettrk
+
+# Fortran and C build artifacts
+*.o
+*.mod
+
 # Cmake gitignore
 # From https://github.com/github/gitignore/blob/main/CMake.gitignore
 MakeLists.txt.user

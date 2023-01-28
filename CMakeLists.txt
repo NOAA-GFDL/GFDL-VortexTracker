@@ -1,14 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Define this CMake project
 project(
     GFDL-VortexTracker
     DESCRIPTION "The GFDL vortex tracker created by Tim Marchok"
     HOMEPAGE_URL https://github.com/NOAA-GFDL/GFDL-VortexTracker
     VERSION 1.0.0
-    LANGUAGES C Fortran)
+    LANGUAGES C Fortran
+)
+
+# Location of additional CMake modules
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 include(GNUInstallDirs)
 
+# Executable to build, and source required
 add_executable(
     gettrk
     gettrk_main.f
@@ -17,11 +23,12 @@ add_executable(
     cwaitfor.c
 )
 
-include_directories(
-    /opt/spack/spack/opt/spack/linux-ubuntu22.04-skylake/gcc-11.3.0/netcdf-fortran-4.6.0-iihaadqa3x77h5p3otlpd3rdlcrn6yo7/include
-    /opt/spack/spack/opt/spack/linux-ubuntu22.04-skylake/gcc-11.3.0/netcdf-fortran-4.6.0-iihaadqa3x77h5p3otlpd3rdlcrn6yo7/include
-    /opt/spack/spack/opt/spack/linux-ubuntu22.04-skylake/gcc-11.3.0/g2-3.4.5-w6szidmxvjid7nyynqtgdbnpzmqvn7rm/include_d)
-
+# Find required libraries for the build
+find_package(NetCDF
+    4.7.4
+    REQUIRED
+    C Fortran
+)
 
 find_package(
     bacio
@@ -46,4 +53,6 @@ find_library(
     netcdff
     REQUIRED
 )
-target_link_libraries(gettrk bacio::bacio_4 w3emc::w3emc_4 g2::g2_4 ${netcdff})
+
+# Libraries to link for executable
+target_link_libraries(gettrk bacio::bacio_4 w3emc::w3emc_4 g2::g2_4 NetCDF::NetCDF_Fortran)
