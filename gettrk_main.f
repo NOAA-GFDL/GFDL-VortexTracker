@@ -2,12 +2,12 @@
 c
 c$$$  MAIN PROGRAM DOCUMENTATION BLOCK
 c
-c Main Program: GETTRK       Track model vortices   
+c Main Program: GETTRK       Track model vortices
 C   PRGMMR: MARCHOK          ORG: NP22        DATE: 2002-05-20
 c
 c ABSTRACT: This program tracks the average of the max or min
 c   of several parameters in the vicinity of an input
-c   first guess (lat,lon) position of a vortex in order to give  
+c   first guess (lat,lon) position of a vortex in order to give
 c   forecast position estimates for that vortex for a given numerical
 c   model.  For the levels 700 & 850 mb, the tracked parameters are:
 c   Relative vorticity (max), wind magnitude (min), and geopotential
@@ -18,9 +18,9 @@ c   structures/centers.  Currently, the system is set up to be able
 c   to process GRIB input data files from the GFS, MRF, UKMET, GDAS,
 c   ECMWF, NGM, NAM and FNMOC/NAVGEM models.  Two 1-line files
 c   are  output from this program, both containing the forecast fix
-c   positions that the  tracker has obtained.  One of these  output 
-c   files contains the positions at every 12 hours from forecast 
-c   hour 0 to the end of the forecast. The other file is in ATCF 
+c   positions that the  tracker has obtained.  One of these  output
+c   files contains the positions at every 12 hours from forecast
+c   hour 0 to the end of the forecast. The other file is in ATCF
 c   format, which is the particular format needed by the Tropical
 c   Prediction Center, and provides the positions at forecast hours
 c   12, 24, 36, 48 and 72, plus the maximum wind near the storm center
@@ -33,32 +33,32 @@ c                       and hurricane-force winds in each quadrant.
 c   99-04-01  Marchok - Added code to be able to read in 4-digit years
 c                       off of the TC Vitals records.
 c                       Added code, including subroutine  is_it_a_storm,
-c                       to make a better determination of whether or 
+c                       to make a better determination of whether or
 c                       not the center that was found at each time is
 c                       the center of a storm, and not just a passing
 c                       vort max, etc.
 c   99-06-15  Marchok - Fixed a bug in calcdist that was triggered by a
-c                       rounding error sending a number just above 1 
-c                       into ACOS to get the distance between 2 
+c                       rounding error sending a number just above 1
+c                       into ACOS to get the distance between 2
 c                       identical points (which, obviously, is 0).
 c   00-06-20  Marchok - Added GDAS option for vortex relocation work.
-c                       Changed nhalf from 3 to 5.  Relaxed the 
+c                       Changed nhalf from 3 to 5.  Relaxed the
 c                       requirements for pthresh and vthresh.
 c   00-11-30  Marchok - Added ability to handle GFDL and NCEP Ensemble
 c                       model data.  Extended time range to be able to
-c                       handle 5-day capability.  Forecast hours are 
+c                       handle 5-day capability.  Forecast hours are
 c                       now input via a namelist (easiest way to account
 c                       for NAM, GFS and GFDL having different forecast
-c                       lengths at 00/12z and 06/18z).  Model ID's are 
+c                       lengths at 00/12z and 06/18z).  Model ID's are
 c                       now input via a namelist (makes it easier, for
-c                       example, to run for many different ensemble 
-c                       members).  Added new output, the atcfunix 
+c                       example, to run for many different ensemble
+c                       members).  Added new output, the atcfunix
 c                       format, needed for 5-day forecasts.
-c   01-08-24  Marchok   Fixed a bug in rvcal and getgridinfo.  When a 
-c                       grid that was south-->north is flipped in 
-c                       conv1d2d_real to be north-->south, the scanning 
+c   01-08-24  Marchok   Fixed a bug in rvcal and getgridinfo.  When a
+c                       grid that was south-->north is flipped in
+c                       conv1d2d_real to be north-->south, the scanning
 c                       mode flag remains 64 and what we would consider
-c                       the max and min latitudes are reversed, so I 
+c                       the max and min latitudes are reversed, so I
 c                       added code to correct this in both routines.
 c   02-05-20  Marchok   Weakened the mslp gradient threshold and v850
 c                       threshold in is_it_a_storm to cut down on the
@@ -99,46 +99,46 @@ c   10-05-25  Slocum    Add verbose feature to code
 c                       0 = Not terminal output, 1 = error messages only
 c                       2 = all output
 c
-c   10-05-26  Marchok   - added flags and code to check the temporal 
-c                         consistency of the mslp closed contour and 
+c   10-05-26  Marchok   - added flags and code to check the temporal
+c                         consistency of the mslp closed contour and
 c                         Vt850 checks for tcgen and midlat cases.
 c
 c   13-04-01  Marchok   Added code to upgrade the wind radii diagnosid.
 c                       Hurricane Sandy exposed an issue with the
 c                       tracker for large storms.  The code was modified
-c                       to use an iterative technique that can 
-c                       diagnose radii for large storms but still 
+c                       to use an iterative technique that can
+c                       diagnose radii for large storms but still
 c                       accurately diagnost radii for small storms.  See
 c                       subroutine  getradii for more details.
 c
-c   15-11-01  Marchok   Replaced the routine which tracks the wind 
-c                       minimum at the center of a storm, as that 
-c                       routine proved troublesome with very hi-res 
-c                       grids (0.02-deg) from HWRF for very small 
+c   15-11-01  Marchok   Replaced the routine which tracks the wind
+c                       minimum at the center of a storm, as that
+c                       routine proved troublesome with very hi-res
+c                       grids (0.02-deg) from HWRF for very small
 c                       storms.  This has been replaced with a routine
-c                       that looks for "wind circulation difference", 
+c                       that looks for "wind circulation difference",
 c                       whereby the center for this parm is located at
 c                       the spot where the tangential wind circulation
-c                       minus the wind magnitude at the candidate 
-c                       center position is maximized.  ALSO: Added in 
-c                       tracking of thickness as an additional 
+c                       minus the wind magnitude at the candidate
+c                       center position is maximized.  ALSO: Added in
+c                       tracking of thickness as an additional
 c                       tracked parm. ALSO: Added a separate verbose
 c                       flag for only the GRIB2 read diagnostics, which
 c                       can be voluminous.
 c
 c   16-09-01  Marchok   Added in the ability to read in NetCDF files.
-c                       As with GRIB data, the NetCDF data must be on 
+c                       As with GRIB data, the NetCDF data must be on
 c                       a lat/lon grid.
 c
-c   17-08-31  Marchok   Added a logical bitmap capability for NetCDF 
+c   17-08-31  Marchok   Added a logical bitmap capability for NetCDF
 c                       files to prevent the accessing of missing data.
 c                       Also modified the code to permit more accurate
-c                       reporting of the grid point value of the 
+c                       reporting of the grid point value of the
 c                       minimum SLP for reporting to the atcfunix file.
 c                       Finally, fixed a bug (reported by JTWC) whereby
 c                       radii were being reported for thresholds that
 c                       were in exceedance of the  tracker-diagnosed
-c                       Vmax (e.g., 34-kt radii for a storm with 
+c                       Vmax (e.g., 34-kt radii for a storm with
 c                       Vmax = 25 kts).
 c
 c   19-05-29  Marchok   Only do the check for 50- and 64-kt radii the
@@ -146,16 +146,16 @@ c                       first time through the getradii routine.  The
 c                       34-kt radii may be adjusted on subsequent calls.
 c
 c                       Adjusted code to allow for forward tracking for
-c                       NetCDF data files that do not have hour0 data 
+c                       NetCDF data files that do not have hour0 data
 c                       in them.
 c
 c                       Code updated to include cyclone phase space
 c                       analysis for 00h.  Previously this was not done
-c                       since storm motion direction is needed for 
+c                       since storm motion direction is needed for
 c                       Parameter B.  This is now included for forward
 c                       tracking cases (i.e., cases in which we have TC
 c                       Vitals), and we use the storm motion as reported
-c                       from the TC Vitals.  Of course, the observed 
+c                       from the TC Vitals.  Of course, the observed
 c                       motion from TC Vitals may not exactly match the
 c                       model forecast motion, but for 00h it will be
 c                       close enough that it will allow us to get the
@@ -197,26 +197,26 @@ c                       magnitude at the center of the storm.  This was
 c                       flawed.  Now, just the value of the radially-
 c                       integrated wind circulation is used, and the
 c                       results are robust and comparable to those of
-c                       using relative vorticity. 
+c                       using relative vorticity.
 c
 c                       Bug fix in subroutine getcorr related to the
 c                       correlation residuals.
 c
-c   19-09-03  Marchok   Made a change to subroutine getgridinfo to 
+c   19-09-03  Marchok   Made a change to subroutine getgridinfo to
 c                       allow a particular longitude specification to
 c                       be okay.  Previously, if the grid max west lon
 c                       was > 0 and the grid max east long was also > 0,
 c                       but if glonmin > glonmax (for example, a grid
 c                       that spans across the GM going from 265E to 5E),
-c                       the code was written to assume the user had 
+c                       the code was written to assume the user had
 c                       coded the grid specification incorrectly.  This
 c                       condition is now allowed.
 c
-c   20-10-02  Marchok   Made a substantial change for fixed regional 
-c                       grids (e.g., HAFS-A/B, T-SHiELD) in how the 
+c   20-10-02  Marchok   Made a substantial change for fixed regional
+c                       grids (e.g., HAFS-A/B, T-SHiELD) in how the
 c                       tracker decides to stop tracking when a storm
 c                       is near the grid boundary.  This was in response
-c                       to an issue with these models for the  tracker 
+c                       to an issue with these models for the  tracker
 c                       continuing to track noise after a storm had left
 c                       the grid boundary, and the track would appear to
 c                       "crawl" along the boundary.  Added two new
@@ -224,55 +224,55 @@ c                       checks for storms that are within 350 km of the
 c                       grid boundary or invalid / null data on a fixed
 c                       regional grid.  One check is for a closed MSLP
 c                       contour, one is to check for mean, cyclonic Vt
-c                       at 850 mb in *each* of 4 quadrants around a 
-c                       storm.  Two new subroutines were added: 
+c                       at 850 mb in *each* of 4 quadrants around a
+c                       storm.  Two new subroutines were added:
 c                       probe_for_boundary and check_quadrant_wind_circ.
 c
 c   20-10-16  Marchok   Uncovered an issue with the grid edges for HWRF
 c                       not being consistent in their coverage between
-c                       the u&v and MSLP variables.  Because of the 
+c                       the u&v and MSLP variables.  Because of the
 c                       native semi-staggered grid, after interpolation
 c                       to the lat/lon tracker grid, the u&v variables
 c                       extend to a couple points here & there at the
 c                       grid boundaries where there is no corresponding
 c                       MSLP data.  Because I only bring the bitmap in
 c                       once (from the u850 data), there are some edge
-c                       points that are listed as being valid data 
+c                       points that are listed as being valid data
 c                       points but which have missing (-999) MSLP data,
 c                       and this screws up the routine (fix_latlon_ij)
 c                       that returns the value of the lowest grid point
 c                       MSLP value for reporting to the ATCF file.  To
 c                       address this, I added an argument, "stopcheck",
-c                       to the call fo fix_latlon_ij, and if 
-c                       stopcheck = gptmslp (to indicate a check for 
+c                       to the call fo fix_latlon_ij, and if
+c                       stopcheck = gptmslp (to indicate a check for
 c                       gridpoint mslp), if a mslp value is < 0, it
 c                       is skipped.  This now helps HWRF avoid getting
 c                       -999 values in the MSLP field for the above
 c                       situation.
 c
 c                       Also addressed an issue for HMON having -99
-c                       values for MSLP.  This is different from the 
-c                       above HWRF issue, and this one was due to 
-c                       the MSLP record missing for a given lead 
+c                       values for MSLP.  This is different from the
+c                       above HWRF issue, and this one was due to
+c                       the MSLP record missing for a given lead
 c                       time.  Not much we can do there, but I made
 c                       sure in output_atcfunix by assigning a value
 c                       of 0 to xminmslp that the output MSLP
 c                       will also have a zero value.
 c
 c   21-10-20  Marchok   Fixed 2 bugs.  The first was a critical bug with
-c                       relative vorticity specifically for cases in 
-c                       which NetCDF data was being used *AND* if 
+c                       relative vorticity specifically for cases in
+c                       which NetCDF data was being used *AND* if
 c                       phaseflag=y.  In those cases, the vorticity data
-c                       arrays were filled with junk values, leading to 
+c                       arrays were filled with junk values, leading to
 c                       erroneous center-fixing for vorticity (again,
 c                       *ONLY* when using NetCDF data and phaseflag=y).
 c                       The 2nd bug was a problem in 2 different areas
 c                       of the code (subroutines getvrvt and
 c                       bilin_int_uneven) with how Greenwich Meridian
-c                       wrapping was being handled.  I fixed the 
+c                       wrapping was being handled.  I fixed the
 c                       GM-wrapping in a few different areas in both
 c                       subroutines.
-c 
+c
 c
 c Input files:
 c   unit   11    Unblocked GRIB1 file containing model data
@@ -280,7 +280,7 @@ c   unit   12    Text file containing TC Vitals card for current time
 c   unit   31    Unblocked GRIB index file
 c
 c Output files:
-c   unit   61    Output file with forecast positions every 12h from 
+c   unit   61    Output file with forecast positions every 12h from
 c                vt=00h to the end of the forecast
 c   unit   62    Output file in ATCF format, with forecast positions
 c                at vt = 12, 24, 36, 48 and 72h, plus wind speeds.
@@ -313,7 +313,7 @@ c                fields), (15) CMC, (16) CMC Ensemble, (17) HWRF,
 c                (18) HWRF Ensemble, (19) HWRF-DAS (HDAS),
 c                (20) Ensemble RELOCATION (21) UKMET hi-res (NHC)
 c                (23) FNMOC Ensemble
-c     stormswitch:  This switch tells how to handle each storm in 
+c     stormswitch:  This switch tells how to handle each storm in
 c                the TCV file:
 c                1 = process this storm for this forecast hour.
 c                2 = Storm was requested to be tracked, but either
@@ -321,11 +321,11 @@ c                    the storm went off the grid (regional models),
 c                    the storm dissipated, or the program was
 c                    unable to track it.
 c                3 = Storm was NOT requested to be tracked at all.
-c     storm:     An array of type tcvcard.  Each member of storm 
+c     storm:     An array of type tcvcard.  Each member of storm
 c                contains a separate TC Vitals card.
-c     maxstorm:  Maximum number of storms the system is set up to 
+c     maxstorm:  Maximum number of storms the system is set up to
 c                handle at any 1 time.
-c     slonfg,slatfg:  Holds first guess positions for storms.  The 
+c     slonfg,slatfg:  Holds first guess positions for storms.  The
 c                very first, first guess position is read from the
 c                TC vitals card. (maxstorm,maxtime)
 c     clon,clat: Holds the coordinates for the center positions for
@@ -358,7 +358,7 @@ c     --------------------------------------------------------
 
 c      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
 
-      pi = 4. * atan(1.)   ! Both pi and dtr were declared in module 
+      pi = 4. * atan(1.)   ! Both pi and dtr were declared in module
       dtr = pi/180.0       ! trig_vals, but were not yet defined.
       ncfile_has_hour0 = 'n'  ! Default value; set in read_netcdf_hours
 c
@@ -453,37 +453,37 @@ c---------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine is the core of the program.  It contains
 c     the main loop for looping through all the forecast hours and all
-c     the storms.  Basically, the way it works is that it has an outer 
-c     loop that loops on the forecast hour.  At the beginning of this 
+c     the storms.  Basically, the way it works is that it has an outer
+c     loop that loops on the forecast hour.  At the beginning of this
 c     loop, the data are read in for all parameters and levels needed
-c     for tracking.  The full regional or global grid is read in. 
+c     for tracking.  The full regional or global grid is read in.
 c     If vorticity was not read in (some of the centers do not send us
-c     vorticity), then vorticity calculations are done on the whole 
+c     vorticity), then vorticity calculations are done on the whole
 c     grid at both 850 and 700 mb.  Then the program goes into the inner
-c     loop, which loops on storm number (program originally set up to 
-c     handle a max of 15 storms).  For each storm, subroutine 
-c     find_maxmin is called for the following parameters: Rel Vort and  
+c     loop, which loops on storm number (program originally set up to
+c     handle a max of 15 storms).  For each storm, subroutine
+c     find_maxmin is called for the following parameters: Rel Vort and
 c     geopotential hgt at 700 & 850 mb, and MSLP.  Within find_maxmin,
-c     a barnes analysis is performed over the guess position of the 
-c     storm to find the max or min value, and then iteratively, the 
+c     a barnes analysis is performed over the guess position of the
+c     storm to find the max or min value, and then iteratively, the
 c     grid size is cut in half several times and the  barnes analysis
 c     rerun to refine the positioning of the max or min location.  After
-c     the center positions for these parameters have been obtained, 
-c     subroutine  get_uv_center is called to get a center fix for the 
+c     the center positions for these parameters have been obtained,
+c     subroutine  get_uv_center is called to get a center fix for the
 c     minimum in the wind field, specifically, a minimum in the
 c     magnitude of the wind speed (vmag).  The calculation of the vmag
 c     minimum is done differently than the calculation for the other
-c     parameters;  for vmag, the grid near the storm center guess 
-c     position is interpolated down to a very fine grid, and then 
-c     find_maxmin is called and a barnes analysis is done on that 
+c     parameters;  for vmag, the grid near the storm center guess
+c     position is interpolated down to a very fine grid, and then
+c     find_maxmin is called and a barnes analysis is done on that
 c     smaller grid.  For vmag, there are no further calls made to barnes
-c     with a smaller grid, since the grid has already been interpolated 
-c     down to a smaller grid.  Once all of the parameter center fixes 
-c     have been made, subroutine  fixcenter is called to average these 
+c     with a smaller grid, since the grid has already been interpolated
+c     down to a smaller grid.  Once all of the parameter center fixes
+c     have been made, subroutine  fixcenter is called to average these
 c     positions together to get a best guess fix position.  Then a check
 c     is done with a call to subroutine  is_it_a_storm to make sure that
-c     the center that we have found does indeed resemble a tropical 
-c     cyclone.  Finally, subroutine  get_next_ges is called to make a 
+c     the center that we have found does indeed resemble a tropical
+c     cyclone.  Finally, subroutine  get_next_ges is called to make a
 c     guess position for the next forecast time for this storm.
 c
 c     INPUT:
@@ -492,14 +492,14 @@ c     maxstorm   maximum # of storms to be handled
 c     numtcv     number of storms read off of the tcvitals file
 c     ifhmax     max number of analysis & forecast times to be handled
 c     trkrinfo   derived type that holds/describes various tracker parms
-c     ncfile     if the input data type is netcdf, then this ncfile 
+c     ncfile     if the input data type is netcdf, then this ncfile
 c                variable contains the name of the netcdf file
 c     ncfile_id  if the input data type is netcdf, then this ncfile_id
 c                variable contains an integer id assigned to the netcdf
 c                file from the open_ncfile subroutine
-c     ncfile_has_hour0  character flag (y|n) that, if the  tracker is 
-c                running on NetCDF data, tells if the NetCDF file 
-c                actually contains hour0 data or not (some, like the 
+c     ncfile_has_hour0  character flag (y|n) that, if the  tracker is
+c                running on NetCDF data, tells if the NetCDF file
+c                actually contains hour0 data or not (some, like the
 c                2016 version of FV3, do not).
 c     ncfile_tmax integer with max number of time levels in the input
 c                NetCDF file, as read in from the NetCDF file itself in
@@ -507,7 +507,7 @@ c                subroutine  read_netcdf_fhours.
 c
 c     OUTPUT:
 c     itret      return code from this subroutine
-c 
+c
 c     LOCAL PARAMETERS:
 c     storm      contains the tcvitals for the storms
 c     stormswitch 1,2 or 3 (see more description under Main pgm section)
@@ -534,7 +534,7 @@ c                13: 500 mb v-comp
 c                14: Mean temperature, centered at 400 mb
 c                15: 500 mb gp hgt
 c                16: 200 mb gp hgt
-c                17: Land-Sea Mask (for use in tcgen applications, and 
+c                17: Land-Sea Mask (for use in tcgen applications, and
 c                                   even there, it's optional)
 c                18: 200 mb u-comp
 c                19: 200 mb v-comp
@@ -542,14 +542,14 @@ c
 c     calcparm   L  indicates which parms to track and which not to.
 c                Array positions are defined exactly as for clon
 c                and clat, listed next, except that, in general, when
-c                flag 3 is set to a value, flag 4 is set to the same 
+c                flag 3 is set to a value, flag 4 is set to the same
 c                value as 3, and when flag 5 is set to a value, flag
-c                6 is set to the same value as 5.  This is because 
+c                6 is set to the same value as 5.  This is because
 c                3 & 4 are for the 850 mb winds, and if either u or
-c                v is missing, we obviously can't calculate the 
+c                v is missing, we obviously can't calculate the
 c                magnitude of the wind.  The same applies for 5 & 6,
 c                which are for the 700 mb winds. And also for reference,
-c                here is a list of all the variables & levels for the 
+c                here is a list of all the variables & levels for the
 c                tracked parameters (i.e., the "calcparm" elements):
 c
 c                 1: 850 mb relative vorticity
@@ -566,7 +566,7 @@ c                11: 10-m relative vorticity
 c                12: 500-850 mb thickness (lower level)
 c                13: 200-500 mb thickness (upper level)
 c                14: 200-850 mb thickness (deep-layer)
-c 
+c
 c     clon,clat: Holds the coordinates for the center positions for
 c                all storms at all times for all parameters.
 c                (max_#_storms, max_fcst_times, max_#_parms).
@@ -588,18 +588,18 @@ c                14: Deep-Layer thickness (200-850)
 c
 c     xmaxwind   Contains maximum near-surface wind near the storm
 c                center for each storm at each forecast hour.
-c     stderr     Standard deviation of the position "errors" of the 
+c     stderr     Standard deviation of the position "errors" of the
 c                different parameters for each storm at each time.
 c     fixlat,fixlon: Contain the final coordinates for each storm at
-c                each forecast hour.  These coordinates are a 
+c                each forecast hour.  These coordinates are a
 c                weighted average of all the individual parameter
 c                positions (hgt, zeta, mslp, vmag).
-c     cvort_maxmin: Contains the characters 'max' or 'min', and is 
+c     cvort_maxmin: Contains the characters 'max' or 'min', and is
 c                used when calling the  find_maxmin routine for the
 c                relative vorticity (Look for max in NH, min in SH).
 c     vradius    Contains the distance from the storm fix position to
-c                each of the various near-surface wind threshhold 
-c                distances in each quadrant. 
+c                each of the various near-surface wind threshhold
+c                distances in each quadrant.
 c                (3,4) ==> (# of threshholds, # of quadrants)
 c                See subroutine  getradii for further details.
 c     wfract_cov Fractional coverage (areal coverage) of winds
@@ -642,7 +642,7 @@ c                at a gridpoint.  The  barnes analysis will return an
 c                area-averaged value of pressure; this variable will
 c                contain the actual minimum value at a gridpoint near
 c                the lat/lon found by the  barnes analysis.
-c     closed_mslp_ctr_flag  This flag keeps track of the value of the 
+c     closed_mslp_ctr_flag  This flag keeps track of the value of the
 c                closed contour flag returned from subroutine
 c                check_closed_contour.
 c     closed_mslp_ctr_flag2  This flag also keeps track of the value of
@@ -650,7 +650,7 @@ c                the closed contour flag returned from subroutine
 c                check_closed_contour.  But it does it for a different
 c                use.  Yes, it's a little redundant, but this was the
 c                least disruptive alternative.
-c     vt850_flag This flag keeps track of the value of the flag for 
+c     vt850_flag This flag keeps track of the value of the flag for
 c                the 850 mb Vt check.
 c     shear      real array containing both the magnitude and direction
 c                of the storm-centered 850-200 mb vertical shear.  In
@@ -658,18 +658,18 @@ c                the 3rd element of the array, index 1 is for shear
 c                magnitude and index 2 is for shear direction.
 c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
-c             forecast hour (this keeps us from re-computing it for 
+c             forecast hour (this keeps us from re-computing it for
 c             every storm at each lead time).
 c-----
 c
       USE def_vitals; USE inparms; USE tracked_parms; USE error_parms
       USE set_max_parms; USE level_parms; USE grid_bounds; USE trkrparms
       USE contours; USE atcf; USE radii; USE trig_vals; USE phase
-      USE gen_vitals; USE structure; USE verbose_output 
+      USE gen_vitals; USE structure; USE verbose_output
       USE waitfor_parms; USE module_waitfor; USE netcdf_parms
       USE tracking_parm_prefs; USE shear_diags; USE genesis_diags
       USE read_parms; USE sst_diags
-c         
+c
       implicit none
 c
       type (datecard) inp
@@ -801,7 +801,7 @@ c      if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') then
         allocate (closed_mslp_ctr_flag2(maxstorm,ifhmax),stat=icmc2f)
         allocate (quad_wind_circ_flag(maxstorm,ifhmax),stat=iqwcf)
         allocate (vt850_flag(maxstorm,ifhmax),stat=ivt8f)
-        ! Initialize flags to 'u', not 'n'.  That way, 
+        ! Initialize flags to 'u', not 'n'.  That way,
         ! when we are evaluating its value back over recent past hours,
         ! we can distinguish a "no" value from an initialized value of
         ! 'u' for which a storm hadn't yet been detected.
@@ -810,7 +810,7 @@ c      if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') then
         quad_wind_circ_flag = 'u'
         vt850_flag = 'u'
 c      endif
-   
+
       allocate (prsindex(maxstorm),stat=iisa)
       allocate (prstemp(maxstorm),stat=iva)
       allocate (iwork(maxstorm),stat=iwa)
@@ -825,7 +825,7 @@ c      endif
           print *,'!!! iqwcf= ',iqwcf
         endif
         itret = 94
-        return    
+        return
       endif
 
       ike = 0.0
@@ -840,10 +840,10 @@ c      endif
       stormct = 0
 
       ! It is critical to initialize the gridprs array to something
-      ! greater than normal atmospheric pressures (I've chosen 9999.99 
+      ! greater than normal atmospheric pressures (I've chosen 9999.99
       ! mb).  This is so that in the  sort on pressure before stormloop,
       ! the top of the  sorting index array will be filled with pressure
-      ! values from active storms, while those inactive 9999 storms 
+      ! values from active storms, while those inactive 9999 storms
       ! will fill the bottom of the  sorting index array (prsindex).
 
       gridprs =  999999.0
@@ -851,8 +851,8 @@ c      endif
       fixlat  =    -999.0
 
       if (inp%file_seq == 'multi') then
-        ! Each tau will have a separate file, starting with unit 
-        ! number 200 (GRIB data) and 5200 (GRIB index file) and 
+        ! Each tau will have a separate file, starting with unit
+        ! number 200 (GRIB data) and 5200 (GRIB index file) and
         ! incrementing upwards from there for each tau.
         if (trkrinfo%gribver == 1) then
           lugb =  200
@@ -896,7 +896,7 @@ c          lugi = 5200
 
           lugb = lugb + 1
           lugi = lugi + 1
-        
+
           call get_grib_file_name (ifh,gfilename,ifilename)
 
           if (use_waitfor == 'y') then
@@ -908,17 +908,17 @@ c          lugi = 5200
      &                  ,wait_sleeptime)
             if (waitfor_gfile_status /= 0) then
               print *,' '
-              write(6,405) 
+              write(6,405)
               write(6,406) wait_max_wait,trim(gfilename)
-  405         format('ERROR: TIMEOUT from waitfor for GRIB file.') 
+  405         format('ERROR: TIMEOUT from waitfor for GRIB file.')
   406         format('Waited longer than ',I0,' seconds for "',A,'"')
               stop 91
             endif
 
-            ! Now check for existence of index file.  Use a separate 
-            ! max_wait time -- a much shorter one -- since once the 
+            ! Now check for existence of index file.  Use a separate
+            ! max_wait time -- a much shorter one -- since once the
             ! grib file is there, the index file should appear within
-            ! a matter of seconds.  Also, the index file is much 
+            ! a matter of seconds.  Also, the index file is much
             ! smaller, so set the wait_min_size accordingly.
 
             wait_max_ifile_wait = 180
@@ -939,7 +939,7 @@ c          lugi = 5200
 
           call open_grib_files (inp,lugb,lugi,gfilename,ifilename
      &         ,lout,iret)
-        
+
           if (iret /= 0) then
             print '(/,a50,i4,/)','!!! ERROR: from open_grib_files, rc= '
      &           ,iret
@@ -956,7 +956,7 @@ c          lugi = 5200
           else
             print *,'TEST b4 getgridinfo, unit lugb= ',lugb,' is CLOSED'
           endif
-  
+
           inquire (unit=lugi, opened=file_open)
           if (file_open) then
             print *,'TEST b4 getgridinfo, unit lugi= ',lugi,' is OPEN'
@@ -969,11 +969,11 @@ c          lugi = 5200
         ! Within this next IF statement, we deal with writing out atcf
         ! records for storms for the case in which we have netcdf data,
         ! but that netcdf data does not have hour0 data (as of Nov 2016,
-        ! this is the case for FV3 data).  In this case, we write out 
-        ! missing values for the hour0 time, and then we update the 
+        ! this is the case for FV3 data).  In this case, we write out
+        ! missing values for the hour0 time, and then we update the
         ! guess for next lead time by extrapolating data from TC Vitals.
-        ! Note in the IF statement itself, "iftotalmins" is the array 
-        ! of *user-requested* lead times, meaning that the user has 
+        ! Note in the IF statement itself, "iftotalmins" is the array
+        ! of *user-requested* lead times, meaning that the user has
         ! requested to look at hour0, but the ncfile_has_hour0 flag
         ! indicates the hour0 time is not in the NetCDF data.
         !--------------------------------------------------------------
@@ -1020,14 +1020,14 @@ c          lugi = 5200
      &           ,x999_rh600_800,x999_rh1000_925
      &           ,x999_omega500,x999_sst
      &           ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
-            endif 
+            endif
             call output_hfip (x999_lon
      &                ,x999_lat,inp,inctcv
      &                ,ifh,xzero_vmax
      &                ,xzero_minslp,vradius,x99_rmax,ioaxret)
 
             if (verb .ge. 3) then
-              print *,' ' 
+              print *,' '
               print *,'++ NOTE: Even though a fix could not be'
               print *,'   made for this storm at 00h, we will '
               print *,'   use the storm heading info from tc'
@@ -1038,7 +1038,7 @@ c          lugi = 5200
               write (6,431) storm(inctcv)%tcv_storm_id
      &                     ,storm(inctcv)%tcv_storm_name
  431          format (1x,'  storm_id = ',a4,' storm_name = ',a9)
-            endif 
+            endif
 
             call advect_tcvitals_from_hour0 (slonfg,slatfg,maxstorm
      &                             ,inctcv,ifh,trkrinfo,iatret)
@@ -1048,7 +1048,7 @@ c          lugi = 5200
               fixlat (inctcv,ifh) = -999.0
               stormswitch(inctcv) = 2
               cycle null_netcdf_hour0_storm_loop
-            endif 
+            endif
 
             stormswitch(inctcv) = 1
 
@@ -1062,7 +1062,7 @@ c          lugi = 5200
         !--------------------------------------------------------------
         ! Make call to getgridinfo in order to get info on the imax,
         ! jmax, as well as the x- and y-increments, and also to see if
-        ! the grid is correctly oriented for the  tracker so that the 
+        ! the grid is correctly oriented for the  tracker so that the
         ! data go north to south and west to east or if we need to flip
         ! either the lats or the lons.
         !--------------------------------------------------------------
@@ -1098,13 +1098,13 @@ c          lugi = 5200
           stop 95
         endif
 
-        if (inp%modtyp == 'regional' .and. inp%nesttyp == 'moveable') 
-     &  then 
+        if (inp%modtyp == 'regional' .and. inp%nesttyp == 'moveable')
+     &  then
           if (glatmax == prev_latmax .and. glatmin == prev_latmin .and.
      &        glonmax == prev_lonmax .and. glonmin == prev_lonmin) then
-            ! The moveable, nested regional grid has not moved since 
+            ! The moveable, nested regional grid has not moved since
             ! the last lead time.  This could be an indication that the
-            ! model lost the storm and so the grid has not moved to 
+            ! model lost the storm and so the grid has not moved to
             ! stay with the cyclone center. Set a flag to indicate this.
             gridmove_status = 'stopped'
           else
@@ -1122,12 +1122,12 @@ c          lugi = 5200
         gotten_avg_value = 'n'
 
 c       First, allocate the working data arrays....
-      
+
         if (allocated(valid_pt)) deallocate (valid_pt)
-        if (allocated(zeta))     deallocate (zeta) 
+        if (allocated(zeta))     deallocate (zeta)
         if (allocated(u))        deallocate (u)
         if (allocated(v))        deallocate (v)
-        if (allocated(hgt))      deallocate (hgt) 
+        if (allocated(hgt))      deallocate (hgt)
         if (allocated(slp))      deallocate (slp)
         if (allocated(tmean))    deallocate (tmean)
         if (allocated(cpshgt))   deallocate (cpshgt)
@@ -1141,9 +1141,9 @@ c       First, allocate the working data arrays....
         if (allocated(omega500)) deallocate (omega500)
         if (allocated(masked_out))  deallocate (masked_out)
         if (allocated(masked_outc)) deallocate (masked_outc)
-      
+
         ! Allocate all of the allocatable arrays....
-      
+
         allocate (valid_pt(imax,jmax),stat=ivpa)
         allocate (zeta(imax,jmax,nlevzeta),stat=iza)
         allocate (u(imax,jmax,nlevs),stat=iua)
@@ -1172,24 +1172,24 @@ c       First, allocate the working data arrays....
      &             ,stat=itempa)
           allocate (omega500(imax,jmax),stat=iomegaa)
         endif
-      
+
         ita=0
-        icpsa=0 
+        icpsa=0
         if (phaseflag == 'y') then
           if (phasescheme == 'cps' .or. phasescheme == 'both') then
             if (allocated(cpshgt)) deallocate (cpshgt)
             allocate (cpshgt(imax,jmax,nreadcpsparms),stat=icpsa)
           endif
-        endif   
+        endif
 
         if (iza /= 0 .or. iua /= 0 .or. iha /= 0 .or. ivpa /= 0 .or.
      &      iva /= 0 .or. isa /= 0 .or. icpsa /= 0 .or. ita /= 0 .or.
      &      itha /= 0 .or. imoa /= 0 .or. imoca /= 0 .or.
-     &      ilma /= 0 .or. issta /= 0 .or. iq850a /= 0 .or. 
+     &      ilma /= 0 .or. issta /= 0 .or. iq850a /= 0 .or.
      &      irha /= 0 .or. ispfha /= 0 .or. itempa /= 0 .or.
-     &      iomegaa /= 0) 
+     &      iomegaa /= 0)
      &     then
-          
+
           if ( verb .ge. 1 ) then
             print *,' '
             print *,'!!! ERROR in sub tracker allocating arrays.'
@@ -1209,22 +1209,22 @@ c       First, allocate the working data arrays....
         masked_out  = .false.   ! Initialize all pts to false at each hr
         masked_outc = .false.   ! Initialize all pts to false at each hr
 
-        if ( verb .ge. 3 ) then 
+        if ( verb .ge. 3 ) then
           print *,'in beginning of tracker, imax= ',imax,' jmax= ',jmax
         endif
 
 c       Initialize all readflags to NOT FOUND for this forecast time,
 c       then call subroutine to read data for this forecast time.
 
-        zeta  = -9999.0 
+        zeta  = -9999.0
         u     = -9999.0
-        hgt   = -9999.0 
+        hgt   = -9999.0
         v     = -9999.0
-        slp   = -9999.0 
+        slp   = -9999.0
         tmean = -9999.0
         sst   = -9999.0
         q850  = -9999.0
-        rh    = -9999.0 
+        rh    = -9999.0
         spfh  = -9999.0
         temperature  = -9999.0
         omega500  = -9999.0
@@ -1253,31 +1253,31 @@ c       then call subroutine to read data for this forecast time.
         write (6,32) date_time(5),date_time(6),date_time(7)
  32     format (1x,'TIMING: after getdata ... ',i2.2,':',i2.2,':',i2.2)
         endif
- 
+
 c       Count how many parms were successfully read for this fcst time.
 c       Also, for right now, put the value of readflag into all of the
 c       calcparms for parameters 3 through 9.  Note that in getdata we
-c       read in 19 parms, but in this next loop we only check the 
+c       read in 19 parms, but in this next loop we only check the
 c       readflags up to maxtp (= 14 as of 7/2015).  That's because
 c       read parms 12 & 13 are for 500 mb u & v, which are not used for
 c       tracking (only for calculating the deep layer mean wind for
-c       the next guess), parm 14 is the 300-500 mb mean temperature, 
+c       the next guess), parm 14 is the 300-500 mb mean temperature,
 c       which is used for determining storm phase, parms 15 & 16 are for
 c       500 & 200 mb hgt, parm 17 is land-sea mask, and parms 18-19 are
-c       200 mb u & v.  Parms 10 & 11 are for the near-surface winds, 
-c       which are used in estimating surface winds near the storm, and 
-c       will now also be used as a parameter for position estimates.  
+c       200 mb u & v.  Parms 10 & 11 are for the near-surface winds,
+c       which are used in estimating surface winds near the storm, and
+c       will now also be used as a parameter for position estimates.
 
         idum = 0
         do irf = 1,nreadparms
           if (readflag(irf)) idum = idum + 1
-          if (irf > 2 .and. irf < 10) then 
+          if (irf > 2 .and. irf < 10) then
             ! calcparm for parms > 9 is done further below.
             do jj=1,maxstorm
               calcparm(irf,jj) = readflag(irf)
             enddo
           endif
-        enddo          
+        enddo
 
         if ( verb .ge. 3 ) then
           print *,' '
@@ -1310,9 +1310,9 @@ c       If not enough tracked parms were read in, exit the program....
      &                     ,ioaret)
           if (ifh == 1) then
             ! Per Jim Gross (1/01), if the  tracker ran but was unable
-            ! to get an initial fix (or, in this case, unable to get 
-            ! the data needed to run), write out zeroes for the 00h 
-            ! fixes to indicate that the  tracker ran unsuccessfully, 
+            ! to get an initial fix (or, in this case, unable to get
+            ! the data needed to run), write out zeroes for the 00h
+            ! fixes to indicate that the  tracker ran unsuccessfully,
             ! but don't write out any subsequent forecast times
             ! with zeroes....
             vradius = 0
@@ -1372,7 +1372,7 @@ c         12: 500-850 mb thickness (lower level)
 c         13: 200-500 mb thickness (upper level)
 c         14: 200-850 mb thickness (deep-layer)
 
-c       Check the flags that were read in from the namelist for 
+c       Check the flags that were read in from the namelist for
 c       determining which parameters the user wants to track.
 c       Here, check for z850, z700 and mslp....
 
@@ -1389,18 +1389,18 @@ c       Here, check for z850, z700 and mslp....
             calcparm(8,jj) = .FALSE.
           enddo
         endif
-          
+
         if (user_wants_to_track_mslp == 'n' .or.
      &      user_wants_to_track_mslp == 'N') then
           do jj=1,maxstorm
             calcparm(9,jj) = .FALSE.
           enddo
         endif
-          
 
-c       Parameters 1 & 2 are abs vorticity at 850 & 700.  If the data 
-c       files had this parm at 850 & 700 (ECMWF & UKMET do NOT), then 
-c       we don't need to re-calculate relative vorticity, we just need 
+
+c       Parameters 1 & 2 are abs vorticity at 850 & 700.  If the data
+c       files had this parm at 850 & 700 (ECMWF & UKMET do NOT), then
+c       we don't need to re-calculate relative vorticity, we just need
 c       to subtract out the Coriolis component.  If the files did not
 c       have vorticity, then we need to calculate relative vorticity.
 c       If we're able to read vorticity or calculate it, then set the
@@ -1429,9 +1429,9 @@ c       vorticity calcparms to TRUE for all storms for now.
           endif
 
           if (readflag(ivort)) then
-          
+
             call subtract_cor (imax,jmax,dy,ivort)
-            
+
             do jj=1,maxstorm
               calcparm(ivort,jj) = .TRUE.
             enddo
@@ -1464,9 +1464,9 @@ c       vorticity calcparms to TRUE for all storms for now.
         enddo vortloop
 
 
-c       Check the flags that were read in from the namelist for 
+c       Check the flags that were read in from the namelist for
 c       determining which parameters the user wants to track.
-c       Here, check for user preferences for the wind circulation 
+c       Here, check for user preferences for the wind circulation
 c       difference at 850 & 700...
 
         if (readflag(3) .and. readflag(4)) then
@@ -1525,8 +1525,8 @@ c       Compute the sfc vorticity if sfc_u and sfc_v have been read in.
               calcparm(11,jj) = .FALSE.
             enddo
           else
-            ! The 3 in the next call to rvcal is to indicate the 3rd 
-            ! level for the zeta array, which is for the surface (or 
+            ! The 3 in the next call to rvcal is to indicate the 3rd
+            ! level for the zeta array, which is for the surface (or
             ! 10m) data.
             call rvcal (imax,jmax,dx,dy,3,valid_pt)
             do jj=1,maxstorm
@@ -1589,7 +1589,7 @@ c       if the gp hgt fields have been read in for 200, 500 and 850.
             calcparm(14,jj) = .FALSE.
           enddo
         endif
- 
+
 c       ---------------------------------------------------------------
 c       Now call  find_maxmin for the variables zeta, hgt and slp. Only
 c       process those storms for which stormswitch is set to 1.  If a
@@ -1597,8 +1597,8 @@ c       storm is selected to be processed, we still have to check the
 c       calcparm for each parameter, to make sure that the particular
 c       parm exists at that level and is able to be processed.
 c
-c       The following commented-out data statements are just included 
-c       as a reference so you can see the array positioning of the 
+c       The following commented-out data statements are just included
+c       as a reference so you can see the array positioning of the
 c       different parameters and levels that are read in:
 c
 c       data igparm   /41,41,33,34,33,34,7,7,2,33,34,33,34,11,7,7/
@@ -1606,10 +1606,10 @@ c       data iglevtyp /100,100,100,100,100,100,100,100,102,sfc,sfc
 c                     ,100,100,100,100,100/
 c       data iglev    /850,700,850,850,700,700,850,700,0,sfc,sfc
 c                     ,500,500,400,500,200/
-c  
+c
 c       And also for reference, here are the variables / levels for
 c       the *tracked* parameters (i.e., the "calcparm" elements):
-c  
+c
 c          1: 850 mb relative vorticity
 c          2: 700 mb relative vorticity
 c          3: 850 mb wind circulation
@@ -1678,54 +1678,54 @@ c       is why we set all the other calcparms to 'false' just below.
          cps_vals(3) =  -9999.0
          wcore_flag  = 'u'   ! 'u' = initialized value of 'undetermined'
 
-         if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') 
+         if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen')
      &   then
            ist = prsindex(sl_counter)
          else
            ist = sl_counter
          endif
 
-         if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen') 
+         if (trkrinfo%type == 'midlat' .or. trkrinfo%type == 'tcgen')
      &   then
 
            if (ist == (prevstormct + 1)) then
 
              ! For the mid-latitude and tropical cyclogenesis cases, we
-             ! need to scan the mslp field to find new storms.  If we 
+             ! need to scan the mslp field to find new storms.  If we
              ! are at this point inside the if statement in stormloop,
-             ! then that means we have looped through and attempted to 
-             ! track all storms that have already been found up to this 
+             ! then that means we have looped through and attempted to
+             ! track all storms that have already been found up to this
              ! point in the forecast, and we need to scan the field for
-             ! any new storms at this forecast hour.  If this is for 
-             ! forecast hour = 0, then right off the bat we may be 
+             ! any new storms at this forecast hour.  If this is for
+             ! forecast hour = 0, then right off the bat we may be
              ! scanning the field (if there were no tcvitals records
-             ! read in for this forecast), since ist = 1 and 
-             ! (prevstormct + 1) = 0 + 1 = 1.  All that the call just 
-             ! below to first_ges_center does is return a rough idea 
+             ! read in for this forecast), since ist = 1 and
+             ! (prevstormct + 1) = 0 + 1 = 1.  All that the call just
+             ! below to first_ges_center does is return a rough idea
              ! of the location of new lows; more specific locations are
-             ! obtained through the  barnes analysis tracking algorithm 
+             ! obtained through the  barnes analysis tracking algorithm
              ! further below.
 
              if (readflag(9)) then
                if (ifh > 1) then
-                 ! We need the use of 2 different masks.  One 
+                 ! We need the use of 2 different masks.  One
                  ! (masked_out) is to be used when looking for new lows,
-                 ! so that after we find a new low, we mask out the 
-                 ! surrounding area so we don't find it on a subsequent 
-                 ! search for this forecast hour.  The other 
-                 ! (masked_outc) is used in the routine to check for a 
+                 ! so that after we find a new low, we mask out the
+                 ! surrounding area so we don't find it on a subsequent
+                 ! search for this forecast hour.  The other
+                 ! (masked_outc) is used in the routine to check for a
                  ! closed contour.  If checking for a closed contour
                  ! at, say 70W/25N, this and surrounding points may have
                  ! already been masked out in first_ges_center, so "N"
-                 ! would misleadingly/incorrectly be returned from 
+                 ! would misleadingly/incorrectly be returned from
                  ! check_closed_contour, so that is why we need 2 masks.
-                 ! But now after the first forecast hour (t=0), the way 
+                 ! But now after the first forecast hour (t=0), the way
                  ! we have this set up is that we track previously known
-                 ! storms first, and once we're done with them, we 
-                 ! search for new storms at that same forecast hour.  
-                 ! But when looking for new storms, we need to know the 
-                 ! positions of the previously tracked storms at this 
-                 ! current forecast hour, so we copy the masked_outc 
+                 ! storms first, and once we're done with them, we
+                 ! search for new storms at that same forecast hour.
+                 ! But when looking for new storms, we need to know the
+                 ! positions of the previously tracked storms at this
+                 ! current forecast hour, so we copy the masked_outc
                  ! array to masked_out in this case....
 
                  masked_out = masked_outc
@@ -1756,7 +1756,7 @@ c       is why we set all the other calcparms to 'false' just below.
 
          xval = 0.0     ! initialize entire xval array to 0
          isastorm = 'U' ! re-initialize flag for each time, each storm
- 
+
          select case (stormswitch(ist))
 
           case (1)
@@ -1779,13 +1779,13 @@ c       is why we set all the other calcparms to 'false' just below.
      &             ,gstorm(ist)%gv_gen_lonew,gstorm(ist)%gv_gen_type
               print *,'   ---------------------------------------------'
               print *,' '
-              
+
  420          format ('    | Gen ID (if available): ',i10.10,'_F',i3.3
      &             ,'_',i3.3,a1,'_',i4.4,a1,'_',a3)
-              
+
             endif
 c           First, make sure storm is within the grid boundaries...
- 
+
             call check_bounds (slonfg(ist,ifh),slatfg(ist,ifh),ist,ifh
      &                        ,trkrinfo,icbret)
             if (icbret == 95) then   ! Out of regional grid bounds
@@ -1820,7 +1820,7 @@ c           First, make sure storm is within the grid boundaries...
                 fixlat (ist,ifh) = -999.0
                 stormswitch(ist) = 2
                 cycle stormloop
-              endif 
+              endif
             endif
 
             if (calcparm(2,ist)) then
@@ -2010,7 +2010,7 @@ c             3: 200-850
 
 c           Now get centers for wind circulation at 700 & 850 mb and
 c           at 10m.  First, get a modified guess lat/lon position for
-c           wind circulation.  Do this because we will be searching 
+c           wind circulation.  Do this because we will be searching
 c           for this wind circulation center over a smaller area and
 c           so it's more crucial to have a better first guess position.
 c           This modified guess position will be an average of the first
@@ -2090,9 +2090,9 @@ c     &               ,igucret)
                 calcparm(4,ist) = .FALSE.
                 clon(ist,ifh,3) = 0.0
                 clat(ist,ifh,3) = 0.0
-              endif 
+              endif
             endif
-  
+
             if (calcparm(5,ist).and. calcparm(6,ist)) then
               call get_uv_guess (slonfg(ist,ifh),slatfg(ist,ifh)
      &                          ,clon,clat,calcparm,ist,ifh,maxstorm
@@ -2135,7 +2135,7 @@ c     &               ,igucret)
                   calcparm(5,ist) = .FALSE.
                   calcparm(6,ist) = .FALSE.
                 endif
-              else 
+              else
                 calcparm(5,ist) = .FALSE.
                 calcparm(6,ist) = .FALSE.
                 clon(ist,ifh,5) = 0.0
@@ -2194,9 +2194,9 @@ c     &               ,trkrinfo,igucret)
                 clat(ist,ifh,10) = 0.0
               endif
             endif
-  
+
 c           ------------------------------------------------------
-c           All of the parameter center fixes have been done.  Now 
+c           All of the parameter center fixes have been done.  Now
 c           average those positions together to get the best guess
 c           fix position.  If a center fix is able to be made, then
 c           call subroutine  get_max_wind to get the maximum near-
@@ -2219,7 +2219,7 @@ c           to get a guess position for the next forecast hour.
      &                fixlat(ist,ifh) < (trkrinfo%southbd - 7.0)) then
 
                     if ( verb .ge. 3 ) then
-                      print *,' '      
+                      print *,' '
                       print *,'!!! For a midlat or tcgen case, a fix '
                       print *,'!!! will NOT be made for this time due'
                       print *,'!!! the storm being more than 7 degrees'
@@ -2243,7 +2243,7 @@ c           to get a guess position for the next forecast hour.
                     fixlat (ist,ifh) = -999.0
                     stormswitch(ist) = 2
                     if (ifh == 1) then
-                      vradius = 0     
+                      vradius = 0
                       ileadtime = nint(fhreal(ifh) * 100.0)
                       ifcsthour = ileadtime / 100
                       call output_atcfunix (x999_lon
@@ -2281,7 +2281,7 @@ c           to get a guess position for the next forecast hour.
      &                   ,x999_omega500,x999_sst
      &                   ,x999_axirmw_dist,x999_axirmw_val,ioaxret)
                     endif
-                    cycle stormloop     
+                    cycle stormloop
                   endif
                 endif
               else
@@ -2295,13 +2295,13 @@ c             actually a storm there.  I noticed in the first year that
 c             for some decaying or just weak storms, the  tracker would
 c             identify a center to follow, but it may have only been
 c             a weak trough passing by, or something else that's not
-c             our storm.  This next subroutine checks to see that the 
-c             surface pressure gradient and/or tangential winds at 
+c             our storm.  This next subroutine checks to see that the
+c             surface pressure gradient and/or tangential winds at
 c             850 mb resemble a storm.  It is called twice; the first
 c             time for MSLP, the 2nd time for 850 mb winds.  We will
 c             apply these storm-checking criteria if either the mslp
 c             or v850 check come back negative.  Remember, there
-c             is the possibility that centers could not be found for 
+c             is the possibility that centers could not be found for
 c             1 or both of these parameters, in which case the isastorm
 c             flag will have a value of 'U', for "undetermined".
 
@@ -2329,9 +2329,9 @@ c             flag will have a value of 'U', for "undetermined".
                 else
 
                   ! Sept 2016: There has been a hole in this logic for
-                  ! a while.  If a fix can't be made for mslp (e.g., 
-                  ! maybe the mslp fix was too far away from the 
-                  ! guess?), then this check isn't performed.  We are 
+                  ! a while.  If a fix can't be made for mslp (e.g.,
+                  ! maybe the mslp fix was too far away from the
+                  ! guess?), then this check isn't performed.  We are
                   ! changing this so that the mslp gradient check will
                   ! still be performed, but using the mean fixlat and
                   ! fixlon positions as the center.  Still, we first
@@ -2375,14 +2375,14 @@ c             flag will have a value of 'U', for "undetermined".
      &                     ,ifh,isiret1)
 
                         if (isiret1 == 0) then
-                          ! Even though calcparm(9) is FALSE and mslp 
-                          ! will not be used for center-fixing 
+                          ! Even though calcparm(9) is FALSE and mslp
+                          ! will not be used for center-fixing
                           ! purposes, we need to fill the clat and clon
-                          ! arrays just a few lines below so that 
-                          ! calls to fix_latlon_to_ij below do not 
+                          ! arrays just a few lines below so that
+                          ! calls to fix_latlon_to_ij below do not
                           ! get screwed up.  So, into the clat and clon
                           ! arrays we put the mean fixlat and fixlon
-                          ! positions for this lead time. 
+                          ! positions for this lead time.
                           clat(ist,ifh,9) = fixlat(ist,ifh)
                           clon(ist,ifh,9) = fixlon(ist,ifh)
                           xval(9) = gridpoint_maxmin
@@ -2400,7 +2400,7 @@ c             flag will have a value of 'U', for "undetermined".
                 ! a call to fix_latlon_to_ij to (1) get the actual
                 ! gridpoint value of the mslp (the value previously
                 ! stored in xval(9) is an area-averaged value coming
-                ! from the  barnes analysis), and (2) to get the 
+                ! from the  barnes analysis), and (2) to get the
                 ! (i,j) indices for this gridpoint to be used in the
                 ! call to check_closed_contour below.
                 !
@@ -2410,8 +2410,8 @@ c             flag will have a value of 'U', for "undetermined".
                 ! position as our input to search around, and then
                 ! basically we just find the lowest mslp near that
                 ! mean fix position.  There is a check on the value
-                ! of xinp_fixlat and xinp_fixlon to make sure that 
-                ! they contain valid values and not just the 
+                ! of xinp_fixlat and xinp_fixlon to make sure that
+                ! they contain valid values and not just the
                 ! initialized -99 or -999 values.
 
                 xinp_fixlat = -99.0
@@ -2437,7 +2437,7 @@ c             flag will have a value of 'U', for "undetermined".
                   endif
                 endif
 
-                if (xinp_fixlat > -99.0 .and. xinp_fixlon > -990.0) 
+                if (xinp_fixlat > -99.0 .and. xinp_fixlon > -990.0)
      &          then
                   if (verb >= 3) then
                     print *,' ttest at location D'
@@ -2451,26 +2451,26 @@ c             flag will have a value of 'U', for "undetermined".
                     print *,' ttest at location E, ifilret= ',ifilret
      &                     ,' gridpoint_maxmin= ',gridpoint_maxmin
                   endif
-                  if (ifilret == 0) then  
+                  if (ifilret == 0) then
                     gridprs(ist,ifh) = gridpoint_maxmin
-                  else          
+                  else
                     ! Search went out of regional grid bounds....
                     fixlon (ist,ifh) = -999.0
                     fixlat (ist,ifh) = -999.0
                     stormswitch(ist) = 2
-                    cycle stormloop     
+                    cycle stormloop
                   endif
                 endif
 
                 print *,' ttest at location F'
 
                 ! In this next IF block, we have the potential to call
-                ! subroutine  check_closed_contour for two different 
+                ! subroutine  check_closed_contour for two different
                 ! cases of a type='tracker' run.  First, if the input
-                ! data are on a fixed regional grid, we check for a 
+                ! data are on a fixed regional grid, we check for a
                 ! closed contour for cases in which the storm is close
                 ! to the grid boundary (this is to prevent the  tracker
-                ! tracking along the boundary for a storm that has 
+                ! tracking along the boundary for a storm that has
                 ! left the grid).  Second, if the user has requested
                 ! to compute and write out the ROCI, then we make a
                 ! call to check_closed_contour, being sure to specify
@@ -2480,11 +2480,11 @@ c             flag will have a value of 'U', for "undetermined".
      &              trkrinfo%type == 'tracker') then
 
                   ! If the tests for MSLP gradient have come back okay,
-                  ! then use the  tracker-derived MSLP center for the  
+                  ! then use the  tracker-derived MSLP center for the
                   ! closed-contour and ROCI checking.  Otherwise, use
-                  ! the mean fix position for this hour, but only if 
+                  ! the mean fix position for this hour, but only if
                   ! MSLP has been read in.
-                   
+
                   close_to_boundary = 'n'
 
                   if (trkrinfo%gridtype == 'regional' .and.
@@ -2507,7 +2507,7 @@ c             flag will have a value of 'U', for "undetermined".
                     endif
                   endif
 
-                  if (trkrinfo%want_oci .or. 
+                  if (trkrinfo%want_oci .or.
      &                close_to_boundary == 'y') then
 
                     if ( verb .ge. 3 ) then
@@ -2538,9 +2538,9 @@ c             flag will have a value of 'U', for "undetermined".
                         print *,'       (xval(9)) is not in range.'
                         print *,'       before call to'
                         print *,'       check_closed_contour.'
-                        print *,'       xval(9) = ',xval(9) 
-                        print *,'       EXITING....' 
-                        print *,' ' 
+                        print *,'       xval(9) = ',xval(9)
+                        print *,'       EXITING....'
+                        print *,' '
                         stop 95
                       endif
                     endif
@@ -2548,9 +2548,9 @@ c             flag will have a value of 'U', for "undetermined".
                     ! In the event that we have the case where both the
                     ! user requests the ROCI and it's a fixed regional
                     ! grid where the storm is close to a boundary and we
-                    ! need to check for a closed contour, then we have 
+                    ! need to check for a closed contour, then we have
                     ! to call  check_closed_contour two separate times,
-                    ! because the contour intervals used may be 
+                    ! because the contour intervals used may be
                     ! different, depending on what the user specified in
                     ! the input namelist.
 
@@ -2618,14 +2618,14 @@ c             flag will have a value of 'U', for "undetermined".
 
                       gb_check_trkrinfo = trkrinfo ! set equal to values
                                                    ! from trkrinfo...
-                      gb_check_trkrinfo%contint = 
-     &                                  contint_grid_bound_check  
+                      gb_check_trkrinfo%contint =
+     &                                  contint_grid_bound_check
                                    ! ...except use the grid bound check
-                                   ! contour inteval specified by 
+                                   ! contour inteval specified by
                                    ! the user in the extrkr.sh script.
 
                       masked_outc = .false.
-                      get_last_isobar_flag = 'n' 
+                      get_last_isobar_flag = 'n'
                       call check_closed_contour (imax,jmax,ifix,jfix,slp
      &                    ,valid_pt,masked_outc,ccflag,'min'
      &                    ,gb_check_trkrinfo
@@ -2649,7 +2649,7 @@ c             flag will have a value of 'U', for "undetermined".
                       endif
 
                       if (ccflag == 'y') then
-                        closed_mslp_ctr_flag2(ist,ifh) = 'y' 
+                        closed_mslp_ctr_flag2(ist,ifh) = 'y'
                         if (close_to_boundary == 'y' .and.
      &                      abs(xinp_fixlat) > 25.0) then
                           if ( verb .ge. 3 ) then
@@ -2657,12 +2657,12 @@ c             flag will have a value of 'U', for "undetermined".
      &                             ,'  ifh= ',ifh,'  tau= ',ifhours(ifh)
                           endif
                         endif
-                      else  
+                      else
                         if (close_to_boundary == 'y' .and.
      &                      abs(xinp_fixlat) > 25.0) then
                           ! Put this next line (setting flag to n) within
-                          ! the IF statement, since we only want this to 
-                          ! be set for a case where the latitude is 
+                          ! the IF statement, since we only want this to
+                          ! be set for a case where the latitude is
                           ! poleward of 25N/25S.  For the 'y' part of the
                           ! IF statement above, it doesn't matter, since
                           ! it's a 'y'.
@@ -2712,28 +2712,28 @@ c             flag will have a value of 'U', for "undetermined".
                       endif
 
                     endif
-  
+
                   endif
 
                 endif
 
                 ! For the midlat & tcgen cases, do a check to see if
                 ! there is a closed mslp contour.  The ifix and jfix
-                ! values passed into check_closed_contour are the 
-                ! values for the (i,j) at the gridpoint minimum, 
+                ! values passed into check_closed_contour are the
+                ! values for the (i,j) at the gridpoint minimum,
                 ! which was obtained just above from the call to
                 ! fix_latlon_to_ij.
-                ! UPDATE 7/12/2016 tpm: A change was made to fix a 
+                ! UPDATE 7/12/2016 tpm: A change was made to fix a
                 ! hole in the logic.  Previously, for a genesis run
-                ! (type = midlat or tcgen), if a fix was not made 
-                ! for mslp, then the isastorm(1) flag would not be 
+                ! (type = midlat or tcgen), if a fix was not made
+                ! for mslp, then the isastorm(1) flag would not be
                 ! 'Y', and so the call to check_closed_contour in
                 ! the following IF statement would not be made, and
                 ! that would prevent the mask from getting updated
                 ! for this particular storm, allowing the same storm
                 ! to be detected when the scan for new storms takes
                 ! place at this lead time (i.e., after all previously-
-                ! known storms from the last lead time have been 
+                ! known storms from the last lead time have been
                 ! tracked).  As a fix, if that isastorm(1) flag is not
                 ! 'Y', then we call a new subroutine which updates the
                 ! mask based on the circulation at 850 mb.
@@ -2779,15 +2779,15 @@ c             flag will have a value of 'U', for "undetermined".
                   endif
 
                   ! This next bit of code adds a second layer of closed
-                  ! contour checking.  This is to decrease the 
+                  ! contour checking.  This is to decrease the
                   ! occurrence of interrupted midlat and tcgen tracks,
-                  ! which usually happens when the closed contour 
-                  ! criterion is not met for one time period.  So in 
-                  ! this next code, we check to see if the ccflag was 
-                  ! 'y' for at least half the time over the last 24h.  
-                  ! For time periods shorter than 24h (e.g., the storm 
+                  ! which usually happens when the closed contour
+                  ! criterion is not met for one time period.  So in
+                  ! this next code, we check to see if the ccflag was
+                  ! 'y' for at least half the time over the last 24h.
+                  ! For time periods shorter than 24h (e.g., the storm
                   ! was just detected at 144h and we are now at 156h),
-                  ! the threshold is still that for at least half of 
+                  ! the threshold is still that for at least half of
                   ! the time the system has been detected as a storm,
                   ! it must have a ccflag value of 'y'.
 
@@ -2799,14 +2799,14 @@ c             flag will have a value of 'U', for "undetermined".
                       iccfh = ifh
                       cc_time_sum_tot = 0.0
                       cc_time_sum_yes = 0.0
-                      do while (iccfh > 1 .and. 
+                      do while (iccfh > 1 .and.
      &                     closed_mslp_ctr_flag(ist,iccfh) /= 'u' .and.
      &                     cc_time_sum_tot < 24.0)
                         xinterval_fhr = fhreal(iccfh) - fhreal(iccfh-1)
-                        cc_time_sum_tot = cc_time_sum_tot 
+                        cc_time_sum_tot = cc_time_sum_tot
      &                                  + xinterval_fhr
                         if (closed_mslp_ctr_flag(ist,iccfh) == 'y') then
-                          cc_time_sum_yes = cc_time_sum_yes 
+                          cc_time_sum_yes = cc_time_sum_yes
      &                                    + xinterval_fhr
                         endif
                         iccfh = iccfh - 1
@@ -2872,7 +2872,7 @@ c             flag will have a value of 'U', for "undetermined".
                   ! The isastorm(1) flag indicates that a mslp gradient
                   ! could not be found at this lead time, so the mask
                   ! cannot be updated using mslp.  Instead,
-                  ! do a check of the 850 mb wind circulation 
+                  ! do a check of the 850 mb wind circulation
                   ! surrounding the 850 wind circulation fix, and then
                   ! set the mask to be TRUE for all points within the
                   ! area where mean cyclonic Vt exceed +1 m/s....
@@ -2915,7 +2915,7 @@ c     &           c    ,rlastbar,icccret)
                       print *,' Multi-parm fix lat=   ',fixlat(ist,ifh)
                       print *,' '
                     endif
- 
+
                     call is_it_a_storm (imax,jmax,dx,dy,'v850',ist
      &                   ,valid_pt,clon(ist,ifh,3),clat(ist,ifh,3)
      &                   ,xval(3),trkrinfo,isastorm(3),ifh,isiret3)
@@ -2923,15 +2923,15 @@ c     &           c    ,rlastbar,icccret)
                   else
 
                     ! Sept 2016: There has been a hole in this logic for
-                    ! a while.  If a fix can't be made for 850 mb wind 
+                    ! a while.  If a fix can't be made for 850 mb wind
                     ! circulation (maybe the 850 mb wind circulation fix
                     ! was too far away from the guess?), then this check
                     ! wasn't performed.  We are changing this so that
                     ! the 850 mb Vt wind speed check will still be
-                    ! performed, but using the mean fixlat and fixlon 
+                    ! performed, but using the mean fixlat and fixlon
                     ! positions as the center.  Still, we first need to
                     ! check to see if 850 mb u-comp and v-comp were even
-                    ! read in. If they weren't, then we are just out 
+                    ! read in. If they weren't, then we are just out
                     ! of luck.
 
                     had_to_try_backup_850_vt_check = 'y'
@@ -2960,28 +2960,28 @@ c     &           c    ,rlastbar,icccret)
      &                     ,0.00,trkrinfo,isastorm(3),ifh,isiret3)
 
                       endif
-  
+
                     endif
 
                   endif
-                    
-                  if (calcparm(3,ist) .or. 
+
+                  if (calcparm(3,ist) .or.
      &                (had_to_try_backup_850_vt_check == 'y' .and.
      &                 isiret3 == 0) ) then
-                    
+
                     if (trkrinfo%type == 'tcgen') then
                       ! This next bit of code adds a second layer of 850
-                      ! mb Vt magnitude checking.  This is to decrease 
-                      ! the occurrence of interrupted tcgen tracks, 
+                      ! mb Vt magnitude checking.  This is to decrease
+                      ! the occurrence of interrupted tcgen tracks,
                       ! which occasionally happens for weak storms when
-                      ! this criterion is not met for one time period. 
-                      ! So in this next code, we check to see if the 
+                      ! this criterion is not met for one time period.
+                      ! So in this next code, we check to see if the
                       ! vt850_flag was 'y' for at least 75% of the time
-                      ! over the last 24h.  For time periods shorter 
-                      ! than 24h (e.g., the storm was just detected at 
-                      ! 144h and we are now at 156h), the threshold is 
-                      ! still that for at least 75% of the time the 
-                      ! system has been detected as a storm, it must 
+                      ! over the last 24h.  For time periods shorter
+                      ! than 24h (e.g., the storm was just detected at
+                      ! 144h and we are now at 156h), the threshold is
+                      ! still that for at least 75% of the time the
+                      ! system has been detected as a storm, it must
                       ! have a vt850_flag value of 'y'.
 
                       if (isastorm(3) == 'Y') then
@@ -2992,21 +2992,21 @@ c     &           c    ,rlastbar,icccret)
                           iccfh = ifh
                           cc_time_sum_tot = 0.0
                           cc_time_sum_yes = 0.0
-                          do while (iccfh > 1 .and. 
+                          do while (iccfh > 1 .and.
      &                         vt850_flag(ist,iccfh) /= 'u' .and.
      &                         cc_time_sum_tot < 24.0)
-                            xinterval_fhr = fhreal(iccfh) - 
+                            xinterval_fhr = fhreal(iccfh) -
      &                                      fhreal(iccfh-1)
-                            cc_time_sum_tot = cc_time_sum_tot 
+                            cc_time_sum_tot = cc_time_sum_tot
      &                                      + xinterval_fhr
                             if (vt850_flag(ist,iccfh) == 'y') then
-                              cc_time_sum_yes = cc_time_sum_yes 
+                              cc_time_sum_yes = cc_time_sum_yes
      &                                        + xinterval_fhr
                             endif
                             iccfh = iccfh - 1
                           enddo
                           if (cc_time_sum_tot > 0.0) then
-                            cc_time_pct = cc_time_sum_yes / 
+                            cc_time_pct = cc_time_sum_yes /
      &                                    cc_time_sum_tot
                           else
                             cc_time_pct = 0.0
@@ -3050,7 +3050,7 @@ c     &           c    ,rlastbar,icccret)
 
                     endif
 
-                  endif   
+                  endif
 
                   ! --------------------------------------------
                   !
@@ -3092,7 +3092,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
      &                       ,close_to_boundary
 
                       if (close_to_boundary == 'y' .and.
-     &                    (calcparm(3,ist) .or. 
+     &                    (calcparm(3,ist) .or.
      &                     (readflag(3) .and. readflag(4)))) then
                         call check_quadrant_wind_circ (imax,jmax,dx,dy
      &                     ,ist,ifh,xinp_fixlon,xinp_fixlat,valid_pt
@@ -3130,7 +3130,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
      &                             ,'  ifh= ',ifh,'  tau= ',ifhours(ifh)
                           endif
                           if (ifh > 1) then
-                            if (quad_wind_circ_flag(ist,ifh) == 'n' 
+                            if (quad_wind_circ_flag(ist,ifh) == 'n'
      &                          .and.
      &                          quad_wind_circ_flag(ist,ifh-1) == 'n')
      &                      then
@@ -3162,7 +3162,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
                             endif
                           endif
                         endif
-                      endif  
+                      endif
                     endif
 
                   endif
@@ -3206,12 +3206,12 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
                 fixlon (ist,ifh) = -999.0
                 fixlat (ist,ifh) = -999.0
                 stormswitch(ist) = 2
-                cycle stormloop 
+                cycle stormloop
 
               endif
 
-              if (isiret1 /= 0 .or. isiret2 /= 0 .or. isiret3 /= 0) 
-     &             then 
+              if (isiret1 /= 0 .or. isiret2 /= 0 .or. isiret3 /= 0)
+     &             then
 
                 if ( verb .ge. 1 ) then
                   print *,' '
@@ -3243,7 +3243,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
                   print *,'!!! this storm.'
                   print *,'!!! Storm ID = ',storm(ist)%tcv_storm_id
                   print *,'!!! Storm    = ',storm(ist)%tcv_storm_name
-                  write (6,432) ifhours(ifh),ifclockmins(ifh) 
+                  write (6,432) ifhours(ifh),ifclockmins(ifh)
                   print *,'!!! mslp gradient flag = ',isastorm(1)
                   print *,'!!! closed contour flag = ',isastorm(2)
                   print *,'!!! 850 mb winds flag = ',isastorm(3)
@@ -3262,7 +3262,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
               ! the distance between the 850 vort center and the mslp
               ! center is not too great.
 
-              if (trkrinfo%type == 'tracker' .or. 
+              if (trkrinfo%type == 'tracker' .or.
      &            trkrinfo%type == 'tcgen') then
                 if (isastorm(1) == 'Y' .and. isastorm(3) == 'Y' .and.
      &            calcparm(1,ist) .and. stormswitch(ist) == 1) then
@@ -3297,12 +3297,12 @@ c                  endif
                       print *,'!!! Actual distance  (km) = ',dist
                       print *,' '
                     endif
- 
+
                     fixlon (ist,ifh) = -999.0
                     fixlat (ist,ifh) = -999.0
                     stormswitch(ist) = 2
                   else
-                    
+
                     if ( verb .ge. 3 ) then
                       print *,' '
                       print *,'Actual distance between the parm centers'
@@ -3315,14 +3315,14 @@ c                  endif
                 endif
               endif
 
-              ! Do one final check.  Check the new fix position and 
+              ! Do one final check.  Check the new fix position and
               ! the old fix position and calculate the speed that the
               ! storm would have had to travel to get to this point.
-              ! If that speed exceeds a certain threshold (~60 kt), 
+              ! If that speed exceeds a certain threshold (~60 kt),
               ! assume you're tracking the wrong thing and quit.
               ! Obviously, only do this for times > 00h.  The check
-              ! in the if statement to see if the previous hour's 
-              ! lats and lons were > -999 is for the midlat and 
+              ! in the if statement to see if the previous hour's
+              ! lats and lons were > -999 is for the midlat and
               ! tcgen cases -- remember, they can have genesis at
               ! any hour of the forecast, in which case the previous
               ! forecast hour's lat & lon would be -999.
@@ -3361,7 +3361,7 @@ c                  endif
                       print *,'!!! Storm ID = ',storm(ist)%tcv_storm_id
                       print *,'!!! Storm    = '
      &                     ,storm(ist)%tcv_storm_name
-                      write (6,432) ifhours(ifh),ifclockmins(ifh)  
+                      write (6,432) ifhours(ifh),ifclockmins(ifh)
                       print *,'!!! Max speed allowed (kt) = ',xmaxspeed
                       print *,'!!! Actual speed      (kt) = ',xknots
                       print *,' '
@@ -3384,19 +3384,19 @@ c                  endif
                 endif
 
               endif
- 
+
             endif
 
             ! ----------------------------------------------------------
-            ! 
+            !
             !                DIAGNOSE MAX WIND
-            ! 
+            !
             ! Now get the maximum near-surface wind speed near the storm
-            ! center (get_max_wind).  Also, call  getradii to get the 
-            ! radii in each storm quadrant of gale-force, storm-force 
+            ! center (get_max_wind).  Also, call  getradii to get the
+            ! radii in each storm quadrant of gale-force, storm-force
             ! and hurricane force winds.
-            ! 
-            !----------------------------------------------------------- 
+            !
+            !-----------------------------------------------------------
 
             if (readflag(10) .and. readflag(11) .and. ifret == 0
      &          .and. stormswitch(ist) == 1) then
@@ -3405,13 +3405,13 @@ c                  endif
      &                       ,xmaxwind(ist,ifh),trkrinfo,rmax,igmwret)
 c              if (igmwret /= 0 .and. gridmove_status == 'stopped') then
               if (igmwret /= 0) then
-                
+
                 if ( verb .ge. 3 ) then
                   print *,' '
                   print *,'!!! Return code from get_max_wind is /= 0. '
                   print *,'!!! rcc= igmwret= ',igmwret
                   print *,'!!! Also, this is a moveable, regional grid'
-                  print *,'!!! and the grid did not change from last' 
+                  print *,'!!! and the grid did not change from last'
                   print *,'!!! lead time to current one, so what has'
                   print *,'!!! likely happened is that the storm has '
                   print *,'!!! moved close to the edge of the nested '
@@ -3428,9 +3428,9 @@ c              if (igmwret /= 0 .and. gridmove_status == 'stopped') then
               endif
 
               ! --------------------------------------------------------
-              ! 
+              !
               !           DIAGNOSE AXISYMMETRIC RMW
-              ! 
+              !
               ! --------------------------------------------------------
 
               call get_axisymet_rmw (fixlon(ist,ifh),fixlat(ist,ifh)
@@ -3457,8 +3457,8 @@ c              if (igmwret /= 0 .and. gridmove_status == 'stopped') then
               ! If it does exceed 0.97*radmax, then we bump up radmax
               ! by 50 km and call  getradii again, looking to diagnose
               ! radii only in those quadrants where the
-              ! need_to_expand_r34 flag = 'n'.  BTW... note the 
-              ! initial IF statement... we will only go into this 
+              ! need_to_expand_r34 flag = 'n'.  BTW... note the
+              ! initial IF statement... we will only go into this
               ! routine if the max wind just diagnosed for this lead
               ! time is at least 34 kts (17.5 m/s).
               !
@@ -3578,11 +3578,11 @@ c                 c---   radmax = radmax + 50.0
             endif
 
             !--------------------------------------------------------
-            ! 
+            !
             !       COMPUTE CYCLONE PHASE SPACE PARAMETERS
-            ! 
-            ! If the user has requested so, then call a routine to 
-            ! determine the type of cyclone, using Bob Hart's 
+            !
+            ! If the user has requested so, then call a routine to
+            ! determine the type of cyclone, using Bob Hart's
             ! cyclone phase space (CPS) algorithms.
             !
             !--------------------------------------------------------
@@ -3595,13 +3595,13 @@ c                 c---   radmax = radmax + 50.0
             endif
 
             !--------------------------------------------------------
-            ! 
+            !
             !       COMPUTE SURFACE WIND STRUCTURE DIAGNOSTICS
-            ! 
-            ! If the user has requested so, then call a series of 
+            !
+            ! If the user has requested so, then call a series of
             ! routines to calculate various surface wind structure
             ! diagnostics and output them in a modified ATCF format
-            ! that is output to a different unit number from the 
+            ! that is output to a different unit number from the
             ! standard ATCF output.
             !
             !--------------------------------------------------------
@@ -3631,7 +3631,7 @@ c                 c---   radmax = radmax + 50.0
      &                     ,ist,ifh,fixlon,fixlat,xsfclon,xsfclat
      &                     ,valid_pt,calcparm,wfract_cov,pdf_ct_bin
      &                     ,pdf_ct_tot,maxstorm,trkrinfo,igfwret)
-              if (igfwret == 0) then 
+              if (igfwret == 0) then
                 call output_fract_wind (fixlon(ist,ifh)
      &                      ,fixlat(ist,ifh),xsfclon,xsfclat,inp,ist
      &                      ,ifcsthour,xmaxwind(ist,ifh)
@@ -3655,15 +3655,15 @@ c                 c---   radmax = radmax + 50.0
             endif
 
             !--------------------------------------------------------
-            ! 
+            !
             !       COMPUTE 200-850 mb VERTICAL SHEAR
-            ! 
-            ! If the user has requested so, then call a routine to 
+            !
+            ! If the user has requested so, then call a routine to
             ! compute the 200-850 mb vertical shear.
             !
             !--------------------------------------------------------
 
-            if ((shearflag == 'y' .or. shearflag == 'Y') .and. 
+            if ((shearflag == 'y' .or. shearflag == 'Y') .and.
      &           stormswitch(ist) == 1) then
               call get_shear (imax,jmax,inp,dx,dy
      &                     ,ist,ifh,fixlon,fixlat,valid_pt
@@ -3673,10 +3673,10 @@ c                 c---   radmax = radmax + 50.0
 
 
             !--------------------------------------------------------
-            ! 
+            !
             !       COMPUTE AREA-AVERAGED SST
-            ! 
-            ! If the user has requested so, then call a routine to 
+            !
+            ! If the user has requested so, then call a routine to
             ! compute the 200-850 mb vertical shear.
             !
             !--------------------------------------------------------
@@ -3689,10 +3689,10 @@ c                 c---   radmax = radmax + 50.0
             endif
 
             !--------------------------------------------------------
-            ! 
+            !
             !       COMPUTE GENESIS DIAGNOSTICS
-            ! 
-            ! If the user has requested so, then call a routine to 
+            !
+            ! If the user has requested so, then call a routine to
             ! compute a variety of genesis-related diagnostics.
             !
             !--------------------------------------------------------
@@ -3738,8 +3738,8 @@ c           knots (1.9427) is explained in output_atcf.
 
               if (leadtime_check == 0) then
 
-                ! Get the storm motion vector and the speed of 
-                ! motion so that we can output this in the 
+                ! Get the storm motion vector and the speed of
+                ! motion so that we can output this in the
                 ! atcfunix file.
 
                 if (ifh < ifhmax) then
@@ -3770,7 +3770,7 @@ c           knots (1.9427) is explained in output_atcf.
      &                 ,trkrinfo,imeanzeta,igridzeta,readflag
      &                 ,valid_pt,ist,ifh,maxstorm,inp,igzvret)
 
-                ifcsthour = ileadtime / 100 
+                ifcsthour = ileadtime / 100
 
                 call output_atcfunix (fixlon(ist,ifh)
      &                    ,fixlat(ist,ifh),inp,ist
@@ -3838,7 +3838,7 @@ c           knots (1.9427) is explained in output_atcf.
      &               ,' fhr= ',ifhours(ifh),ifclockmins(ifh)
      &               ,' Fix not made for this forecast hour'
  452            format (1x,a7,1x,a4,a6,i4,':',i2.2,a36)
-                
+
                 print *,' '
                 print *,'!!! RETURN CODE from fixcenter not equal to 0,'
                 print *,'!!! or output from is_it_a_storm indicated the'
@@ -3861,14 +3861,14 @@ c           knots (1.9427) is explained in output_atcf.
 
                 print *,'ctx inp%model= ',inp%model
 
-                if (inp%model == 1 .or. inp%model == 8 .or. 
-     &              inp%model == 22) then                
+                if (inp%model == 1 .or. inp%model == 8 .or.
+     &              inp%model == 22) then
 
-                  ! For the vt=00h lead time, if the  tracker failed to 
+                  ! For the vt=00h lead time, if the  tracker failed to
                   ! locate a position, we are going to write out an
-                  ! atcfunix record that contains the position, 
+                  ! atcfunix record that contains the position,
                   ! intensity, mslp and 34-kt wind radii from TC Vitals
-                  ! for this storm and initial time.  Only do this for 
+                  ! for this storm and initial time.  Only do this for
                   ! the GFS or GDAS runs of the  tracker.
 
                   tcv_max_wind_ms = float(storm(ist)%tcv_vmax)
@@ -3877,7 +3877,7 @@ c           knots (1.9427) is explained in output_atcf.
                   ! Convert tcvitals NE 34-kt wind radius from km to nm
                   r34_from_tcv = float(storm(ist)%tcv_r15ne)
                   if (r34_from_tcv > 0.0) then
-                    vradius(1,1) = int( ((r34_from_tcv*0.5396) 
+                    vradius(1,1) = int( ((r34_from_tcv*0.5396)
      &                             / 5.0) + 0.5) * 5
                   else
                     vradius(1,1) = 0
@@ -3888,7 +3888,7 @@ c           knots (1.9427) is explained in output_atcf.
                   if (r34_from_tcv > 0.0) then
                     vradius(1,2) = int( ((r34_from_tcv*0.5396)
      &                             / 5.0) + 0.5) * 5
-                  else    
+                  else
                     vradius(1,2) = 0
                   endif
 
@@ -3897,7 +3897,7 @@ c           knots (1.9427) is explained in output_atcf.
                   if (r34_from_tcv > 0.0) then
                     vradius(1,3) = int( ((r34_from_tcv*0.5396)
      &                             / 5.0) + 0.5) * 5
-                  else    
+                  else
                     vradius(1,3) = 0
                   endif
 
@@ -3906,21 +3906,21 @@ c           knots (1.9427) is explained in output_atcf.
                   if (r34_from_tcv > 0.0) then
                     vradius(1,4) = int( ((r34_from_tcv*0.5396)
      &                             / 5.0) + 0.5) * 5
-                  else    
+                  else
                     vradius(1,4) = 0
                   endif
 
                   ! Convert tcvitals roci from km to nm
-  
+
                   if (storm(ist)%tcv_penvrad > 0) then
                     roci_from_tcv = float(storm(ist)%tcv_penvrad)
                     rlastbar = roci_from_tcv * 0.5396
                   else
                     rlastbar = -99.0
                   endif
-                  
+
                   ! Convert tcvitals pressure at roci from km to nm
-  
+
                   if (storm(ist)%tcv_penv > 0) then
                     proci_from_tcv = float(storm(ist)%tcv_penv)
                     plastbar = proci_from_tcv * 100.0
@@ -3961,8 +3961,8 @@ c           knots (1.9427) is explained in output_atcf.
 
                 else
 
-                  ! For all other models, we print out missing 
-                  ! data values at tau=00h if the  tracker was 
+                  ! For all other models, we print out missing
+                  ! data values at tau=00h if the  tracker was
                   ! unable to find the storm....
 
                   call output_atcfunix (x999_lon
@@ -4014,11 +4014,11 @@ c           knots (1.9427) is explained in output_atcf.
      &                    ,xzero_minslp,vradius,x99_rmax,ioaxret)
 
                 if (trkrinfo%type == 'tracker') then
-                  ! Update 11/11: For a 'tracker' run, i.e., one in 
+                  ! Update 11/11: For a 'tracker' run, i.e., one in
                   ! which we know that there is an observed storm in
                   ! the area, we will assume that there was some type
-                  ! of problem in the initialization that prevented 
-                  ! the storm from being found.  In this case, even 
+                  ! of problem in the initialization that prevented
+                  ! the storm from being found.  In this case, even
                   ! though we have written out zeroes for the 00h
                   ! time, we want to at least try tracking again at
                   ! the next lead time.  Requested by HWRF folks....
@@ -4054,13 +4054,13 @@ c           knots (1.9427) is explained in output_atcf.
 
 
 c           Now get first guess for next forecast time's position.
-c           But first, if this is the first time level (ifh=1) and 
+c           But first, if this is the first time level (ifh=1) and
 c           the user has requested that storm vitals be  output (this
-c           is usually only done for model analyses in order to get 
+c           is usually only done for model analyses in order to get
 c           an analysis position from one time to the next), we will
-c           write out a storm vitals record for this time level.  
+c           write out a storm vitals record for this time level.
 c           Note that we have already gotten the next guess position
-c           info just above for the case of the repeated analysis 
+c           info just above for the case of the repeated analysis
 c           data, so we'll just output the genesis vitals record.
 
             if (ifh <= ifhmax) then
@@ -4095,7 +4095,7 @@ c           data, so we'll just output the genesis vitals record.
                 istmspd = -999
               endif
             endif
- 
+
           case (2)
             fixlon (ist,ifh) = -999.0
             fixlat (ist,ifh) = -999.0
@@ -4163,7 +4163,7 @@ c            print *,'!!! Storm name = ',storm(ist)%tcv_storm_name
 c            print *,'!!! Storm ID = ',storm(ist)%tcv_storm_id
 
           end select
- 
+
         enddo stormloop
 
         if (trkrinfo%type == 'midlat' .or.
@@ -4187,7 +4187,7 @@ c          User wants us to run a command per forecast time
 !     The %[] format is chosen to avoid shell syntax errors if someone
 !     includes unknown %[] constructs.  A stray <FYEAR>, for example,
 !     would generate syntax errors or unexpected results in some
-!     shells.  
+!     shells.
 
 !     If an unrecognized %[xxx] sequence is used, it will be retained in
 !     the final command.  This allows the underlying command to detect
@@ -4242,14 +4242,14 @@ c
   73  format ('fixpos  ',a4,'  fhr= ',i4,':',i2.2,'   Fix position=  '
      &       ,f7.2,'E  (',f6.2,'W)',2x,f7.2,'   Max Wind= ',i3,' kts')
 
-      if (allocated(prstemp)) deallocate (prstemp) 
-      if (allocated(prsindex)) deallocate (prsindex) 
+      if (allocated(prstemp)) deallocate (prstemp)
+      if (allocated(prsindex)) deallocate (prsindex)
       if (allocated(iwork)) deallocate(iwork)
-      if (allocated(zeta)) deallocate (zeta) 
-      if (allocated(u)) deallocate (u) 
+      if (allocated(zeta)) deallocate (zeta)
+      if (allocated(u)) deallocate (u)
       if (allocated(v)) deallocate (v)
-      if (allocated(hgt)) deallocate (hgt) 
-      if (allocated(slp)) deallocate (slp) 
+      if (allocated(hgt)) deallocate (hgt)
+      if (allocated(slp)) deallocate (slp)
       if (allocated(tmean)) deallocate (tmean)
       if (allocated(thick))    deallocate (thick)
       if (allocated(lsmask))   deallocate (lsmask)
@@ -4259,23 +4259,23 @@ c
       if (allocated(spfh))     deallocate (spfh)
       if (allocated(temperature))  deallocate (temperature)
       if (allocated(omega500)) deallocate (omega500)
-      if (allocated(masked_out)) deallocate (masked_out) 
+      if (allocated(masked_out)) deallocate (masked_out)
       if (allocated(masked_outc)) deallocate (masked_outc)
       if (allocated(cpshgt)) deallocate (cpshgt)
       if (allocated(vt850_flag)) deallocate (vt850_flag)
-      if (allocated(closed_mslp_ctr_flag)) 
+      if (allocated(closed_mslp_ctr_flag))
      &  deallocate (closed_mslp_ctr_flag)
-      if (allocated(closed_mslp_ctr_flag2)) 
+      if (allocated(closed_mslp_ctr_flag2))
      &  deallocate (closed_mslp_ctr_flag2)
       if (allocated(quad_wind_circ_flag))
      &  deallocate (quad_wind_circ_flag)
-      if (allocated(netcdf_file_time_values)) 
+      if (allocated(netcdf_file_time_values))
      &  deallocate (netcdf_file_time_values)
-      if (allocated(nctotalmins)) 
+      if (allocated(nctotalmins))
      &  deallocate (nctotalmins)
 c
-      return 
-      end   
+      return
+      end
 c
 c-----------------------------------------------------------------------
 c
@@ -4348,13 +4348,13 @@ c     inp      Contains user-input info on the date & data
 C     lugb     The Fortran unit number for the GRIB data file
 C     lugi     The Fortran unit number for the GRIB index file
 c     ifh      integer index for lead time level
-c     gfilename If using individual files for each tau, gfilename will 
-c              contain the grib data filename for this tau.  Otherwise, 
-c              if using one big file for all taus, this contains dummy 
+c     gfilename If using individual files for each tau, gfilename will
+c              contain the grib data filename for this tau.  Otherwise,
+c              if using one big file for all taus, this contains dummy
 c              character data.
-c     ifilename If using individual files for each tau, gfilename will 
+c     ifilename If using individual files for each tau, gfilename will
 c              contain the grib index filename for this tau.  Otherwise,
-c              if using one big file for all taus, this contains dummy 
+c              if using one big file for all taus, this contains dummy
 c              character data.
 C     lout     The Fortran unit number for the  output grib file
 C
@@ -4403,8 +4403,8 @@ c
         print *,'gopen_i_file= ',gopen_i_file
 
         write (6,81) gopen_g_file,gopen_i_file
-   81   format (1x,'tpm gopen_g_file= ...',a<nlen1>
-     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
+   81   format (1x,'tpm gopen_g_file= ...',a
+     &         ,'...  gopen_i_file= ...',a,'...')
 
         print *,'gopen_g_file= ',gopen_g_file,'....'
         print *,'gopen_i_file= ',gopen_i_file,'....'
@@ -4517,11 +4517,11 @@ c-----------------------------------------------------------------------
      &                        ,parmval,trkrinfo,stormcheck,ifh,isiret)
 
 c     ABSTRACT: This subroutine is called after the center of the storm
-c     has been fixed.  Its purpose is to determine whether or not 
+c     has been fixed.  Its purpose is to determine whether or not
 c     the center that was found is actually a storm, and not just some
 c     passing trough (this has happened in the case of decaying or weak
 c     storms).  It's called twice -- once to check for a minimum MSLP
-c     gradient, and once to check for a circulation at 850 mb.  The 
+c     gradient, and once to check for a circulation at 850 mb.  The
 c     subroutine input parameter "cparm" determines which parameter to
 c     check for.
 c
@@ -4542,7 +4542,7 @@ c     trkrinfo derived type containing grid info on user boundaries
 c     ifh      Integer index for the forecast hour
 c
 c     OUTPUT:
-c     stormcheck Character; set to 'Y' if mslp gradient or 850 mb 
+c     stormcheck Character; set to 'Y' if mslp gradient or 850 mb
 c                tangential winds check okay.
 c     isiret   Return code for this subroutine.
 c
@@ -4586,7 +4586,7 @@ c     the search.
         endif
         npts   = ceiling(radinf/(dtk*(dx+dy)/2.))
       else if (dell >= 1.24 .and. dell < 2.49) then     ! UKMET
-        ri     = ritrk_most     
+        ri     = ritrk_most
         radinf = 275.0
         npts   = 2
       else                       ! ECMWF
@@ -4595,7 +4595,7 @@ c     the search.
         npts   = 1
       endif
 
-      pthresh = trkrinfo%mslpthresh    ! These are read in in 
+      pthresh = trkrinfo%mslpthresh    ! These are read in in
       vthresh = trkrinfo%v850thresh    ! subroutine  read_nlists....
 
       call get_ij_bounds (npts,0,ri,imax,jmax,dx,dy
@@ -4621,24 +4621,24 @@ c     the search.
         return
       endif
 
-c     If the input cparm is slp, then check to see that the MSLP 
-c     gradient in any direction from the MSLP center is at least 
-c     1mb / 200km, or 0.005mb/km.  This is based on discussions with 
-c     Morris & Bob, who have had good results using a 2mb/200km 
+c     If the input cparm is slp, then check to see that the MSLP
+c     gradient in any direction from the MSLP center is at least
+c     1mb / 200km, or 0.005mb/km.  This is based on discussions with
+c     Morris & Bob, who have had good results using a 2mb/200km
 c     requirement.  Since their model has a much finer resolution than
-c     all of the models we run the  tracker on AND a much better 
+c     all of the models we run the  tracker on AND a much better
 c     depiction of the hurricane vortex, we do not use a requirement
 c     as strict as theirs, and so make the requirement only half as
 c     strong as theirs.
 c
 c     If the input cparm is v850, then check to see that there is
 c     a circulation at 850 mb.  We will do this by calculating the
-c     tangential wind of all points within a specified radius of 
+c     tangential wind of all points within a specified radius of
 c     the 850 minimum wind center, and seeing if there is a net
 c     average tangential wind speed of at least 5 m/s.
 c
 c     UPDATE APRIL 2000: I've relaxed the thresholds slightly from
-c     0.005 mb/km to 0.003 mb/km, and the wind threshold from 
+c     0.005 mb/km to 0.003 mb/km, and the wind threshold from
 c     5 m/s to 3 m/s.  Also, note that a special case for GDAS has
 c     been hardwired in that is weaker (0.002 mb/km and 2 m/s).
 c     That weaker GDAS requirement is for Qingfu's relocation stuff.
@@ -4647,7 +4647,7 @@ c     UPDATE JULY 2001: The relaxed requirement put in place in
 c     April 2000 for the GDAS relocation has also been put in place
 c     for the GFS ensemble relocation.
 
-      ! We will want to speed things up for finer resolution grids.  
+      ! We will want to speed things up for finer resolution grids.
       ! We can do this by skipping some of the points in the loop.
 
       if ((dx+dy)/2. > 0.20) then
@@ -4696,9 +4696,9 @@ c     for the GFS ensemble relocation.
                 print *,' '
               endif
 
-              stop 97    
-            endif    
-          endif  
+              stop 97
+            endif
+          endif
 
           if (i > imax) then
             if (trkrinfo%gridtype == 'global') then
@@ -4714,10 +4714,10 @@ c     for the GFS ensemble relocation.
                 print *,' '
               endif
 
-              stop 97    
-            endif    
+              stop 97
+            endif
           endif
-  
+
           call calcdist(parmlon,parmlat,glon(i),glat(j),dist,degrees)
 
           if (dist > radinf .or. dist == 0.0) cycle
@@ -4761,7 +4761,7 @@ c     for the GFS ensemble relocation.
             endif
 
           endif
-              
+
         enddo iloop
       enddo jloop
 
@@ -4856,16 +4856,16 @@ c-----------------------------------------------------------------------
      &                     ,cparm,fxy,valid_pt,pfixlon,pfixlat
      &                     ,trkrinfo,close_to_boundary,ipfbret)
 c
-c     ABSTRACT: This subroutine  probes around a storm for either the 
+c     ABSTRACT: This subroutine  probes around a storm for either the
 c     boundaries of the grid within a distance threshold of a storm
 c     center (indicated by input parms pfixlon and pfixlat) or for the
 c     existence of missing data, via the valid_pt array, in order to
 c     know if a model storm is close to the edge of a fixed regional
 c     grid.  If we find even one grid point in our search at an outer
-c     radius (which we will initially set to 400 km) that is either 
+c     radius (which we will initially set to 400 km) that is either
 c     beyond the last imax / jmax or is within the grid imax / jmax
 c     boundaries but has missing data (this would be the case for some
-c     of the regional grids that have been re-mapped onto a lat/lon 
+c     of the regional grids that have been re-mapped onto a lat/lon
 c     grid, such as the HAFS or T-SHiELD grids), then we set the flag
 c     to indicate that we are close to the edge of the grid and return
 c     to the calling routine.  If the flag is set to indicate that the
@@ -4880,7 +4880,7 @@ c     dx       Grid spacing in i-direction on input grid
 c     dy       Grid spacing in j-direction on input grid
 c     ist      integer storm number (internal to the  tracker)
 c     cparm    character parameter to track (slp, vort, etc)
-c     fxy      real array of data values 
+c     fxy      real array of data values
 c     valid_pt Logical; bitmap indicating if valid data at that pt.
 c     pfixlon  Longitude of the max/min value for the input parameter
 c     pfixlat  Latitude  of the max/min value for the input parameter
@@ -4893,7 +4893,7 @@ c     ipfbret  Return code for this subroutine.
 c
 c     LOCAL:
 c     bounddist The distance threshold used for determining how close
-c               to the boundary of either the grid or invalid data to 
+c               to the boundary of either the grid or invalid data to
 c               trigger the extra checking of MSLP closed contour or
 c               V850 circulation.
 
@@ -4937,13 +4937,13 @@ c
         ! These first couple checks are just gross checks looking for
         ! the grid boundary.
 
-        if (targlat >= (glatmax-4.0) .or. 
+        if (targlat >= (glatmax-4.0) .or.
      &      targlat <= (glatmin+4.0)) then
           close_to_boundary = 'y'
           return
         endif
 
-        if (targlon <= (glonmin+4.0) .or. 
+        if (targlon <= (glonmin+4.0) .or.
      &      targlon >= (glonmax-4.0)) then
           close_to_boundary = 'y'
           return
@@ -4951,7 +4951,7 @@ c
 
         ! This last check analyzes a grid point for invalid data, which
         ! could happen for grids like HAFS-A, HAFS-B and T-SHiELD where
-        ! data from a different map projection are mapped onto a 
+        ! data from a different map projection are mapped onto a
         ! lat/lon grid, leaving invalid data around the edges.
 
         call check_valid_point (imax,jmax,dx,dy,fxy,maxmin,valid_pt
@@ -4968,7 +4968,7 @@ c
         endif
 
       enddo azimloop1
-          
+
       return
       end
 c
@@ -4999,7 +4999,7 @@ c     will just have it use the Hart cyclone phase space (CPS) scheme.
       integer  imax,jmax,igpret,igcpret,ist,ifh,maxstorm
       integer  igvpret,igcv1ret,igcv2ret
       logical(1) valid_pt(imax,jmax)
-c         
+c
 
       if ( verb .ge. 3 ) then
         write (6,*) ' '
@@ -5007,7 +5007,7 @@ c
         write (6,613)
         write (6,615)
         write (6,*) ' '
-        
+
  611    format(1x,'#-----------------------------------------------#')
  613    format(1x,'# start of routine to determine cyclone phase...#')
  615    format(1x,'#-----------------------------------------------#')
@@ -5099,8 +5099,8 @@ c
               print *,' ><  CPS diagnostics were requested but will NOT'
               print *,' ><  be performed for this time level since we '
               print *,' ><  are either at the first time level for a '
-              print *,' ><  genesis case (type = midlat or tcgen), or' 
-              print *,' ><  we are at any time level in which for some' 
+              print *,' ><  genesis case (type = midlat or tcgen), or'
+              print *,' ><  we are at any time level in which for some'
               print *,' ><  reason the fixlon and fixlat at the'
               print *,' ><  previous time level are not defined.'
               print *,' ><  ifh= ',ifh
@@ -5140,13 +5140,13 @@ c
         write (6,633)
         write (6,635)
         write (6,*) ' '
-        
+
  631    format(1x,'#-------------------------------------------------#')
  633    format(1x,'# End of routine to determine cyclone phase...    #')
  635    format(1x,'#-------------------------------------------------#')
       endif
 
-c         
+c
       return
       end
 c
@@ -5159,12 +5159,12 @@ c
 c     ABSTRACT: This subroutine is part of the algorithm for determining
 c     the structure, or phase, of a cyclone.  For Hart's cyclone phase
 c     space, this subroutine determines "Parameter B", which determines
-c     the degree of thermal symmetry between the "left" and "right" 
+c     the degree of thermal symmetry between the "left" and "right"
 c     hemispheres of a storm, in the layer between 900 and 600 mb.
-c     We evaluate only those points that are within 500 km of the 
+c     We evaluate only those points that are within 500 km of the
 c     storm center.
 
-      USE inparms; USE phase; USE set_max_parms; USE trig_vals 
+      USE inparms; USE phase; USE set_max_parms; USE trig_vals
       USE grid_bounds; USE tracked_parms; USE def_vitals; USE trkrparms
       USE verbose_output
 
@@ -5209,16 +5209,16 @@ c     -----------------------------------------------------------------
         d     = degrees * dtr
 
         if (d == 0.0) then
-  
+
           ! Storm is stationary...
           st_heading = 0.0
 
         else
-  
+
           cosarg = (sin(rlatc)-sin(rlatb)*cos(d))/(sin(d)*cos(rlatb))
           if (cosarg > 1.0)  cosarg = 1
           if (cosarg < -1.0) cosarg = -1
-  
+
           if (sin(rlonc-rlonb) < 0.0) then
             st_heading_rad = acos(cosarg)
           else
@@ -5244,9 +5244,9 @@ c     -----------------------------------------------------------------
       endif
 
 c     -----------------------------------------------------------------
-c     Now call  get_ij_bounds to get the boundaries for a smaller 
-c     subdomain, or subset of gridpoints, in which to evaluate the 
-c     parameter B statistic.  We will only include points within 
+c     Now call  get_ij_bounds to get the boundaries for a smaller
+c     subdomain, or subset of gridpoints, in which to evaluate the
+c     parameter B statistic.  We will only include points within
 c     500 km of the storm center for evaluation.
 c     -----------------------------------------------------------------
 
@@ -5268,15 +5268,15 @@ c     -----------------------------------------------------------------
       endif
 
 c     -----------------------------------------------------------------
-c     Now loop through all of the points of the subdomain.  If the 
+c     Now loop through all of the points of the subdomain.  If the
 c     point is further than 500 km from the storm center, discard it.
 c     Otherwise, evaluate the angle from the storm center to this point
-c     to determine the hemisphere of the point, that is, if the point 
+c     to determine the hemisphere of the point, that is, if the point
 c     is to the left or the right of the storm track.
 c     -----------------------------------------------------------------
 
-      ! We will want to speed things up for finer resolution grids.  
-      ! We can do this by skipping some of the points in the  
+      ! We will want to speed things up for finer resolution grids.
+      ! We can do this by skipping some of the points in the
       ! loop for the evaluation of parameter B.
 
       if ((dx+dy)/2. > 0.20) then
@@ -5328,10 +5328,10 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
               paramb  = -9999.99
               igcpret = 95
               return
-            endif    
-          else   
+            endif
+          else
             ip = i
-          endif   
+          endif
 
           if (i < 1) then
             if (trkrinfo%gridtype == 'global') then
@@ -5378,7 +5378,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
             paramb  = -9999.99
             igcpret = 95
             return
-          endif   
+          endif
 
           !----------------------------------------------------------
           ! Calculate angle from storm center to point, in a 0-360
@@ -5395,7 +5395,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
             cosarg = (sin(rlatc)-sin(rlatb)*cos(d))/(sin(d)*cos(rlatb))
             if (cosarg > 1.0)  cosarg = 1
             if (cosarg < -1.0) cosarg = -1
-  
+
             if (sin(rlonc-rlonb) < 0.0) then
               pt_dir_rad = acos(cosarg)
             else
@@ -5414,7 +5414,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
           !------------------------------------------------------------
 
           if (st_heading >= 180.0) then
-            if ((st_heading - pt_dir) > 0.0 .and. 
+            if ((st_heading - pt_dir) > 0.0 .and.
      &          (st_heading - pt_dir) <= 180) then
               hemis = 2
               left_ct = left_ct + 1
@@ -5423,7 +5423,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
               right_ct = right_ct + 1
             endif
           else
-            if ((pt_dir - st_heading) > 0.0 .and. 
+            if ((pt_dir - st_heading) > 0.0 .and.
      &          (pt_dir - st_heading) <= 180) then
               hemis = 1
               right_ct = right_ct + 1
@@ -5434,7 +5434,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
           endif
 
           !------------------------------------------------------------
-          ! Calculate the 600-900 mb thickness at this point and add 
+          ! Calculate the 600-900 mb thickness at this point and add
           ! the  thickness value to the array for the correct "storm
           ! hemisphere".
           !------------------------------------------------------------
@@ -5446,7 +5446,7 @@ c          print *,'CPS CORE: ist= ',ist,' ifh= ',ifh,' j= ',j,' i= ',i
             write (6,51) rlonb/dtr,rlatb/dtr,rlonc/dtr,rlatc/dtr
      &           ,st_heading,pt_dir,hemis,zthick
           endif
-               
+
         enddo iloop
       enddo jloop
 
@@ -5484,7 +5484,7 @@ c     ------------------------------------------------------------------
         print *,'  END of get_cps_paramb, paramb= ',paramb
       endif
 
-c         
+c
       return
       end
 c
@@ -5496,9 +5496,9 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine is part of the algorithm for determining
 c     the structure, or phase, of a cyclone.  For Hart's cyclone phase
-c     space, this subroutine determines the thermal wind profile for 
+c     space, this subroutine determines the thermal wind profile for
 c     either the lower troposphere (i.e., between 600 and 900 mb) or the
-c     upper troposphere (i.e., between 300 and 600 mb).  We evaluate 
+c     upper troposphere (i.e., between 300 and 600 mb).  We evaluate
 c     only those points that are within 500 km of the storm center.
 
       USE inparms; USE phase; USE set_max_parms; USE trig_vals
@@ -5568,16 +5568,16 @@ c     -----------------------------------------------------------------
 
 c     ------------------------------------------------------------------
 c     Now loop through all of the points of the subdomain at each level.
-c     If a point is further than 500 km from the storm center, discard 
-c     it. Otherwise, evaluate the gp height at the point to determine 
+c     If a point is further than 500 km from the storm center, discard
+c     it. Otherwise, evaluate the gp height at the point to determine
 c     if it is a max or a min for the given level.  Store the max and
 c     min height at each level in an array.
 c     ------------------------------------------------------------------
-        
+
 c      ! We will want to speed things up for finer resolution grids.
 c      ! We can do this by skipping some of the points in the
 c      ! loop for the evaluation of parameter B.
-c        
+c
 c      if ((dx+dy)/2. > 0.20) then
 c        bskip = 1
 c      else if ((dx+dy)/2. > 0.10 .and. (dx+dy)/2. <= 0.20) then
@@ -5595,7 +5595,7 @@ c      endif
 
       levloop: do k = kbeg,kend
 
-        if (kbeg == 7) then   
+        if (kbeg == 7) then
           ! processing upper layers (600-300 mb)
           kix = k - 6
         else
@@ -5604,7 +5604,7 @@ c      endif
         endif
 
         lnp(kix) = log(plev(kix))
-        
+
         jloop: do j=jbeg,jend,bskip
           iloop: do i=ibeg,iend,bskip
 
@@ -5630,10 +5630,10 @@ c      endif
                 vth_slope = -9999.99
                 igcvret   = 95
                 return
-              endif    
-            else   
+              endif
+            else
               ip = i
-            endif   
+            endif
 
             if (i < 1) then
               if (trkrinfo%gridtype == 'global') then
@@ -5654,12 +5654,12 @@ c      endif
                 return
               endif
             endif
-        
+
             call calcdist (fixlon(ist,ifh),fixlat(ist,ifh),glon(ip)
      &                    ,glat(j),xdist,degrees)
-        
+
             if (xdist > ricps) cycle iloop
-        
+
             if (valid_pt(ip,j)) then
               continue
             else
@@ -5702,11 +5702,11 @@ c            zmin(kix) = min(zmin(kix),cpshgt(ip,j,k))
 
 c     ------------------------------------------------------------------
 c     Now calculate the vertical derivative of the gp height, that is,
-c     d(dz)/d(ln(p)).  Here, zdiff is the gp height perturbation at a 
-c     given level, calculated in the loop above; dz is the vertical 
+c     d(dz)/d(ln(p)).  Here, zdiff is the gp height perturbation at a
+c     given level, calculated in the loop above; dz is the vertical
 c     change in that perturbation from one level to the next.
 c     ------------------------------------------------------------------
-      
+
       dz = 0.0
       dlnp = 0.0
       dzdlnp = 0.0
@@ -5718,16 +5718,16 @@ c     ------------------------------------------------------------------
       enddo
 
 c     ------------------------------------------------------------------
-c     Now call a correlation routine to get the slope of a regression 
+c     Now call a correlation routine to get the slope of a regression
 c     line.  The independent variable that we input is dlnp, the change
-c     in log of pressure with height.  The dependent variable is 
-c     dzdlnp, the vertical change in the height perturbation with 
-c     respect to the change in pressure.  The slope that is returned 
+c     in log of pressure with height.  The dependent variable is
+c     dzdlnp, the vertical change in the height perturbation with
+c     respect to the change in pressure.  The slope that is returned
 c     defines whether we've got a cold core or warm core system.
-c     See Hart (MWR, April 2003, Vol 131, pp. 585-616) for more 
+c     See Hart (MWR, April 2003, Vol 131, pp. 585-616) for more
 c     details, specifically his Fig. 3 and the discussion surrounding.
-c     Note that in the call to calccorr, we are sending only 6 of the 
-c     7 elements of the dlnp and dzdlnp arrays, beginning with the 
+c     Note that in the call to calccorr, we are sending only 6 of the
+c     7 elements of the dlnp and dzdlnp arrays, beginning with the
 c     2nd element of each.  That's because the first array value for
 c     each of those arrays is empty, since in the loop just above, we
 c     start with kbeg+1, not kbeg.
@@ -5740,7 +5740,7 @@ c     ------------------------------------------------------------------
         print *,'++ In get_cps_vth, values for vth follow for '
      &       ,'lead time= ',ifhours(ifh),':',ifclockmins(ifh),'  '
      &       ,storm(ist)%tcv_storm_id,' ',storm(ist)%tcv_storm_name
-        print *,'  ... clayer = ',clayer 
+        print *,'  ... clayer = ',clayer
         print *,' '
       endif
 
@@ -5843,13 +5843,13 @@ c
      &         ,xdiff(i),yresid(i),yresid(i)*yresid(i)
      &         ,ydiff(i)*ydiff(i)
         enddo
-        
+
         print *,' ----   -----    -----    -----    -----    -----   '
      &       ,' -----     -----'
         print *,' '
         write (6,'(1x,a13,f9.3,3x,a5,f7.2)') ' means:   y: ',ymean
      &       ,'  x: ',xmean
-        
+
         write (6,*) ' '
         write (6,30) 'slope= ',slope,'         y-intercept = ',yint
  30     format (2x,a7,f10.3,a23,f10.3)
@@ -5860,7 +5860,7 @@ c
      &              ,abs(slope)
         endif
  40     format (2x,a27,f8.2,a3,f8.2,'X')
-c         
+c
         print *,' '
         write (6,'(1x,a17,f7.4,5x,a7,f7.4)') ' R2(r_squared) = ',R2
      &       ,'   r = ',sqrt(R2)
@@ -5877,64 +5877,64 @@ c-------------------------------------------c
 c                                           c
 c-------------------------------------------c
       subroutine getmean(xarr,inum,zmean)
-c     
+c
 c     This subroutine is part of the correlation calculation,
 c     and it simply returns the mean of the input array, xarr.
-c     
+c
 c     INPUT:
 c      xarr   input array of data points
 c      inum   number of data points in xarr
-c     
+c
 c     OUTPUT:
 c      zmean  mean of data values in xarr
 
       implicit none
-      
+
       real   xarr(inum)
       real   xsum,zmean
       integer i,inum
-c     
+c
       xsum = 0.0
       do i = 1,inum
         xsum = xsum + xarr(i)
       enddo
-c     
+c
       zmean = xsum / float(MAX(inum,1))
-c     
+c
       return
       end
-      
+
 c-------------------------------------------c
 c                                           c
 c-------------------------------------------c
       subroutine getdiff(xarr,inum,zmean,zdiff)
-c     
+c
 c     This subroutine is part of the correlation calculation,
 c     and it returns in the array zdiff the difference values
 c     between each member of the input array xarr and the
 c     mean value, zmean.
-c     
+c
 c     INPUT:
 c      xarr   input array of data points
 c      inum   number of data points in xarr
 c      zmean  mean of input array (xarr)
-c     
+c
 c     OUTPUT:
 c      zdiff  array containing xarr(i) - zmean
 
       implicit none
-      
+
       real xarr(inum),zdiff(inum)
       real zmean
       integer i,inum
-c     
+c
       do i = 1,inum
         zdiff(i) = xarr(i) - zmean
       enddo
-c     
+c
       return
       end
-      
+
 c-------------------------------------------c
 c                                           c
 c-------------------------------------------c
@@ -6082,7 +6082,7 @@ c
           R2 = 1.0
         else
           R2 = 1 - sumyresid / sumydiff
-        endif 
+        endif
       else
         R2=0.0
       endif
@@ -6231,7 +6231,7 @@ c     the call to check_closed_contour below.
 
         else
           ! Search went out of regional grid bounds....
-          
+
           if ( verb .ge. 1 ) then
             print *,' '
             print *,'!!! ERROR IN get_vtt_phase.  The call to  '
@@ -6305,7 +6305,7 @@ c     the tlastcont and rlastcont values are returned.
      &       ,gstorm(ist)%gv_gen_lonew,gstorm(ist)%gv_gen_type
      &       ,ifhours(ifh),ifclockmins(ifh)
      &       ,wcore_flag,tlastout,rlastout
-        
+
  115    format (1x,'    wcore: ',a4,1x,i10.10,'_F',i3.3,'_',i3.3,a1
      &       ,'_',i4.4,a1,'_',a3,2x,i4,':',i2.2
      &       ,'  wcore_flag= ',a1,2x,' Temp of last contour(K) = '
@@ -6455,9 +6455,9 @@ c     dx       grid increment in x-direction
 c     dy       grid increment in y-direction
 c     ist      Index for storm number
 c     ifh      Index for forecast hour
-c     xclon    Longitude of center fix passed to this routine, around 
+c     xclon    Longitude of center fix passed to this routine, around
 c              which the Vt calculations will be based.
-c     xclat    Latitude of center fix passed to this routine, around 
+c     xclat    Latitude of center fix passed to this routine, around
 c              which the Vt calculations will be based.
 c     valid_pt Logical; bitmap indicating if valid data at that pt.
 c     trkrinfo derived type detailing user-specified grid info
@@ -6466,7 +6466,7 @@ c     OUTPUT:
 c     vt_quad  low-level longitude estimate for this storm & time,
 c              with a mean Vt for each of 4 quadrants.
 c     quad_wind_circ_check  character flag ('pass'/'fail') that
-c              indicates if sufficient mean Vt was found in *all* 
+c              indicates if sufficient mean Vt was found in *all*
 c              4 quadrants.
 c     icqwret  return code from this subroutine
 
@@ -6505,7 +6505,7 @@ c
 
           qtr_azimloop1: do iazim = 1,num_qtr_azim
 
-            bear = ((iquad-1) * 90.) + ((iazim-1) * 15.) + 7.5 
+            bear = ((iquad-1) * 90.) + ((iazim-1) * 15.) + 7.5
 
             call distbear (xclat,xclon,rdist(idist)
      &                    ,bear,targlat,targlon)
@@ -6540,7 +6540,7 @@ c
           enddo qtr_azimloop1
 
           if (azimuth_ct > 0) then
-            ! Compute quadrant-azimuthally-averaged winds at 
+            ! Compute quadrant-azimuthally-averaged winds at
             ! this distance
             wmag_mean      = wmag_sum / float(azimuth_ct)
             vt_quad(iquad) = vt_sum / float(azimuth_ct)
@@ -6575,7 +6575,7 @@ c
       good_quad_ct = 0
 
       quadloop2: do iquad = 1,4
-        if (verb >= 3) then 
+        if (verb >= 3) then
           print '(2x,a6,i2,a18,f8.2,a22,f8.2,a30,f8.2,a11,f4.1)'
      &          ,'quad= ',iquad,'  vt_quad(iquad)= '
      &          ,vt_quad(iquad),'(m/s)   Lat of storm= ',xclat
@@ -6590,7 +6590,7 @@ c
         endif
 
         hem_adj_vt_quad = hemisphere * vt_quad(iquad)
-        
+
         if (hem_adj_vt_quad >= trkrinfo%v850_qwc_thresh) then
           good_quad_ct = good_quad_ct + 1
         endif
@@ -6618,31 +6618,31 @@ c-----------------------------------------------------------------------
      &             ,ist,ifh,fixlon,fixlat,xsfclon,xsfclat,valid_pt
      &             ,er_wind,sr_wind,er_vr,sr_vr,er_vt,sr_vt,maxstorm
      &             ,trkrinfo,igwsret)
-c       
+c
 c     ABSTRACT: This subroutine is a driver subroutine for
 c     determining the structure of the low level winds of a cyclone.
 c     The algorithm will search out at specified distances from the
-c     storm center along arcs in each quadrant of the storm, 
+c     storm center along arcs in each quadrant of the storm,
 c     evaluating the winds every 15 degrees along the arc.  In each
-c     arc, start 7.5 degrees in, then make stops at 22.5, 37.5, 
-c     52.5, 67.5, and 82.5 degrees.  At each of those points, we 
-c     will bilinearly interpolate the winds to the points along those 
+c     arc, start 7.5 degrees in, then make stops at 22.5, 37.5,
+c     52.5, 67.5, and 82.5 degrees.  At each of those points, we
+c     will bilinearly interpolate the winds to the points along those
 c     arcs.  Then we compute a quadrant average of the wind magnitude,
 c     as well as the mean Vt and Vr values.  This will be done
 c     twice -- First, for an earth-relative coordinate system, and
 c     second, for a storm-relative coordinate system.  For the
 c     earth-relative estimates, we will always have 4 earth-relative
 c     quadrants: NE, SE, SW and NW.  For the storm-relative estimates,
-c     these mean values of the wind will be computed for the same 
+c     these mean values of the wind will be computed for the same
 c     relative quadrants (front-right, back-right, back-left, front-
 c     left, but with respect (positive clockwise) to the
-c     direction of storm motion.  
-c       
+c     direction of storm motion.
+c
 c     LOCAL:
 c       numdist   Number of discrete radii at which the winds will
 c                 be evaluated
 c       rdist     The radii (km) at which winds will be evaluated
-c     
+c
 c     Arrays:
 c       rdist     Radii (km) at which the winds will be evaluated
 c       er_wind:  Quadrant winds in earth-relative framework
@@ -6741,10 +6741,10 @@ c     -----------------------------------------------------------------
 
 c     -----------------------------------------------------------------
 c     Get the profiles for the earth-relative coordinate system.
-c     Start with NE, then SE, SW, and NW.  First go through 
+c     Start with NE, then SE, SW, and NW.  First go through
 c     radiusloop, which goes from one radial distance to the next,
-c     then do the quadloop, which goes through each quadrant, and 
-c     then within each quadrant, the qtr_azimloop goes through for 
+c     then do the quadloop, which goes through each quadrant, and
+c     then within each quadrant, the qtr_azimloop goes through for
 c     six points along an arc, spaced 15 degrees apart, starting at
 c     7.5 degrees clockwise from the north.
 c     -----------------------------------------------------------------
@@ -6848,7 +6848,7 @@ c            print *,' '
           enddo qtr_azimloop1
 
           if (azimuth_ct > 0) then
-            ! Compute quadrant-azimuthally-averaged winds at 
+            ! Compute quadrant-azimuthally-averaged winds at
             ! this distance
             er_wind(iquad,idist) = wmag_sum / float(azimuth_ct)
             er_vr(iquad,idist) =   vr_sum / float(azimuth_ct)
@@ -6967,14 +6967,14 @@ c            temp_bear = st_heading + ((iquad-1) * 90.) + 45.
 
       if (bimct > 0) then
         if (verb .ge. 3) then
-          print *,' ' 
+          print *,' '
           print *,'Warning summary: From sub get_wind_structure,'
           print *,'calls to sub bilin_int_uneven resulted in'
           print *,'(blocked) attempts to access points outside the'
           print *,'bounds of a regional grid.  Total # of access'
           print *,'attempts for this call in radiusloop2= ',bimct
-          print *,' ' 
-        endif 
+          print *,' '
+        endif
       endif
 c
       return
@@ -7035,7 +7035,7 @@ c       rdist     Radii (km) at which the winds will be evaluated
       logical(1) valid_pt(imax,jmax)
       character  got_pdf*6
       character*2 :: cquad(4) = (/'NE','SE','SW','NW'/)
-      character*5 :: cbin(5) = 
+      character*5 :: cbin(5) =
      &               (/'0-100','0-200','0-300','0-400','0-500'/)
       character*2 :: cthresh(3) = (/'34','50','64'/)
 c
@@ -7215,7 +7215,7 @@ c     fractional area coverage for winds.
                 print *,'!!!    user-requested eastern search boundary'
                 print *,'!!!    is beyond the eastern bounds of '
                 print *,'!!!    this regional grid.  We will not '
-                print *,'!!!    perform the fractional wind coverage' 
+                print *,'!!!    perform the fractional wind coverage'
                 print *,'!!!    processing for this storm & time.'
                 print *,'!!!         '
                 print *,'!!!   imax of regional grid    = ',imax
@@ -7225,10 +7225,10 @@ c     fractional area coverage for winds.
 
               igfwret = 94
               return
-            endif    
-          else   
+            endif
+          else
             ii = i
-          endif   
+          endif
 
           if (i < 1) then
             if (trkrinfo%gridtype == 'global') then
@@ -7237,7 +7237,7 @@ c     fractional area coverage for winds.
 
               if ( verb .ge. 1 ) then
                 print *,' '
-                print *,'!!! ERROR: i < 1 in get_fract_wind_cov' 
+                print *,'!!! ERROR: i < 1 in get_fract_wind_cov'
                 print *,'!!! for a non-global grid.  We will not '
                 print *,'!!! perform the fractional wind coverage'
                 print *,'!!! processing for this storm & time.'
@@ -7249,7 +7249,7 @@ c     fractional area coverage for winds.
 
               igfwret = 94
               return
-            endif    
+            endif
           endif
 
           if (.not. valid_pt(ii,j)) then
@@ -7258,7 +7258,7 @@ c     fractional area coverage for winds.
 
           call calcdist (glon(ii),glat(j),xsfclon,xsfclat,xdist,degrees)
 
-          if (xdist > (rads+(0.75*((dx+dy)/2.)*dtk*cos(glat(j)*dtr)))) 
+          if (xdist > (rads+(0.75*((dx+dy)/2.)*dtk*cos(glat(j)*dtr))))
      &    then
 
             ! If the distance is greater than "rads" (500 km at initial
@@ -7573,7 +7573,7 @@ c     -------------------------------------------------
         write (6,109) '                                 '
      &       ,'                                     '
      &       ,'                '
-        
+
         do iq = 1,numquad
           do ib = 1,numbin
             do it = 1,numthresh
@@ -7698,7 +7698,7 @@ c     subdomain of grid points to search over.
           print *,'!!! get_ij_bounds, STOPPING processing for storm '
           print *,'!!! number ',ist
         endif
-        
+
         igisret = 92
         return
       endif
@@ -7731,7 +7731,7 @@ c     subdomain of grid points to search over.
           return
         endif
       endif
-          
+
       if (ibeg > imax .or. jbeg > jmax .or. jbeg < 1 .or.
      &     iend < 1 .or. jend < 1) then
 
@@ -7748,7 +7748,7 @@ c     subdomain of grid points to search over.
         igisret = 94
         return
       endif
-          
+
       if (iend > imax) then
         if (trkrinfo%gridtype == 'global') then
 
@@ -7810,7 +7810,7 @@ c     the IKE values for all applicable thresholds (10, 18, 33 m/s).
           else
             ii = i
           endif
-              
+
           if (i < 1) then
             if (trkrinfo%gridtype == 'global') then
               ii = i + imax   ! If wrapping past GM
@@ -7902,17 +7902,17 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine computes the 850-200 mb vertical wind
 c     shear.  It uses the method as used in SHIPS, including the vortex
-c     removal.  Note that the vortex removal is *not* performed using 
-c     the application of the Laplacian filter, as in the 1999 or 
-c     2005 DeMaria & Kaplan SHIPS papers.  Instead, via personal 
+c     removal.  Note that the vortex removal is *not* performed using
+c     the application of the Laplacian filter, as in the 1999 or
+c     2005 DeMaria & Kaplan SHIPS papers.  Instead, via personal
 c     communication (2021) with Mark DeMaria, they said that they didn't
 c     have great results with the Laplacian and they instead use this
 c     method to remove the vortex:
 c
 c     1. Find the circulation center at 850 hPa. For SHIPS, that finds
 c        the center point that maximizes the symmetric tangential wind
-c        out to 500 km. [For the  tracker, I will either use the 
-c        mean fix for the current lead time or I will use the fix 
+c        out to 500 km. [For the  tracker, I will either use the
+c        mean fix for the current lead time or I will use the fix
 c        position for 850 mb wind circulation].
 c
 c     2. Calculate the azimuthally averaged radial and tangential wind
@@ -7920,15 +7920,15 @@ c        at each pressure level as a function of radius. At each level,
 c        find the radius where the symmetric tangential wind decreases
 c        to 1 m/s (r_outer). That radius nearly always decreases with
 c        height. Subtract the azimuthally averaged tangential and radial
-c        winds out to r = r_outer at each level to remove the vortex. 
+c        winds out to r = r_outer at each level to remove the vortex.
 c
 c     3. Average the Cartesian horizontal wind components after the
-c        vortex removal over an area out to 500 km radius at 850 and 
+c        vortex removal over an area out to 500 km radius at 850 and
 c        200 hPa to get the storm environmental wind vectors at those
-c        two levels. 
+c        two levels.
 c
 c     4. Use the environmental winds to calculate the shear magnitude
-c        and direction. 
+c        and direction.
 c
 c     This subroutine basically follows Steps 1-4 above.
 c
@@ -7943,17 +7943,17 @@ c     ifh      Index for forecast hour
 c     fixlon   real array with longitudes of mean fix positions
 c     fixlat   real array with latitudes of mean fix positions
 c     valid_pt Logical bitmap masking non-valid grid points.  This is a
-c              concern for the regional models, which are interpolated 
-c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              concern for the regional models, which are interpolated
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving
 c              grid points around the edges which have no valid data.
 c     calcparm Logical; tells whether or not a parm has a valid fix
 c                   at this forecast hour
 c     maxstorm max num of storms that can be handled in this run
 c     trkrinfo derived type detailing user-specified grid info
-c     clon     real array containing the longitudes of all of the 
+c     clon     real array containing the longitudes of all of the
 c              various parameter center fixes that have been found for
 c              all lead times.
-c     clat     real array containing the latitudes of all of the 
+c     clat     real array containing the latitudes of all of the
 c              various parameter center fixes that have been found for
 c              all lead times.
 c
@@ -7969,15 +7969,15 @@ c     u_from_vt  u-comp of the wind as converted back from Vt
 c     v_from_vt  v-comp of the wind as converted back from Vt
 c     u_from_vr  u-comp of the wind as converted back from Vr
 c     v_from_vr  v-comp of the wind as converted back from Vr
-c     u_cart  u-comp of the wind that contains components from 
+c     u_cart  u-comp of the wind that contains components from
 c             both u_from_vt and u_from_vr
-c     v_cart  v-comp of the wind that contains components from 
+c     v_cart  v-comp of the wind that contains components from
 c             both v_from_vt and v_from_vr
 c     u_cart_sum  Sum of all u_cart values at each level
 c     v_cart_sum  Sum of all v_cart values at each level
 c
 c     *NOTE: For all of these above Local arrays with the u- and
-c            v-components, in the arrays, there is a numlev 
+c            v-components, in the arrays, there is a numlev
 c            variable.  numlev=1 is for 850 mb, and numlev=2
 c            is for 200 mb.
 
@@ -8033,10 +8033,10 @@ c
 
 c     ------------------------------------------------------------------
 c     First, get the fix position to use for calculating the shear.  For
-c     now, the same position will be used for both 850 and 200 mb (we 
+c     now, the same position will be used for both 850 and 200 mb (we
 c     may consider at some point using a separate center fix for 200 mb
-c     to account for vortex tilt).  But for now, we will first look to 
-c     use the center for the 850 mb wind circulation fix, but if that 
+c     to account for vortex tilt).  But for now, we will first look to
+c     use the center for the 850 mb wind circulation fix, but if that
 c     fix could not be made for this current lead time, then we will use
 c     the mean fix position for this lead time.
 c     ------------------------------------------------------------------
@@ -8070,7 +8070,7 @@ c     distance increments as defined in the rdist array.  Those distance
 c     increments are in units of km.  Iterate through each radius,
 c     starting from inner and working to outer, and at each one, go
 c     around clockwise through all of the 24 discrete azimuths, starting
-c     at 7.5 and adding 15 degrees clockwise each time, all the way up 
+c     at 7.5 and adding 15 degrees clockwise each time, all the way up
 c     through 352.5.  Note that the outer loop of this process is for
 c     vertical level ("levelloop1"), where we will first do all of the
 c     analysis for 850 mb, and then next for 200 mb.
@@ -8196,12 +8196,12 @@ c            endif
 
 c     ------------------------------------------------------------------
 c     Now loop through again, first at 850 mb then at 200 mb, and check
-c     to see at what radius the last azimuthally average cyclonic 
-c     tangential wind of at least 1 m/s occurs.  Do this the same way 
+c     to see at what radius the last azimuthally average cyclonic
+c     tangential wind of at least 1 m/s occurs.  Do this the same way
 c     as I did for getting the 34-kt radii in subroutine  getradii, that
 c     is, start out at the outermost radius and work inward until
 c     finding the first radius at which the cyclonic mean Vt >= 1 m/s.
-c     Be sure to account for northern hemisphere vs. southern 
+c     Be sure to account for northern hemisphere vs. southern
 c     hemisphere.
 c     ------------------------------------------------------------------
 
@@ -8232,12 +8232,12 @@ c        endif
         found_vt_ge_1_flag = 'n'
 
         inverse_radius_loop: do idist = numdist,1,-1
-      
+
           if (xcenlat >= 0.0) then
             ! NHEM storm, cyclonic storm has Vt > 0.
-            if (vt_mean(idist,ilev) >= 1.0) then 
-              if (idist == numdist) then 
-                ! We found this at the max radius, so just set the 
+            if (vt_mean(idist,ilev) >= 1.0) then
+              if (idist == numdist) then
+                ! We found this at the max radius, so just set the
                 ! max_dist_index to this max radius and then exit
                 ! the loop.
                 max_dist_index(ilev) = numdist
@@ -8246,9 +8246,9 @@ c        endif
               else
                 ! To this point, each iteration of the loop has shown a
                 ! cyclonic mean Vt < 1.0 m/s.  We have hit a Vt >= 1.0,
-                ! so the radius where the mean Vt = 1.0 is somewhere 
-                ! between here and the next outer radius, so we will 
-                ! just assign it to that next outer radius, which is 
+                ! so the radius where the mean Vt = 1.0 is somewhere
+                ! between here and the next outer radius, so we will
+                ! just assign it to that next outer radius, which is
                 ! fine since our resolution for converting to
                 ! cylindrical coordinates is fairly fine, at 25 km.
                 max_dist_index(ilev) = idist + 1
@@ -8260,7 +8260,7 @@ c        endif
             ! SHEM storm, cyclonic storm has Vt < 0.
             if (vt_mean(idist,ilev) <= -1.0) then
               if (idist == numdist) then
-                ! We found this at the max radius, so just set the 
+                ! We found this at the max radius, so just set the
                 ! max_dist_index to this max radius and then exit
                 ! the loop.
                 max_dist_index(ilev) = numdist
@@ -8270,8 +8270,8 @@ c        endif
                 ! To this point, each iteration of the loop has shown a
                 ! cyclonic mean Vt weaker than -1.0 m/s.  We have hit a
                 ! Vt <= -1.0, so the radius where the mean Vt = -1.0 is
-                ! somewhere between here and the next outer radius, so 
-                ! we will just assign it to that next outer radius, 
+                ! somewhere between here and the next outer radius, so
+                ! we will just assign it to that next outer radius,
                 ! which is fine since our resolution for converting to
                 ! cylindrical coordinates is fairly fine, at 25 km.
                 max_dist_index(ilev) = idist + 1
@@ -8280,12 +8280,12 @@ c        endif
               endif
             endif
           endif
-      
+
         enddo inverse_radius_loop
 
         if (found_vt_ge_1_flag == 'n') then
           ! We did *not* find a mean cyclonic Vt that exceeded 1 m/s at
-          ! any radius, so set max_dist_index to a missing value.  For 
+          ! any radius, so set max_dist_index to a missing value.  For
           ! this case, we will not remove any winds and we will just use
           ! the raw winds as they are.
           max_dist_index(ilev) = -999
@@ -8301,7 +8301,7 @@ c        endif
 c       ----------------------------------------------------------------
 c       Now go through the radii and the azimuths again, and this time
 c       subtract the mean Vt from every point at each radius for which
-c       the mean cyclonic Vt exceeds 1.0 m/s.  Where it does not 
+c       the mean cyclonic Vt exceeds 1.0 m/s.  Where it does not
 c       exceed 1.0 m/s, just use the original Vt.
 c       ----------------------------------------------------------------
 
@@ -8318,7 +8318,7 @@ c       ----------------------------------------------------------------
                 ! If we are either beyond the radius at which the
                 ! cyclonic mean Vt has dropped to less than 1 m/s, or
                 ! if we did not find a mean cyclonic Vt that exceeded
-                ! 1 m/s at any radius, just use the original Vt and 
+                ! 1 m/s at any radius, just use the original Vt and
                 ! Vr as they are.
                 vt_prime(iazim,idist,ilev) = vt(iazim,idist,ilev)
                 vr_prime(iazim,idist,ilev) = vr(iazim,idist,ilev)
@@ -8347,7 +8347,7 @@ c       ----------------------------------------------------------------
         enddo radiusloop2
 
 c       ----------------------------------------------------------------
-c       Now go through and convert all of the Vt & Vr values back to 
+c       Now go through and convert all of the Vt & Vr values back to
 c       Cartesian wind components.  Remember that there are
 c       contributions to u and v from both Vt and Vr.
 c       ----------------------------------------------------------------
@@ -8361,33 +8361,33 @@ c       ----------------------------------------------------------------
             if (vt_prime(iazim,idist,ilev) > -998.0 .and.
      &          vr_prime(iazim,idist,ilev) > -998.0) then
 
-              u_from_vt(iazim,idist) = -1.0 * cos(bear * dtr) 
+              u_from_vt(iazim,idist) = -1.0 * cos(bear * dtr)
      &                               * vt_prime(iazim,idist,ilev)
 
-              u_from_vr(iazim,idist) =        sin(bear * dtr) 
+              u_from_vr(iazim,idist) =        sin(bear * dtr)
      &                               * vr_prime(iazim,idist,ilev)
-  
-              v_from_vt(iazim,idist) =        sin(bear * dtr) 
+
+              v_from_vt(iazim,idist) =        sin(bear * dtr)
      &                               * vt_prime(iazim,idist,ilev)
 
-              v_from_vr(iazim,idist) =        cos(bear * dtr) 
+              v_from_vr(iazim,idist) =        cos(bear * dtr)
      &                               * vr_prime(iazim,idist,ilev)
 
-              ! Create the Cartesian u-component for this point by 
+              ! Create the Cartesian u-component for this point by
               ! combining the u contribution from the 2 separate
               ! cylindrical components.
 
               u_cart(iazim,idist,ilev) = u_from_vt(iazim,idist)
      &                                 + u_from_vr(iazim,idist)
 
-              ! Create the Cartesian v-component for this point by 
+              ! Create the Cartesian v-component for this point by
               ! combining the v contribution from the 2 separate
               ! cylindrical components.
 
               v_cart(iazim,idist,ilev) = v_from_vt(iazim,idist)
      &                                 + v_from_vr(iazim,idist)
 
-              ! Add to the sum arrays for the Cartesian u- and v- 
+              ! Add to the sum arrays for the Cartesian u- and v-
               ! arrays for this level....
 
               u_cart_sum(ilev) = u_cart_sum(ilev)
@@ -8437,7 +8437,7 @@ c     -----------------------------------------------------------------
       else
         shear_mag = -999.0
       endif
-            
+
       shear(ist,ifh,1) = shear_mag
 
 c     -----------------------------------------------------------------
@@ -8465,20 +8465,20 @@ c     -----------------------------------------------------------------
 
           ! First get the local angle, that is, for the atan2 function,
           ! use the absolute value of the ushear & vshear components,
-          ! and then adjust to the 0-360 value in the if statement 
+          ! and then adjust to the 0-360 value in the if statement
           ! after that by checking the sign of the original ushear &
           ! vshear to get the actual quadrant.
-          
+
           local_angle = atan2(abs(vshear),abs(ushear))/dtr
 
           if (ushear > 0.0 .and. vshear > 0.0) then
             ! NE quadrant
             shear_dir_point_to = 90.0 - local_angle
-            shear_dir_from = 180.0 + shear_dir_point_to 
+            shear_dir_from = 180.0 + shear_dir_point_to
           elseif (ushear > 0.0 .and. vshear < 0.0) then
             ! SE quadrant
             shear_dir_point_to = 90.0 + local_angle
-            shear_dir_from = 180.0 + shear_dir_point_to 
+            shear_dir_from = 180.0 + shear_dir_point_to
           elseif (ushear < 0.0 .and. vshear < 0.0) then
             ! SW quadrant
             shear_dir_point_to = 270.0 - local_angle
@@ -8500,11 +8500,11 @@ c     -----------------------------------------------------------------
       ! Per discussion with Mark DeMaria, SHIPS uses the shear *heading*
       ! for the shear direction, *not* the direction that the shear is
       ! coming from.  So, for a case of strong, pure easterly shear
-      ! (i.e., no v-shear, and say u_cart_mean(200) = -50 m/s and 
-      ! u_cart_mean(850) = +5 m/s), the shear direction would be coming 
-      ! *from* 90 degrees, but the shear "heading" (variable 
+      ! (i.e., no v-shear, and say u_cart_mean(200) = -50 m/s and
+      ! u_cart_mean(850) = +5 m/s), the shear direction would be coming
+      ! *from* 90 degrees, but the shear "heading" (variable
       ! shear_dir_point_to) would be 270 degrees.
- 
+
 c      shear(ist,ifh,2) = shear_dir_from
       shear(ist,ifh,2) = shear_dir_point_to
 
@@ -8545,8 +8545,8 @@ c     ifh      Index for forecast hour
 c     fixlon   real array with longitudes of mean fix positions
 c     fixlat   real array with latitudes of mean fix positions
 c     valid_pt Logical bitmap masking non-valid grid points.  This is a
-c              concern for the regional models, which are interpolated 
-c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              concern for the regional models, which are interpolated
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving
 c              grid points around the edges which have no valid data.
 c     readflag Logical; tells whether or not a variable was read in.
 c     readgenflag Logical; tells whether or not a genesis variable was
@@ -8573,7 +8573,7 @@ c     trkrinfo derived type detailing user-specified grid info
 
       !----------------------------------------------------------------
       ! Now get a smoothed, barnes-averaged value of SST at the center
-      ! point.  Only do this if we have *both* the  SST and the 
+      ! point.  Only do this if we have *both* the  SST and the
       ! land-sea mask, otherwise set to missing for this time.
       !----------------------------------------------------------------
 
@@ -8608,7 +8608,7 @@ c-----------------------------------------------------------------------
      &                     ,omega500_smooth
      &                     ,already_computed_domain_wide_rh,iggdret)
 c
-c     ABSTRACT: This subroutine is the driver for calling various other 
+c     ABSTRACT: This subroutine is the driver for calling various other
 c     routines to compute diagnostics needed for genesis.
 c
 c     INPUT:
@@ -8622,8 +8622,8 @@ c     ifh      Index for forecast hour
 c     fixlon   real array with longitudes of mean fix positions
 c     fixlat   real array with latitudes of mean fix positions
 c     valid_pt Logical bitmap masking non-valid grid points.  This is a
-c              concern for the regional models, which are interpolated 
-c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              concern for the regional models, which are interpolated
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving
 c              grid points around the edges which have no valid data.
 c     readflag Logical; tells whether or not a variable was read in.
 c     readgenflag Logical; tells whether or not a genesis variable was
@@ -8632,27 +8632,27 @@ c     calcparm Logical; tells whether or not a parm has a valid fix
 c                   at this forecast hour
 c     maxstorm max num of storms that can be handled in this run
 c     trkrinfo derived type detailing user-specified grid info
-c     clon     real array containing the longitudes of all of the 
+c     clon     real array containing the longitudes of all of the
 c              various parameter center fixes that have been found for
 c              all lead times.
-c     clat     real array containing the latitudes of all of the 
+c     clat     real array containing the latitudes of all of the
 c              various parameter center fixes that have been found for
 c              all lead times.
 c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
-c             forecast hour (this keeps us from re-computing it for 
+c             forecast hour (this keeps us from re-computing it for
 c             every storm at each lead time).
 c
 c     OUTPUT:
 c     divg     The  barnes analysis-averaged value of 850 mb divergence,
 c              centered on the fixlat for this lead time.
-c     moist_divg The  barnes analysis-averaged value of the dot product 
-c              of specific humidity (q) * 850 mb divergence, centered 
+c     moist_divg The  barnes analysis-averaged value of the dot product
+c              of specific humidity (q) * 850 mb divergence, centered
 c              on the fixlat for this lead time.
-c     rh_800_600_smooth The  barnes analysis-averaged value of 800-600 
+c     rh_800_600_smooth The  barnes analysis-averaged value of 800-600
 c              mb RH, centered on the fixlat for this lead time.
-c     rh_1000_925_smooth The  barnes analysis-averaged value of 
-c              925-1000 mb RH, centered on the fixlat for this lead 
+c     rh_1000_925_smooth The  barnes analysis-averaged value of
+c              925-1000 mb RH, centered on the fixlat for this lead
 c              time.
 c     omega500_smooth  The  barnes analysis-averaged value of 500 mb
 c              omega, centered on the fixlat for this lead time.
@@ -8697,7 +8697,7 @@ c
 
       !----------------------------------------------------------------
       ! Now get a smoothed, barnes-averaged value of q850 at the center
-      ! point. Then multiply the 850 mb divg we just calculated by the 
+      ! point. Then multiply the 850 mb divg we just calculated by the
       ! smoothed q850 to get the 850 mb moisture convergence (q850conv).
       !----------------------------------------------------------------
 
@@ -8714,7 +8714,7 @@ c
         else
           q850_smooth = -9999.0
         endif
- 
+
       endif
 
       if (igdret == 0 .and. igsvret == 0) then
@@ -8746,12 +8746,12 @@ c
 
       !----------------------------------------------------------------
       ! Now get a smoothed, barnes-averaged value of 500 mb omega at
-      ! the center point. 
+      ! the center point.
       !----------------------------------------------------------------
 
       if (readgenflag(23)) then
-        re = 125.0 
-        ri = 250.0 
+        re = 125.0
+        ri = 250.0
         igsvret = 0
         call get_smooth_value_at_pt (fixlon(ist,ifh),fixlat(ist,ifh),ist
      &                ,ifh,imax,jmax,omega500(1,1),'omega500',dx,dy
@@ -8759,10 +8759,10 @@ c
      &                ,xsmoothval,igsvret)
         if (igsvret == 0) then
           omega500_smooth = xsmoothval
-        else  
+        else
           omega500_smooth = -9999.0
-        endif 
-      else  
+        endif
+      else
         omega500_smooth = -9999.0
       endif
 c
@@ -8780,7 +8780,7 @@ c
 c     ABSTRACT: This subroutine calls two routines that will return the
 c     area-averaged (Barnes-averaged) value of divergence surrounding
 c     the  tracker-derived fix location at this lead time.  The first
-c     routine will compute divergence over the entire domain, and the 
+c     routine will compute divergence over the entire domain, and the
 c     second routine will compute the  Barnes average of the divergence.
 c
       USE grid_bounds; USE tracked_parms; USE trig_vals
@@ -8799,7 +8799,7 @@ c
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
       real    dx,dy,xcenlon,xcenlat,divg,xsmoothval,re,ri
-      
+
       logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
 c
       if (allocated(divg_850)) deallocate(divg_850)
@@ -9054,7 +9054,7 @@ c     south of targlat....
           print *,'!!! jn= ',jn,' js= ',js,' jmax= ',jmax
           print *,' '
         endif
-        xintrp_val = -999.0 
+        xintrp_val = -999.0
         ibiret = 85
         bimct = bimct + 1
         return
@@ -9084,15 +9084,15 @@ c     west of targlon....
       ie_hold = ie
       iw_hold = iw
 
-      ! Check for GM wrapping.  Check "ie" to see if it is between the 
+      ! Check for GM wrapping.  Check "ie" to see if it is between the
       ! most eastward gridpoint and the GM (i.e., on a 1-deg global
       ! grid (360x181), it would be if targlon was between 359.0 (i=360)
-      ! and the GM (i=1, not i=361)).  Similarly then, if we adjust ie 
-      ! to then be 1, then we have a problem with iw, 
+      ! and the GM (i=1, not i=361)).  Similarly then, if we adjust ie
+      ! to then be 1, then we have a problem with iw,
       ! since iw = 1 - 1 = 0.
 
       if (ie > imax) then
-        if (trkrinfo%gridtype == 'global') then 
+        if (trkrinfo%gridtype == 'global') then
           ie = ie - imax
         else
 
@@ -9109,7 +9109,7 @@ c     west of targlon....
           ibiret = 85
           bimct = bimct + 1
           return
-        endif    
+        endif
       endif
 
       if (iw < 1) then
@@ -9128,7 +9128,7 @@ c     west of targlon....
           ibiret = 85
           bimct = bimct + 1
           return
-        endif    
+        endif
       endif
 
 c      if (ifh == 24) then
@@ -9148,15 +9148,15 @@ ctmwc      endif
 
 c     ----------------------------------------------------------------
 c     Calculate the longitude (to) and latitude (ta) location ratios.
-c     Check for GM wrapping, as we can run into a problem here if 
+c     Check for GM wrapping, as we can run into a problem here if
 c     interpolating for points that are just west of the GM, since we
 c     would be interpolating using values of longitude just west of
-c     GM (say, glon(iw)=359.5) and the GM (glon(ie) = 0.0).  This 
-c     makes for an incorrect "to" ratio below, with 0-359.5 in the 
+c     GM (say, glon(iw)=359.5) and the GM (glon(ie) = 0.0).  This
+c     makes for an incorrect "to" ratio below, with 0-359.5 in the
 c     denominator.  We have to account for this....
 c     ----------------------------------------------------------------
 
-      if (glon(iw) > 300.0 .and. 
+      if (glon(iw) > 300.0 .and.
      &   (glon(ie) < 10. .and. glon(ie) >= 0.)) then
 C--BUG! bugfix Fixed Oct 2021   eastlon = 360. - glon(ie)
         eastlon = 360. + glon(ie)
@@ -9199,10 +9199,10 @@ c          print *,'+++ NOTE: In bilin_int_uneven, pts with invalid '
 c          print *,'          data were accessed.  We are likely at'
 c          print *,'          the edge of a regional grid.'
 c          print *,'          iw= ',iw,' ie= ',ie,' jn= ',jn,' js= ',js
-          ibiret = 85          
+          ibiret = 85
           return
         endif
-      endif 
+      endif
 
       select case (level)
         case (850);  nlev = nlev850  ! check module level_parms for
@@ -9400,10 +9400,10 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine takes as input a u-wind and v-wind value
 c     at an input (xlon,xlat) location and returns the tangential and
-c     radial wind components relative to the input center lat/lon 
-c     position (centlon,centlat).  The only trick to this whole 
+c     radial wind components relative to the input center lat/lon
+c     position (centlon,centlat).  The only trick to this whole
 c     subroutine is figuring out the angle from the center point to the
-c     data point, and we do this by creating a triangle with the leg 
+c     data point, and we do this by creating a triangle with the leg
 c     from the center point to the data point being the hypotenuse.
 c
 c     NOTE: All longitudes must be in positive degrees east (0-360) !!!
@@ -9413,8 +9413,8 @@ c     centlon  Longitude of center point
 c     centlat  Latitude  of center point
 c     xlon     Longitude of pt at which vr & vt will be computed
 c     xlat     Latitude  of pt at which vr & vt will be computed
-c     udat     u-value of wind at the point (xlon,xlat) 
-c     vdat     v-value of wind at the point (xlon,xlat) 
+c     udat     u-value of wind at the point (xlon,xlat)
+c     vdat     v-value of wind at the point (xlon,xlat)
 c     ifh      Integer index for the forecast hour
 c
 c     OUTPUT:
@@ -9455,18 +9455,18 @@ c      xxxx
       if (tmpcentlon > 330.0) then
 
         if (xlon > 360.0) then
-         
+
           tmpxlon = xlon  ! All lons will be in the 300+ range, so for
                           ! consistency, we're ok.
 
         elseif (xlon < 30.0) then
 
           tmpxlon = xlon + 360.  ! In this case, the fix center is just
-                          ! to the west of the GM with a lon (centlon) 
+                          ! to the west of the GM with a lon (centlon)
                           ! > 330, while the point being evaluated
-                          ! (xlon) is just east of the GM, but with a 
+                          ! (xlon) is just east of the GM, but with a
                           ! lon (centlon) < 30.  Need to adjust here to
-                          ! to get the xlon in the 330+ frame of 
+                          ! to get the xlon in the 330+ frame of
                           ! reference.
 
         endif
@@ -9480,7 +9480,7 @@ c      xxxx
           tmpxlon = xlon - 360.
 
         elseif (xlon > 330. .and. xlon < 360.) then
- 
+
           ! Convert centlon to match xlon in the 360+ reference frame
 
           tmpcentlon = 360. + tmpcentlon
@@ -9499,7 +9499,7 @@ c      xxxx
         ! Get both centlon and xlon in the 360+ reference frame
 
         if (xlon >= 360.0) then
- 
+
           tmpcentlon = 360. + tmpcentlon
           !!! bugfix Oct 2021  tmpxlon = xlon - 360.
           tmpxlon = xlon
@@ -9603,7 +9603,7 @@ c          endif
         tmpangle = 0.5 * (sin_angle + cos_angle)
 
         ! The previous lines of code just calculated an angle between
-        ! 0 and 90.  This next if structure adjusts that angle to 
+        ! 0 and 90.  This next if structure adjusts that angle to
         ! instead be between 0 and 360.
 
         if      (centlat <= xlat .and. tmpcentlon <= tmpxlon) then
@@ -9629,7 +9629,7 @@ c          endif
       if (ifh == 751) then
         write (6,141) udat,vdat,angle,uvrcomp,vvrcomp,uvtcomp,vvtcomp
   141   format (1x,'vjx udat= ',f7.2,' vdat= ',f7.2,' angle= ',f7.2
-     &            ,' uvrcomp= ',f7.2,' vvrcomp= ',f7.2 
+     &            ,' uvrcomp= ',f7.2,' vvrcomp= ',f7.2
      &            ,' uvtcomp= ',f7.2,' vvtcomp= ',f7.2)
       endif
 
@@ -9639,7 +9639,7 @@ c  116   format (1x,'vix: udat= ',f11.3,'  vdat= ',f11.3,'  vr= ',f11.3
 c     &            ,'  vt= ',f11.3)
 c      endif
 
-      return 
+      return
       end
 c
 c-----------------------------------------------------------------------
@@ -9651,14 +9651,14 @@ c-----------------------------------------------------------------------
      &         ,wcore_flag,istmspd,istmdir,shear_mag,shear_dir
      &         ,sst_smooth,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
 
-c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
-c     storm at an input forecast hour in the new ATCF UNIX format.  
-c     Unlike the old atcf DOS format in which you waited until the 
-c     whole tracking was over to write the  output for all forecast 
+c     ABSTRACT: This subroutine  outputs a 1-line message for a given
+c     storm at an input forecast hour in the new ATCF UNIX format.
+c     Unlike the old atcf DOS format in which you waited until the
+c     whole tracking was over to write the  output for all forecast
 c     hours, with this atcfunix format, each time we are calling this
 c     subroutine, it is to only write out 1 record, which will be the
-c     fix info for a particular storm at a given time.  Also, even 
-c     though we have some data (GFS, NAM) at 6-hour intervals, Jim 
+c     fix info for a particular storm at a given time.  Also, even
+c     though we have some data (GFS, NAM) at 6-hour intervals, Jim
 c     Gross informed me that TPC does not need the positions at such
 c     frequency, and keeping the reporting at 12 hour intervals is fine.
 c
@@ -9674,31 +9674,31 @@ c             NEQ,  155,  000,  000,  000
 c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  64,
 c             NEQ,  000,  000,  000,  000
 c
-c     (NOTE: Each of the above lines beginning with "AL" is output as 
+c     (NOTE: Each of the above lines beginning with "AL" is output as
 c            a single line of text.)
 c
-c     Note that in this example, for this 36h forecast hour, there are 
-c     3 entries.  This is so that we can include the radii for the 
+c     Note that in this example, for this 36h forecast hour, there are
+c     3 entries.  This is so that we can include the radii for the
 c     3 different wind thresholds (34kt, 50kt and 64kt).  So the only
 c     thing different in each entry is the wind radii info;  all the
 c     other info is identical for each entry.
 c
-c     This message also contains the intensity estimates (in knots) 
-c     for every forecast hours  The  conversion for m/s to knots is 
-c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft, 
+c     This message also contains the intensity estimates (in knots)
+c     for every forecast hours  The  conversion for m/s to knots is
+c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft,
 c     3600s/h).
 c
 c     NOTE: The longitudes that are passed into this subroutine are
-c     given in 0 - 360, increasing eastward.  The format for the 
+c     given in 0 - 360, increasing eastward.  The format for the
 c     atcfunix system requires that the  output be 0-180E or
 c     0-180W, so we must adjust the values, if needed.  Also, the
-c     values for southern latitudes must be positive (use 'N' and 
+c     values for southern latitudes must be positive (use 'N' and
 c     'S' to distinguish Northern/Southern Hemispheres).
 c
 c     INPUT:
-c     outlon    longitude  fix position for this storm at this time 
+c     outlon    longitude  fix position for this storm at this time
 c               which is to be written out to the  output file
-c     outlat    latitude  fix position for this storm at this time 
+c     outlat    latitude  fix position for this storm at this time
 c               which is to be written out to the  output file
 c     inp       contains input date and model number information
 c     ist       the number storm that we're processing (can be 1-15)
@@ -9713,24 +9713,24 @@ c     plastbar  pressure of the outermost closed isobar
 c     rlastbar  radius (nm) of the outermost closed isobar
 c     rmax      radius of max winds (n mi).... it was already converted
 c               from km to n mi in subroutine  get_max_wind
-c     cps_vals  real array with the values for the 3 cyclone phase 
+c     cps_vals  real array with the values for the 3 cyclone phase
 c               space parameters: (1) is for Parameter B (thermal
 c               asymmetry); (2) is for lower level (600-900 mb) thermal
 c               wind; (3) is for upper level (300-600 mb) thermal wind.
-c     wcore_flag character for value of 300-500 mb warm core: y, n, or 
+c     wcore_flag character for value of 300-500 mb warm core: y, n, or
 c               'u' for undetermined.
 c     istmspd   integer storm translation speed.
 c     istmdir   integer storm motion vector direction (to).
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
-c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     sst_smooth real barnes-averaged SST centered on mean fix
 c     axisymet_rmw_dist real distance to axisymmetric RMW
 c     axisymet_rmw_val  real value of axisymmetric RMW
 c
 c     OUTPUT:
 c     ioaxret   integer return code from this subroutine
-c     
+c
 c     LOCAL:
 c     intlon    integer that holds the value of outlon*10
 c     intlat    integer that holds the value of outlat*10
@@ -9865,7 +9865,7 @@ c     positive and use 'N' or 'S' to differentiate hemispheres.
 
       if (rmax == -99.0) then
         irmax = -99
-      else    
+      else
         irmax = int(rmax + 0.5)
       endif
 
@@ -9972,7 +9972,7 @@ c      comma_filler = comma_fill1//comma_fill2
         if (stcvtype(ist) == 'FOF') then
           ! If this is a TC vitals-described storm (i.e., one that is
           ! numbered by JTWC or NHC), then leave the basinid as is.
-          ! Otherwise, we want to use the "basinid" location as a 
+          ! Otherwise, we want to use the "basinid" location as a
           ! label to identify what type of run this is.
           if (trkrinfo%type == 'midlat') basinid = 'ML'
           if (trkrinfo%type == 'tcgen')  basinid = 'TG'
@@ -10042,9 +10042,9 @@ c      comma_filler = comma_fill1//comma_fill2
           write (64,81) basinid,storm(ist)%tcv_storm_id(1:2)
      &        ,atcfymdh
      &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)                   
-     &        ,int(xminmslp/mslp_outp_adj + 0.5)         
-     &        ,'XX,  50, NEQ'          
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  50, NEQ'
      &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
      &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
      &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
@@ -10105,10 +10105,10 @@ c-----------------------------------------------------------------------
      &         ,omega500_smooth,imeanzeta,igridzeta,ioaxret)
 
 c     ABSTRACT: This subroutine  is very similar to subroutine
-c     output_atcfunix, however it also writes out additional 
-c     parameters on the end that are not part of the standard 
+c     output_atcfunix, however it also writes out additional
+c     parameters on the end that are not part of the standard
 c     ATCF format.  As of March 2022, that includes these parms:
-c       
+c
 c       850 mb convergence
 c       850 mb moisture convergence
 c       800-600 mb layer mean RH
@@ -10117,9 +10117,9 @@ c       500 mb omega
 c       SST
 c
 c     INPUT:
-c     outlon    longitude  fix position for this storm at this time 
+c     outlon    longitude  fix position for this storm at this time
 c               which is to be written out to the  output file
-c     outlat    latitude  fix position for this storm at this time 
+c     outlat    latitude  fix position for this storm at this time
 c               which is to be written out to the  output file
 c     inp       contains input date and model number information
 c     ist       the number storm that we're processing (can be 1-15)
@@ -10134,18 +10134,18 @@ c     plastbar  pressure of the outermost closed isobar
 c     rlastbar  radius (nm) of the outermost closed isobar
 c     rmax      radius of max winds (n mi).... it was already converted
 c               from km to n mi in subroutine  get_max_wind
-c     cps_vals  real array with the values for the 3 cyclone phase 
+c     cps_vals  real array with the values for the 3 cyclone phase
 c               space parameters: (1) is for Parameter B (thermal
 c               asymmetry); (2) is for lower level (600-900 mb) thermal
 c               wind; (3) is for upper level (300-600 mb) thermal wind.
-c     wcore_flag character for value of 300-500 mb warm core: y, n, or 
+c     wcore_flag character for value of 300-500 mb warm core: y, n, or
 c               'u' for undetermined.
 c     istmspd   integer storm translation speed.
 c     istmdir   integer storm motion vector direction (to).
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
-c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     sst_smooth real barnes-averaged SST centered on mean fix
 c     axisymet_rmw_dist real distance to axisymmetric RMW
 c     axisymet_rmw_val  real value of axiysymmetric RMW
 c     divg      real barnes-averaged 850 mb convergence
@@ -10158,7 +10158,7 @@ c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
 c
 c     OUTPUT:
 c     ioaxret   integer return code from this subroutine
-c     
+c
 c     LOCAL:
 c     intlon    integer that holds the value of outlon*10
 c     intlat    integer that holds the value of outlat*10
@@ -10277,7 +10277,7 @@ c     positive and use 'N' or 'S' to differentiate hemispheres.
 
       if (rmax == -99.0) then
         irmax = -99
-      else    
+      else
         irmax = int(rmax + 0.5)
       endif
 
@@ -10433,7 +10433,7 @@ c      comma_filler = comma_fill1//comma_fill2
         if (stcvtype(ist) == 'FOF') then
           ! If this is a TC vitals-described storm (i.e., one that is
           ! numbered by JTWC or NHC), then leave the basinid as is.
-          ! Otherwise, we want to use the "basinid" location as a 
+          ! Otherwise, we want to use the "basinid" location as a
           ! label to identify what type of run this is.
           if (trkrinfo%type == 'midlat') basinid = 'ML'
           if (trkrinfo%type == 'tcgen')  basinid = 'TG'
@@ -10546,9 +10546,9 @@ c      comma_filler = comma_fill1//comma_fill2
           write (68,81) basinid,storm(ist)%tcv_storm_id(1:2)
      &        ,atcfymdh
      &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)                   
-     &        ,int(xminmslp/mslp_outp_adj + 0.5)         
-     &        ,'XX,  50, NEQ'          
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
+     &        ,'XX,  50, NEQ'
      &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
      &        ,iplastbar,irlastbar,irmax,comma_fill1n,istmdir,istmspd
      &        ,comma_fill2n,icps_vals(1),icps_vals(2),icps_vals(3)
@@ -10931,54 +10931,54 @@ c-----------------------------------------------------------------------
 c     ABSTRACT: This subroutine  outputs a 1-line message for a given
 c     storm at an input forecast hour in a modified ATCF UNIX format.
 c     The modification is to allow for sub-hourly output.  That is,
-c     instead of just integer output hours, we can have output at 
-c     10, 15 or 20 past an hour.  This necessitates a change in the 
+c     instead of just integer output hours, we can have output at
+c     10, 15 or 20 past an hour.  This necessitates a change in the
 c     "forecast hour" placeholder in the ATCF format.  Instead of it
 c     being an I3, we'll make it an I5, with something like a lead time
 c     of 36.25h being rounded and truncated to 03625 for output.
-c     
+c
 c     An example set of output records using the standard atcf format
 c     looks like the following:
-c     
+c
 c     AL, 13, 2000092500, 03, AVNO, 036, 243N, 675W, 42, 995, XX,  34,
 c             NEQ,  242,  163,  124,  208
 c     AL, 13, 2000092500, 03, AVNO, 036, 243N, 675W, 42, 995, XX,  50,
 c             NEQ,  155,  000,  000,  000
 c     AL, 13, 2000092500, 03, AVNO, 036, 243N, 675W, 42, 995, XX,  64,
 c             NEQ,  000,  000,  000,  000
-c     
+c
 c     An example set of modified output records will look like the
 c     following, for the case of a lead time of 36:15 (36.25):
-c     
+c
 c     AL, 13, 2000092500, 03, AVNO, 03625, 243N, 675W, 42, 995, XX,  34,
 c             NEQ,  242,  163,  124,  208
 c     AL, 13, 2000092500, 03, AVNO, 03625, 243N, 675W, 42, 995, XX,  50,
 c             NEQ,  155,  000,  000,  000
 c     AL, 13, 2000092500, 03, AVNO, 03625, 243N, 675W, 42, 995, XX,  64,
 c             NEQ,  000,  000,  000,  000
-c     
+c
 c     (NOTE: Each of the above lines beginning with "AL" is output as
 c            a single line of text.)
-c     
+c
 c     Note that in this example, for this 36h forecast hour, there are
 c     3 entries.  This is so that we can include the radii for the
 c     3 different wind thresholds (34kt, 50kt and 64kt).  So the only
 c     thing different in each entry is the wind radii info;  all the
 c     other info is identical for each entry.
-c     
+c
 c     This message also contains the intensity estimates (in knots)
 c     for every forecast hours  The  conversion for m/s to knots is
 c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft,
 c     3600s/h).
-c     
+c
 c     NOTE: The longitudes that are passed into this subroutine are
 c     given in 0 - 360, increasing eastward.  The format for the
 c     atcfunix system requires that the  output be 0-180E or
 c     0-180W, so we must adjust the values, if needed.  Also, the
 c     values for southern latitudes must be positive (use 'N' and
 c     'S' to distinguish Northern/Southern Hemispheres).
-c     
-c     INPUT:    
+c
+c     INPUT:
 c     storm     An array of type tcvcard.  Use this for the storm ID
 c     outlon    longitude  fix position for this storm at this time
 c               which is to be written out to the  output file
@@ -11593,7 +11593,7 @@ c     Total wind (converted to knots*10), storm relative....
             ioutwind(ir) = int((sr_wind(iq,ir)*conv_ms_knots*10)+0.5)
           endif
 c          write (6,172) '72 ',crel(iq),'R',iq,ir,sr_wind(iq,ir)
-c     &                 ,ioutwind(ir) 
+c     &                 ,ioutwind(ir)
         enddo
         write (72,81) basinid,storm(ist)%tcv_storm_id(1:2)
      &    ,atcfymdh
@@ -12057,12 +12057,12 @@ c-----------------------------------------------------------------------
      &         ,omega500_smooth,sst_smooth
      &         ,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
 
-c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
-c     storm at an input forecast hour in a modified atcfunix format.  
-c     The reason that it's called "modified" is that the format is 
-c     slightly different from the standard TPC-accepted atcfunix 
+c     ABSTRACT: This subroutine  outputs a 1-line message for a given
+c     storm at an input forecast hour in a modified atcfunix format.
+c     The reason that it's called "modified" is that the format is
+c     slightly different from the standard TPC-accepted atcfunix
 c     format that they use for TCs.  Specifically, the first part that
-c     identifies the storm is different.  Here's an example of the 
+c     identifies the storm is different.  Here's an example of the
 c     TPC standard atcfunix format:
 c
 c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  34,
@@ -12072,15 +12072,15 @@ c             NEQ,  155,  000,  000,  000
 c     AL, 13, 2000092500, 03, GFSO, 036, 243N, 675W, 42, 995, XX,  64,
 c             NEQ,  000,  000,  000,  000
 c
-c     (NOTE: Each of the above lines beginning with "AL" is output as 
-c            a single line of text.... they're just broken up into 2 
+c     (NOTE: Each of the above lines beginning with "AL" is output as
+c            a single line of text.... they're just broken up into 2
 c            lines here for readability.)
 c
-c     Here's an example of the modified output format for the same 
+c     Here's an example of the modified output format for the same
 c     storm.  Note that the lat/lon identifier in the new storm id at
 c     the beginning of the record is different from that shown later
 c     in the record.  The reason is that the lat/lon identifier will
-c     be the one that is pulled from the tcvitals or gen_vitals 
+c     be the one that is pulled from the tcvitals or gen_vitals
 c     record:
 c
 c     2000092500_230N_0658W_13L, 2000092500, 03, GFSO, 036, 243N, 675W,
@@ -12091,28 +12091,28 @@ c     2000092500_230N_0658W_13L, 2000092500, 03, GFSO, 036, 243N, 675W,
 c             42, 995, XX,  64, NEQ,  000,  000,  000,  000
 c
 c
-c     Note that in this example, for this 36h forecast hour, there are 
-c     3 entries.  This is so that we can include the radii for the 
+c     Note that in this example, for this 36h forecast hour, there are
+c     3 entries.  This is so that we can include the radii for the
 c     3 different wind thresholds (34kt, 50kt and 64kt).  So the only
 c     thing different in each entry is the wind radii info;  all the
 c     other info is identical for each entry.
 c
-c     This message also contains the intensity estimates (in knots) 
-c     for every forecast hours  The  conversion for m/s to knots is 
-c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft, 
+c     This message also contains the intensity estimates (in knots)
+c     for every forecast hours  The  conversion for m/s to knots is
+c     to multiply m/s by 1.9427 (3.281 ft/m, 1 naut mile/6080 ft,
 c     3600s/h).
 c
 c     NOTE: The longitudes that are passed into this subroutine are
-c     given in 0 - 360, increasing eastward.  The format for the 
+c     given in 0 - 360, increasing eastward.  The format for the
 c     atcfunix system requires that the  output be 0-180E or
 c     0-180W, so we must adjust the values, if needed.  Also, the
-c     values for southern latitudes must be positive (use 'N' and 
+c     values for southern latitudes must be positive (use 'N' and
 c     'S' to distinguish Northern/Southern Hemispheres).
 c
 c     INPUT:
-c     outlon    longitude  fix position for this storm at this time 
+c     outlon    longitude  fix position for this storm at this time
 c               which is to be written out to the  output file
-c     outlat    latitude  fix position for this storm at this time 
+c     outlat    latitude  fix position for this storm at this time
 c               which is to be written out to the  output file
 c     inp       contains input date and model number information
 c     ist       the number storm that we're processing (can be 1-15)
@@ -12137,13 +12137,13 @@ c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
-c     sst_smooth real barnes-averaged SST centered on mean fix 
+c     sst_smooth real barnes-averaged SST centered on mean fix
 c     axisymet_rmw_dist real distance to axisymmetric RMW
 c     axisymet_rmw_val  real value of axisymmetric RMW
-c 
+c
 c     OUTPUT:
 c     ioaxret   integer return code from this subroutine
-c     
+c
 c     LOCAL:
 c     intlon    integer that holds the value of outlon*10
 c     intlat    integer that holds the value of outlat*10
@@ -12268,10 +12268,10 @@ c     identifier at the beginning of the modified atcfunix record.
         continue    ! Just use the info off the genesis vitals record
 
       else
-          
+
         ! This storm was found on the fly during
         ! this run and there was no previous vitals record for
-        ! this system.  The information that will be used to 
+        ! this system.  The information that will be used to
         ! identify the genesis location is the same exact info
         ! as the  tracker-found position for this time.
 
@@ -12518,7 +12518,7 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,gstm%gv_gen_lonew,gstm%gv_gen_type
      &        ,atcfymdh
      &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)                   
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  50, NEQ'
      &        ,vradius(2,1),vradius(2,2),vradius(2,3),vradius(2,4)
@@ -12537,7 +12537,7 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,gstm%gv_gen_lonew,gstm%gv_gen_type
      &        ,atcfymdh
      &        ,adjustr(atcfname),output_fhr,intlat,clatns,intlon,clonew
-     &        ,int((vmaxwind*conv_ms_knots) + 0.5)                   
+     &        ,int((vmaxwind*conv_ms_knots) + 0.5)
      &        ,int(xminmslp/mslp_outp_adj + 0.5)
      &        ,'XX,  64, NEQ'
      &        ,vradius(3,1),vradius(3,2),vradius(3,3),vradius(3,4)
@@ -12570,8 +12570,8 @@ c-----------------------------------------------------------------------
      &               ,xminmslp,maxstorm,trkrinfo
      &               ,clon,clat,calcparm,xval,ioapret)
 c
-c     ABSTRACT: This subroutine  outputs a 1-line message for a given 
-c     storm at an input forecast hour in a modified atcfunix format.  
+c     ABSTRACT: This subroutine  outputs a 1-line message for a given
+c     storm at an input forecast hour in a modified atcfunix format.
 c     The purpose is to output the lat/lon fix positions and values
 c     for these  tracker parameters: zeta850, zeta700, circ850, circ700,
 c     gph850, gph700, MSLP, circsfc, zetasfc.
@@ -12593,7 +12593,7 @@ c     calcparm  Logical; Tells whether or not this parm's location fix
 c               for this storm at this lead time was used for the mean
 c               fix position or not.
 c     xval      real array with the values of the individual parms
-c 
+c
 c     OUTPUT:
 c     ioapret   integer return code from this subroutine
 
@@ -12611,6 +12611,7 @@ c     ioapret   integer return code from this subroutine
       integer ip,icc,output_fhr,k,intlonew,intlatns,ifh
       integer iclon(9),iclat(9),icxval(9)
       character :: icvalid(9)*1,clatns*1,clonew*1
+      character  basinid*2
       logical(1) calcparm(maxtp,maxstorm)
 c
       if ( verb .ge. 3) then
@@ -12641,7 +12642,7 @@ c
 
 c     First convert all of the lat/lon values from reals into integers.
 c     These integer values must be 100x their real value (eg. 125.42
-c     be written out as 12542).  Leave longitudes in original 
+c     be written out as 12542).  Leave longitudes in original
 c     0-360E format ('W' and 'E' will not be printed out).
 
       conv_ms_knots = 1.9427
@@ -12662,16 +12663,16 @@ c     0-360E format ('W' and 'E' will not be printed out).
         intmeanlat = nint (xmeanlat*100)
         if (xmeanlon >= 180.0) then
           intlonew = 3600 - int(xmeanlon * 10. + 0.5)
-          clonew = 'W' 
-        else  
+          clonew = 'W'
+        else
           intlonew = int(xmeanlon * 10. + 0.5)
-          clonew = 'E' 
-        endif 
+          clonew = 'E'
+        endif
         intlatns = int(abs(xmeanlat) * 10. + 0.5)
         if (xmeanlat < 0.0) then
-          clatns = 'S' 
-        else  
-          clatns = 'N' 
+          clatns = 'S'
+        else
+          clatns = 'N'
         endif
       endif
 
@@ -12718,7 +12719,7 @@ c     identifier at the beginning of the modified atcfunix record.
 
         ! This storm was found on the fly during
         ! this run and there was no previous vitals record for
-        ! this system.  The information that will be used to 
+        ! this system.  The information that will be used to
         ! identify the genesis location is the same exact info
         ! as the  tracker-found position for this time.
 
@@ -12880,18 +12881,18 @@ c     components that we need to.
         stm%tcv_lon = int(xlon * 10. + 0.5)
         stm%tcv_lonew = 'E'
       endif
-      
+
       if ( verb .ge. 3 ) then
         write (6,*) ' '
         write (6,21) stm
       endif
 
       write (65,21) stm
-      
+
    21 format (a4,1x,a3,1x,a9,1x,i8.8,1x,i4.4,1x,i3,a1,1x,i4,a1,1x
      &       ,i3,1x,i3,3(1x,i4),1x,i2,1x,i3,1x,4(i4,1x),a1)
-      
-c     
+
+c
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(65)
 
@@ -12904,19 +12905,19 @@ c---------------------------------------------------------------------
       subroutine output_gen_vitals (xlon,xlat,inp,ist,istmspd,istmdir
      &                             ,iovret)
 c
-c     ABSTRACT: This subroutine  outputs a modified vitals record.  
+c     ABSTRACT: This subroutine  outputs a modified vitals record.
 c     The lat/lon location is given by the xlon and xlat that are
 c     input to this subroutine.
 c
 c     The reason that these are referred to as modified tcvitals is
 c     that the format is different from standard TC vitals format.
-c     The storm identifier is different than that for a standard 
-c     tcvitals.  The storm identifier contains the date/time that 
+c     The storm identifier is different than that for a standard
+c     tcvitals.  The storm identifier contains the date/time that
 c     the storm was first identified, and the lat/lon position at
 c     which it was first identified.
 c
 c     EXAMPLE:  The following is a standard TC Vitals record, split
-c               up over 3 lines:           
+c               up over 3 lines:
 c
 c       NHC  01L ALBERTO   20060614 1200 343N 0807W 035 093 1004 1012
 c            0278 15 222 -999 -999 -999 -999 M -999 -999 -999 -999 72
@@ -12933,8 +12934,8 @@ c     EXAMPLE:  If the vitals record is for a non-officially numbered
 c               system (i.e., any system that's not a TC being tracked
 c               by NHC or JTWC), then the storm number is replaced
 c               by the characters "FOF", for "Found On the Fly" by
-c               the  tracker.               
-c                                          
+c               the  tracker.
+c
 c       2006071500_F000_150N_0681W_FOF 20060718 1200 185N 0792W 035 093
 c            1004 1012 0278 15 222 -999 -999 -999 -999 M -999 -999
 c            -999 -999 72 520N  410W  -999 -999 -999 -999
@@ -12970,9 +12971,9 @@ c     components that we need to.
 
       gstm = gstorm(ist)
 
-c     If the "gv_gen_date" for this storm does not equal 99999, 
-c     then that means that a vitals was read in for this storm in 
-c     subroutine  read_gen_vitals, so be sure to use the genesis 
+c     If the "gv_gen_date" for this storm does not equal 99999,
+c     then that means that a vitals was read in for this storm in
+c     subroutine  read_gen_vitals, so be sure to use the genesis
 c     date, genesis latitude and genesis longitude for the storm
 c     identifier at the beginning of the vitals record.
 
@@ -12982,7 +12983,7 @@ c     identifier at the beginning of the vitals record.
           ! If this is not a 'FOF' storm (found on the fly storm), then
           ! it must be a TC vitals storm, or a tropical cyclone, and we
           ! don't want to create a vitals record for a tropical cyclone,
-          ! since we will rely on reading them from the TC Vitals 
+          ! since we will rely on reading them from the TC Vitals
           ! database instead.
           return
         endif
@@ -13002,23 +13003,23 @@ c     identifier at the beginning of the vitals record.
         gstm%gv_gen_fhr = 0
 
         gstm%gv_gen_lat = int(abs(xlat) * 10. + 0.5)
-        if (xlat < 0.0) then                    
+        if (xlat < 0.0) then
           gstm%gv_gen_latns = 'S'
-        else                 
+        else
           gstm%gv_gen_latns = 'N'
-        endif                
-                           
+        endif
+
         if (xlon >= 180.) then
           gstm%gv_gen_lon = 3600 - int(xlon * 10. + 0.5)
-          gstm%gv_gen_lonew = 'W'                      
-        else                                        
+          gstm%gv_gen_lonew = 'W'
+        else
           gstm%gv_gen_lon = int(xlon * 10. + 0.5)
-          gstm%gv_gen_lonew = 'E'               
+          gstm%gv_gen_lonew = 'E'
         endif
 
         gstm%gv_gen_type = 'FOF'
 
-        ! Transfer all this local "gstm" data back into the 
+        ! Transfer all this local "gstm" data back into the
         ! saved "gstorm" array for use in subsequent fcst hrs...
 
         gstorm(ist) = gstm
@@ -13033,18 +13034,18 @@ c     identifier at the beginning of the vitals record.
       gstm%gv_obs_hhmm = inp%bhh * 100
 
       gstm%gv_obs_lat = int(abs(xlat) * 10. + 0.5)
-      if (xlat < 0.0) then                       
-        gstm%gv_obs_latns = 'S'              
-      else                    
+      if (xlat < 0.0) then
+        gstm%gv_obs_latns = 'S'
+      else
         gstm%gv_obs_latns = 'N'
-      endif                   
-                          
+      endif
+
       if (xlon >= 180.) then
         gstm%gv_obs_lon = 3600 - int(xlon * 10. + 0.5)
-        gstm%gv_obs_lonew = 'W'                      
-      else                                          
-        gstm%gv_obs_lon = int(xlon * 10. + 0.5)  
-        gstm%gv_obs_lonew = 'E'               
+        gstm%gv_obs_lonew = 'W'
+      else
+        gstm%gv_obs_lon = int(xlon * 10. + 0.5)
+        gstm%gv_obs_lonew = 'E'
       endif
 
       gstm%gv_stdir = istmdir
@@ -13076,10 +13077,10 @@ c-----------------------------------------------------------------------
      &                ,imax,jmax,iotmret)
 c
 c     ABSTRACT: This subroutine  outputs a GRIB record that contains the
-c     "mask" used to mask out areas surrounding low pressure centers 
+c     "mask" used to mask out areas surrounding low pressure centers
 c     that have been found during the search at each forecast hour. This
-c     mask is written out purely for diagnostic purposes.  The GRIB 
-c     identifier given to the mask in the pds is 850 mb height (you can 
+c     mask is written out purely for diagnostic purposes.  The GRIB
+c     identifier given to the mask in the pds is 850 mb height (you can
 c     make it anything you want).  This is only done for the "midlat"
 c     and "tcgen" cases, since the runs for those cases use a mask while
 c     the regular "tracker" run (that is, the run which strictly tracks
@@ -13113,9 +13114,9 @@ c
           print *,'!!! **OUTPUT** grib files.  baopenw return codes:'
           print *,'!!! grib file 1 return code = igoret = ',igoret
           STOP 95
-          return    
-        endif   
-      endif  
+          return
+        endif
+      endif
 
       xmask = 0.0
       do jjx = 1,jmax
@@ -13125,12 +13126,12 @@ c
           else
             xmask(iix,jjx) = 0.0
           endif
-        enddo  
-      enddo  
+        enddo
+      enddo
 
       kf = imax * jmax
 
-c      kpds(5)  =       7  
+c      kpds(5)  =       7
 c      kpds(6)  =     100
 c      kpds(7)  =     850
 c      kpds(22) =       0
@@ -13236,24 +13237,24 @@ c-----------------------------------------------------------------------
      &          ,istmdir,ctype,trkrinfo,ignret)
 c
 c     ABSTRACT: This subroutine calculates a guess position for the next
-c               forecast time.  It does this by using two different 
+c               forecast time.  It does this by using two different
 c               methods and averaging the results from those two.  The
 c               first method is a simple linear extrapolation made by
-c               basically drawing a line from the previous position 
+c               basically drawing a line from the previous position
 c               through the current fix position and assuming straight
-c               line motion.  The second method is to do a barnes 
-c               smoothing of u & v in the vicinity of the storm at 850, 
-c               700 & 500 mb to get an average environmental wind 
-c               vector at each level, and then move the storm according 
+c               line motion.  The second method is to do a barnes
+c               smoothing of u & v in the vicinity of the storm at 850,
+c               700 & 500 mb to get an average environmental wind
+c               vector at each level, and then move the storm according
 c               to the vector at each level.  Then a weighted average is
-c               taken of all these positions from methods 1 & 2 to get 
-c               the consensus for the guess position.  NOTE: For a 
+c               taken of all these positions from methods 1 & 2 to get
+c               the consensus for the guess position.  NOTE: For a
 c               regional model and a storm that is relatively close to
 c               the model boundary, there is a strong possibility that
 c               the  barnes analysis subroutine will fail due to trying
-c               to access grid points beyond the model's lateral  
+c               to access grid points beyond the model's lateral
 c               boundary.  In this case, the redlm & ridlm are halved
-c               and barnes is called again.  If it still fails, then 
+c               and barnes is called again.  If it still fails, then
 c               just use the result from method 1 as a default.
 c
 c     INPUT:
@@ -13270,11 +13271,11 @@ c     valid_pt Logical; bitmap indicating if valid data at that pt.
 c     readflag Logical; Tells whether or not a variable was read in
 c              for this model
 c     maxstorm Max # of storms that can be handled in this run
-c     ctype   character that lets subroutine know if this is a search 
+c     ctype   character that lets subroutine know if this is a search
 c             for the next position for the purposes of tc vitals or
 c             for general tracking.  In the case of vitals, eventually
-c             in the  barnes subroutine we are more lax and allow the 
-c             routine to keep searching even if we are close to the 
+c             in the  barnes subroutine we are more lax and allow the
+c             routine to keep searching even if we are close to the
 c             grid boundary.  In a general tracking search, if we hit
 c             the grid boundary even just once, we exit.
 c     trkrinfo derived type detailing user-specified grid info
@@ -13282,7 +13283,7 @@ c
 c     OUTPUT:
 c     istmspd The speed that the storm would have to move to get from
 c             the current position to the next guess position
-c     istmdir The direction in which the storm would have to move to 
+c     istmdir The direction in which the storm would have to move to
 c             get from the current position to the next guess position
 c
 c     LOCAL:
@@ -13294,19 +13295,19 @@ c             for use in calling barnes.  If you're using a regional
 c             model and on the first call to barnes you try to access
 c             a point that's outside the model grid boundary, we'll
 c             call  barnes again, but not before cutting the redlm and
-c             ridlm in half.  icutmax says how many times to allow 
+c             ridlm in half.  icutmax says how many times to allow
 c             this cutting in half before giving up and just going
 c             with the extrapolation method.  At first writing, we'll
-c             set icutmax to 2, so that it will allow the ridlm to 
-c             get down to 500 km (originally 2000 km) and the redlm 
+c             set icutmax to 2, so that it will allow the ridlm to
+c             get down to 500 km (originally 2000 km) and the redlm
 c             to 125 km (originally 500 km).
 c         *** NOTE: After testing the system, it was found that if
-c             we cut these radii, the u and v values that are 
+c             we cut these radii, the u and v values that are
 c             calculated from barnes are too strongly influenced by
 c             the near-storm environment and, especially for asymmetric
 c             systems, resulted in u and v values being much too strong.
 c             As such, we will not allow these values to be cut, and if
-c             we hit the boundaries in barnes, we'll just use the 
+c             we hit the boundaries in barnes, we'll just use the
 c             extrapolation method, which has seemed to work just fine.
 c
 c     OTHER:  (slonfg, slatfg & storm defined in module def_vitals)
@@ -13348,17 +13349,17 @@ c
       ileadtime = nint(fhreal(ifh) * 100.0)
       ifcsthour = ileadtime / 100
 c
-c     For updating the first guess, if Method 1 and Method 2 are both 
+c     For updating the first guess, if Method 1 and Method 2 are both
 c     able to be done, give the following weights to the 2 methods.
-c      
+c
       data barneswt /0.50/, extrapwt /0.50/
 c
 c     -------------------------------
 c     METHOD 1: LINEAR EXTRAPOLATION
 c     -------------------------------
 c     First, just do a simple linear extrapolation from the previous
-c     fix position through the current fix position.  If it's the 
-c     first time (vt=0), then use the storm motion vector and storm 
+c     fix position through the current fix position.  If it's the
+c     first time (vt=0), then use the storm motion vector and storm
 c     speed information from the TC Vitals card.
 c
       dtkm = dtk * 1000.
@@ -13404,11 +13405,11 @@ c       through the current fix and extrapolate out.  To figure out the
 c       new latitude, just see how many deg lat the storm moved since
 c       last time and add it to the current fix latitude.  To calculate
 c       the new fix longitude, though, we need to see how many deg lon
-c       the storm moved since the last time, convert that to the 
+c       the storm moved since the last time, convert that to the
 c       distance (km) the storm travelled in the x-direction (at an
 c       average latitude between the current and previous latitudes),
-c       and then add that distance on to the current longitude and 
-c       convert that distance to the num of degrees the storm has 
+c       and then add that distance on to the current longitude and
+c       convert that distance to the num of degrees the storm has
 c       travelled in the x-direction (at an average latitude between
 c       the current and next(extrap) latitudes).
 c
@@ -13442,7 +13443,7 @@ c       I had to modify this linear extrapolation.
                 print *,'    current time are both negative.  All ok!'
                 print *,'    tmp_fix_lon_prev= ',tmp_fix_lon_prev
                 print *,'    tmp_fix_lon_curr= ',tmp_fix_lon_curr
-              endif 
+              endif
             elseif (tmp_fix_lon_curr > 0.0 .and.
      &              tmp_fix_lon_curr < 25.0) then
               if (verb .ge. 3) then
@@ -13455,7 +13456,7 @@ c       I had to modify this linear extrapolation.
               endif
             endif
 
-          elseif (tmp_fix_lon_prev > 335.0 .and. 
+          elseif (tmp_fix_lon_prev > 335.0 .and.
      &            tmp_fix_lon_prev <= 360.0) then
             ! previous lon position is within 25 deg west of the GM
             ! and is listed in positive degrees.
@@ -13468,7 +13469,7 @@ c       I had to modify this linear extrapolation.
                 print *,'    current time are both positive.  All ok!'
                 print *,'    tmp_fix_lon_prev= ',tmp_fix_lon_prev
                 print *,'    tmp_fix_lon_curr= ',tmp_fix_lon_curr
-              endif 
+              endif
             elseif (tmp_fix_lon_curr > 0.0 .and.
      &              tmp_fix_lon_curr <= 25.0) then
               tmp_fix_lon_curr = tmp_fix_lon_curr + 360.0
@@ -13528,22 +13529,22 @@ c       I had to modify this linear extrapolation.
 
           xnumh_next = fhreal(ifh+1) - fhreal(ifh)
 
-          extraplat = fixlat(ist,ifh)  
+          extraplat = fixlat(ist,ifh)
      &              + (ylatdegmove_last_perhour * xnumh_next)
 
           yoldavglat = 0.5 * (fixlat(ist,ifh) + fixlat(ist,ifh-1))
           yoldcosfac = cos (dtr * yoldavglat)
           xdistmove_last  = xlondegmove_last * dtk * yoldcosfac
-      
+
           xdistmove_last_perhour = xdistmove_last / xnumh_last
-      
+
           ynewavglat = 0.5 * (extraplat + fixlat(ist,ifh))
           ynewcosfac = cos(dtr * ynewavglat)
           xdegnew    = (xdistmove_last_perhour * xnumh_next)
-     &               / (dtk * ynewcosfac) 
+     &               / (dtk * ynewcosfac)
           extraplon  = tmp_fix_lon_curr + xdegnew
 
-        else 
+        else
 
           if ( verb .ge. 3 ) then
             print *,' '
@@ -13570,13 +13571,13 @@ c     METHOD 2: Barnes analysis
 c     -------------------------------
 c     Do a barnes analysis on the u & v components of the wind near the
 c     storm to get an average u & v, then advect the storm according to
-c     the average wind vector obtained.  The call to get_ij_bounds is 
-c     needed in order to restrict the number of grid points that are 
-c     searched in the  barnes subroutine.  See Abstract from this 
+c     the average wind vector obtained.  The call to get_ij_bounds is
+c     needed in order to restrict the number of grid points that are
+c     searched in the  barnes subroutine.  See Abstract from this
 c     subroutine for further details.
- 
+
       npts = ceiling(ridlm/(dtk*((dx+dy)/2)))
- 
+
       call get_ij_bounds (npts,0,ridlm,imax,jmax,dx,dy
      & ,glatmax,glatmin,glonmax,glonmin,fixlon(ist,ifh),fixlat(ist,ifh)
      & ,trkrinfo,ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret)
@@ -13660,21 +13661,21 @@ c     Calculate average wind at each level (currently: 850, 700 & 500)
             call barnes (fixlon(ist,ifh),fixlat(ist,ifh),glon,glat
      &           ,imax,jmax,ibeg,jbeg,iend,jend,v(1,1,n),valid_pt
      &           ,bskip,re,ri,vavg,icount,ctype,trkrinfo,ivret)
-      
+
             if (iuret /= 0 .or. ivret /= 0) then
- 
+
 c             ...barnes probably tried to access a pt outside the grid
 c             domain.  So, reduce by half the distance from the center
 c             of the farthest pt that barnes tries to access, exit this
 c             loop, and try it again with the smaller re and ri.
- 
+
               iuret = 96; ivret = 96
               reold = re
               riold = ri
               re = 0.5 * re
               ri = 0.5 * ri
               if ( verb .ge. 3 ) then
-                print *,' ' 
+                print *,' '
                 print *,'NOTE: While attempting to use the  barnes '
                 print *,'method to update the first guess, the '
                 print *,'algorithm tried to access a grid point that '
@@ -13688,7 +13689,7 @@ c             loop, and try it again with the smaller re and ri.
                 print *,'Old re = ',reold,' New re = ',re
                 print *,'Old ri = ',riold,' New ri = ',ri
               endif
-                
+
               exit levelloop
 
             else
@@ -13710,12 +13711,12 @@ c             loop, and try it again with the smaller re and ri.
             endif
 
           endif
-              
+
         enddo levelloop
 
         if (ibarnct > 0 .and. wgttot > 0.0) then
           barnes_flag = 'y'
-          in_grid = 'y'    
+          in_grid = 'y'
           ubar = ubar / wgttot
           vbar = vbar / wgttot
           barnlat = fixlat(ist,ifh) + (vbar * dt)/dtkm
@@ -13736,9 +13737,9 @@ c             loop, and try it again with the smaller re and ri.
 
 c         This next if statement says that if we've had to reduce the
 c         size of the  barnes analysis domain twice already, then we've
-c         only done the analysis on a much smaller area, and this 
+c         only done the analysis on a much smaller area, and this
 c         doesn't give us as good a picture of the average winds in the
-c         area of the storm, so reduce the emphasis we place on the 
+c         area of the storm, so reduce the emphasis we place on the
 c         barnes method.
 
           if (icut >= 2) barneswt = barneswt / 2.
@@ -13754,7 +13755,7 @@ c         barnes method.
 c     ---------------------
 c     Average the results
 c     ---------------------
-c     Now do a weighted average of the positions obtained from the 
+c     Now do a weighted average of the positions obtained from the
 c     linear extrapolation and the  barnes analysis methods.
 
       if (extrap_flag == 'y' .and. barnes_flag == 'y') then
@@ -13766,25 +13767,25 @@ c     linear extrapolation and the  barnes analysis methods.
         ! any of these to be > 360, the original fixlon must be close
         ! to 360, i.e., in the far eastern part of the grid, as opposed
         ! to being in the far western part (e.g., 0-2 deg East or so).
-        ! Conversely, for any of these to be < 0, the original fixlon 
-        ! must be close to 0, i.e., in the far *western* part of the 
+        ! Conversely, for any of these to be < 0, the original fixlon
+        ! must be close to 0, i.e., in the far *western* part of the
         ! grid.
 
 c         yyyy
 
         if (fixlon(ist,ifh) > 330.0) then
 
-          ! In this part of the IF, we will make sure that the two 
-          ! guess lons (barnlon and extraplon) are consistent as 
+          ! In this part of the IF, we will make sure that the two
+          ! guess lons (barnlon and extraplon) are consistent as
           ! both being 330+, to be consistent with the fixlon for
           ! this time.
 
           if (extraplon > 330. .and. barnlon > 330.) then
 
-            continue  ! All lons will be in the 300+ range, so for 
+            continue  ! All lons will be in the 300+ range, so for
                       ! consistency, we're ok.
 
-          elseif (extraplon > 330. .and. 
+          elseif (extraplon > 330. .and.
      &            (barnlon >= 0.0 .and. barnlon < 30.)) then
 
             ! extraplon > 330, but barnlon is in the 0-30 range, so
@@ -13818,19 +13819,19 @@ c         yyyy
 
         elseif (fixlon(ist,ifh) >= 0. and. fixlon(ist,ifh) < 30.0) then
 
-          ! In this part of the ELSEIF, we will make sure that the two 
-          ! guess lons (barnlon and extraplon) are consistent as 
-          ! both being in the reference of >360 since that is what the 
-          ! code below this is expecting with the computation of 
+          ! In this part of the ELSEIF, we will make sure that the two
+          ! guess lons (barnlon and extraplon) are consistent as
+          ! both being in the reference of >360 since that is what the
+          ! code below this is expecting with the computation of
           ! slonfg for the next lead time.
 
-          if ((extraplon >= 0. .and. extraplon < 60.) .and. 
+          if ((extraplon >= 0. .and. extraplon < 60.) .and.
      &        (barnlon   >= 0. .and. barnlon < 60.)) then
 
               extraplon = extraplon + 360.
               barnlon   = barnlon + 360.
 
-          elseif ((extraplon < 0. .and. extraplon > -60.) .and. 
+          elseif ((extraplon < 0. .and. extraplon > -60.) .and.
      &            (barnlon   < 0. .and. barnlon > -60.)) then
 
             ! convert extraplon and barnlon to be positive
@@ -13872,7 +13873,7 @@ c         yyyy
         else
 
           continue   ! extraplon and barnlon do not need to be modified
-                     ! since there should be no way that a storm 
+                     ! since there should be no way that a storm
                      ! currently east of 30E and west of 30W could make
                      ! it to the Greenwich Mer in one forecast interval
 
@@ -13896,18 +13897,18 @@ c         yyyy
         if ( verb .ge. 3 ) then
           write (6,*) ' '
           if (barnlon >= 360.) then
-            write (6,41) barnlon-360.,720.-barnlon,barnlat        
+            write (6,41) barnlon-360.,720.-barnlon,barnlat
           elseif (barnlon >= 0. .and. barnlon < 360.) then
-            write (6,41) barnlon,360.-barnlon,barnlat        
+            write (6,41) barnlon,360.-barnlon,barnlat
           elseif (barnlon < 0.) then
-            write (6,41) barnlon+360.,-1.*barnlon,barnlat        
+            write (6,41) barnlon+360.,-1.*barnlon,barnlat
           endif
           if (extraplon >= 360.) then
-            write (6,43) extraplon-360.,720.-extraplon,extraplat        
+            write (6,43) extraplon-360.,720.-extraplon,extraplat
           elseif (extraplon >= 0. .and. extraplon < 360.) then
-            write (6,43) extraplon,360.-extraplon,extraplat        
+            write (6,43) extraplon,360.-extraplon,extraplat
           elseif (extraplon < 0.) then
-            write (6,43) extraplon+360.,-1.*extraplon,extraplat        
+            write (6,43) extraplon+360.,-1.*extraplon,extraplat
           endif
         endif
 
@@ -13980,27 +13981,27 @@ c         yyyy
 
             if ( verb .ge. 1 ) then
               print *,'!!! ERROR in get_next_ges, barnlon >360'
-              print *,'!!! for non-global grid.  We only'       
+              print *,'!!! for non-global grid.  We only'
               print *,'!!! do GM wrapping for global grids.'
             endif
 
-            ignret = 95  
-            return    
-          endif  
+            ignret = 95
+            return
+          endif
         elseif (barnlon < 0.) then
           if (trkrinfo%gridtype == 'global') then
             slonfg(ist,ifh+1) = barnlon + 360.
-          else 
-          
+          else
+
             if ( verb .ge. 1 ) then
               print *,'!!! ERROR in get_next_ges, barnlon < 0'
               print *,'!!! for non-global grid.  We only'
               print *,'!!! do GM wrapping for global grids.'
             endif
 
-            ignret = 95  
-            return    
-          endif  
+            ignret = 95
+            return
+          endif
         else
           slonfg(ist,ifh+1) = barnlon
         endif
@@ -14036,7 +14037,7 @@ c         yyyy
           write (6,43) 0.0,0.0,0.0
         endif
 
-        ignret = 95 
+        ignret = 95
       endif
 
 
@@ -14076,7 +14077,7 @@ c 43   format (' --- extraplon= ',f7.2,'W    extraplat= ',f7.2)
      &       ,'W)    barnlat=   ',f7.2)
  43   format (' --- extraplon= ',f7.2,'E  (',f7.2
      &       ,'W)    extraplat= ',f7.2)
- 
+
 c     Now calculate the speed that the storm would have to move at in
 c     order to make it to the next forecast position.  We will use
 c     this information in writing out the "gen_vitals" record, if this
@@ -14102,7 +14103,7 @@ c     is requested.
         print *,'iocheck, stmspd= ',stmspd,'  istmspd= ',istmspd
         print *,'iocheck, xincr= ',xincr,'  yincr= ',yincr
       endif
- 
+
       if (xincr < 0.0 .and. slonfg(ist,ifh+1) < 30.0 .and.
      &                      fixlon(ist,ifh) > 300.0) then
         ! This means we have a storm moving east across the GM, and
@@ -14117,7 +14118,7 @@ c     is requested.
       endif
 
       if (xincr == 0.0) then
-        if (yincr == 0.0) then 
+        if (yincr == 0.0) then
           stmdir = 0.0
         else if (yincr > 0) then
           stmdir = 360.0
@@ -14125,14 +14126,14 @@ c     is requested.
           stmdir = 180.0
         endif
       else if (xincr > 0.0) then
-        if (yincr == 0.0) then 
+        if (yincr == 0.0) then
           stmdir = 90.0
-        else 
-          arct = atan(yincr/xincr) 
+        else
+          arct = atan(yincr/xincr)
           stmdir = 90. - arct / dtr
         endif
       else if (xincr < 0.0) then
-        if (yincr == 0.0) then 
+        if (yincr == 0.0) then
           stmdir = 270.0
         else
           arct = atan(yincr/xincr)
@@ -14152,7 +14153,7 @@ c     is requested.
       endif
 
       return
-      end       
+      end
 
 c
 c-----------------------------------------------------------------------
@@ -14163,12 +14164,12 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine calculates a guess position for the next
 c     forecast time.  As of 11/2016, it is called only for the case in
-c     which we've got NetCDF data and no hour0 data, and so we want to 
-c     simply take the TC Vitals data and advect the current position to 
-c     a position at the next lead time.  We can't use the code in 
-c     subroutine  get_next_ges because there are certain allocatable 
-c     arrays in that subroutine that need to have been allocated first, 
-c     and at this point prior to the first lead time in hour0, they 
+c     which we've got NetCDF data and no hour0 data, and so we want to
+c     simply take the TC Vitals data and advect the current position to
+c     a position at the next lead time.  We can't use the code in
+c     subroutine  get_next_ges because there are certain allocatable
+c     arrays in that subroutine that need to have been allocated first,
+c     and at this point prior to the first lead time in hour0, they
 c     haven't been allocated.
 c
 c     INPUT:
@@ -14191,8 +14192,6 @@ c
       real      cosfac
       real      dtkm
 c
-      in_grid = 'n'
-      extrap_flag = 'y'
 
       ileadtime = nint(fhreal(ifh) * 100.0)
       ifcsthour = ileadtime / 100
@@ -14200,7 +14199,7 @@ c
 c     ------------------------------------------------------------------
 c     Using the storm motion vector and storm translation speed as read
 c     from the TC Vitals card, do a simple linear extrapolation from the
-c     current observed (TC Vitals) position and advect the storm to a 
+c     current observed (TC Vitals) position and advect the storm to a
 c     position at the next lead time.
 c     ------------------------------------------------------------------
 
@@ -14258,38 +14257,38 @@ c
       if (extraplon > 360.) then
         if (trkrinfo%gridtype == 'global') then
           slonfg(inctcv,ifh+1) = extraplon - 360.
-        else  
+        else
 
           if ( verb .ge. 1 ) then
             print *,' '
-            print *,'!!! ERROR in advect_tcvitals_from_hour0,' 
+            print *,'!!! ERROR in advect_tcvitals_from_hour0,'
             print *,'!!! extraplon >360 for non-global grid.  We only'
             print *,'!!! do GM wrapping for global grids.'
-          endif 
+          endif
 
           iatret = 95
           return
-        endif 
+        endif
       elseif (extraplon < 0.) then
         if (trkrinfo%gridtype == 'global') then
           slonfg(inctcv,ifh+1) = extraplon + 360.
-        else  
+        else
 
           if ( verb .ge. 1 ) then
             print *,'!!! ERROR in advect_tcvitals_from_hour0,'
             print *,'!!! extraplon < 0 for non-global grid.  We only'
             print *,'!!! do GM wrapping for global grids.'
-          endif 
+          endif
 
           iatret = 95
           return
-        endif 
-      else  
+        endif
+      else
         slonfg(inctcv,ifh+1) = extraplon
       endif
 
       if ( verb .ge. 3 ) then
-        print *,' ' 
+        print *,' '
         print *,'-------------------------------------------------- '
         print *,'| In advect_tcvitals_from_hour0, info on the '
         print *,'| positions for the current and next lead times '
@@ -14310,8 +14309,8 @@ c
         write (6,25) slatfg(inctcv,ifh+1)
         write (6,27) 360.-slonfg(inctcv,ifh+1),slonfg(inctcv,ifh+1)
         print *,'-------------------------------------------------'
-        print *,' ' 
-      endif 
+        print *,' '
+      endif
 
  420  format (' | Gen ID (if available): ',i10.10,'_F',i3.3,'_'
      &             ,i3.3,a1,'_',i4.4,a1,'_',a3)
@@ -14323,7 +14322,7 @@ c
 
 
       return
-      end       
+      end
 c
 c
 c-----------------------------------------------------------------------
@@ -14336,10 +14335,10 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine looks through the wind data near an
 c     input storm center (fixlon,fixlat) and gets the radii of various
-c     surface winds in each of the 4 storm quadrants (NE,NW,SE,SW).  
+c     surface winds in each of the 4 storm quadrants (NE,NW,SE,SW).
 c     The wind thresholds that are sought are gale force (34kt|17.5m/s),
-c     storm force (50kt|25.7m/s), and hurricane force (64kt|32.9m/s). 
-c     This subroutine calls the Cray subroutine  orders, which is a 
+c     storm force (50kt|25.7m/s), and hurricane force (64kt|32.9m/s).
+c     This subroutine calls the Cray subroutine  orders, which is a
 c     Cray-optimized sort routine.
 c
 c     UPDATE (AUG 2001): The Cray subroutine  orders was ported to the
@@ -14384,19 +14383,19 @@ c     need_to_expand_r34 1-character array that specifies which of the
 c               4 quadrants still need to be expanded on this time
 c               through getradii in order to get an R34 value that is
 c               not right at the outermost boundary.
-c     vmaxwind  max wind (in m/s) that was reported from the 
+c     vmaxwind  max wind (in m/s) that was reported from the
 c               get_max_wind subroutine
 c     radmax    input max radius (km) that will be used for this
 c               iteration of getradii.
 c     first_time_thru_getradii  logical flag.  It is used so that any
-c               checking for 50- or 64-kt radii is only done on the 
-c               first time through getradii.  Only the checking for 
+c               checking for 50- or 64-kt radii is only done on the
+c               first time through getradii.  Only the checking for
 c               34-kt radii is done on multiple iterations.
 c     igrct     integer that indicates what iteration of getradii this
 c               call is.
 c
 c     OUTPUT:
-c   
+c
 c     igrret    return code from this subroutine
 c     vradius   Contains the distance from the storm fix position to
 c               each of the various wind threshhold distances in each
@@ -14406,17 +14405,17 @@ c     LOCAL:
 c
 c     radmax    the maximum radius to look for winds for the various
 c               thresholds.
-c     quadinfo  This array contains the magnitude of the near-surface 
-c               winds and the distance from the gridpoint to the fix 
+c     quadinfo  This array contains the magnitude of the near-surface
+c               winds and the distance from the gridpoint to the fix
 c               position for each point in each quadrant that is within
-c               the maximum allowed radius, radmax.  quadinfo is 
+c               the maximum allowed radius, radmax.  quadinfo is
 c               allocated within this subroutine, and is allocated as
-c               (quadrant, num_pts_in_quadrant, data_type), where 
-c               data_type is either windspeed(1) or distance(2) from 
+c               (quadrant, num_pts_in_quadrant, data_type), where
+c               data_type is either windspeed(1) or distance(2) from
 c               storm center to grid point.
-c     quadmax   This array contains the max surface wind in each 
+c     quadmax   This array contains the max surface wind in each
 c               quadrant, plus the location of it and the distance from
-c               the storm center.  This information is critical to 
+c               the storm center.  This information is critical to
 c               identifying when this subroutine is malfunctioning.
 
       USE grid_bounds; USE tracked_parms; USE trig_vals; USE level_parms
@@ -14426,7 +14425,7 @@ c               identifying when this subroutine is malfunctioning.
 c
       type (trackstuff) trkrinfo
 c
-      logical(1) valid_pt(imax,jmax)     
+      logical(1) valid_pt(imax,jmax)
       logical(1) first_time_thru_getradii
 c      dimension iwork(257)
       real, allocatable :: quadinfo(:,:,:),iwork(:)
@@ -14454,14 +14453,14 @@ c      dimension iwork(257)
       endif
 
       igrret  = 0
-      
+
 c     -----------------------------------------------------------
 c     PART 1: Define the maximum radius for which you'll search
-c     for the wind values, and then get the beginning and ending 
+c     for the wind values, and then get the beginning and ending
 c     i and j points for that sub-region to search.  Define this
 c     maximum radius (radmax) in terms of km.
 c     -----------------------------------------------------------
- 
+
 c      radmax = 650.0  ! This value is in units of km. With April 2013
 c                      ! update, this is now defined in calling routine
 
@@ -14512,7 +14511,7 @@ c     and fix xcenlon to the grid point just EASTward of xcenlon.
 
           igrret = 99
           return
-        endif   
+        endif
       endif
 
       if (ilonfix < 1) then
@@ -14547,7 +14546,7 @@ c     and fix xcenlon to the grid point just EASTward of xcenlon.
 
           igrret = 99
           return
-        endif   
+        endif
       endif
 
 c     Calculate number of grid points to have surrounding the storm so
@@ -14679,20 +14678,20 @@ c     that we are sure radmax is within those points.
       endif
 
       if (jend > jmax) jend = jmax
- 
+
       if ( verb .ge. 3 ) then
         print *,' '
         print *,'In getradii, ibeg= ',ibeg,' iend= ',iend
         print *,'             jbeg= ',jbeg,' jend= ',jend
         print *,'  ilonfix= ',ilonfix,' jlatfix= ',jlatfix
       endif
- 
+
 c     -----------------------------------------------------------
-c     PART 2: Within the area of grid points defined by jbeg, 
-c     jend, ibeg and iend, (1) calculate all the wind speeds at 
-c     each grid point, (2) calculate all of the distances from 
-c     each grid point to the storm center, (3) assign each grid 
-c     point to one of the 4 quadrants (NE,NW,SE,SW), (4) in each 
+c     PART 2: Within the area of grid points defined by jbeg,
+c     jend, ibeg and iend, (1) calculate all the wind speeds at
+c     each grid point, (2) calculate all of the distances from
+c     each grid point to the storm center, (3) assign each grid
+c     point to one of the 4 quadrants (NE,NW,SE,SW), (4) in each
 c     quadrant, sort the points, based on windspeed.
 c     -----------------------------------------------------------
 
@@ -14739,7 +14738,7 @@ c      numalloc = ((jnum * inum) / 2) + inum/2 + jnum/2
       quadct = 0
 
 c     Calculate the distances and wind speeds at each grid point.  If
-c     the distance is < radmax, include that wind info in the 
+c     the distance is < radmax, include that wind info in the
 c     appropriate quadinfo array location for that quadrant.
 
       quadmax = 0.0
@@ -14748,7 +14747,7 @@ c     appropriate quadinfo array location for that quadrant.
         iloop: do i=ibeg,iend
 
           ip = i
-      
+
           if (i > imax) then
             if (trkrinfo%gridtype == 'global') then
               ip = i - imax   ! If wrapping past GM
@@ -14775,7 +14774,7 @@ c     appropriate quadinfo array location for that quadrant.
               if (allocated(iwork))    deallocate (iwork,stat=iwa)
               if (allocated(quadinfo)) deallocate (quadinfo,stat=iqa)
 
-              if (iqa /= 0 .or. iwa /= 0 .or. idta /= 0 .or. iisa /= 0) 
+              if (iqa /= 0 .or. iwa /= 0 .or. idta /= 0 .or. iisa /= 0)
      &        then
                 print *,' '
                 print *,'!!! ERROR in getradii deallocating arrays.'
@@ -14789,7 +14788,7 @@ c     appropriate quadinfo array location for that quadrant.
               return
             endif
           endif
-      
+
           if (i < 1) then
             if (trkrinfo%gridtype == 'global') then
               ip = i + imax
@@ -14820,7 +14819,7 @@ c     appropriate quadinfo array location for that quadrant.
                 print *,'!!! EXITING at GR-H....'
                 stop 98
               endif
-              
+
               igrret = 99
               return
             endif
@@ -14869,7 +14868,7 @@ c     &            ,' cos(rlatb)= ',f8.6)
      &                 (sin(d)*cos(rlatb))
               if (cosarg > 1.0)  cosarg = 1
               if (cosarg < -1.0) cosarg = -1
-  
+
               if (sin(rlonc-rlonb) < 0.0) then
                 pt_heading_rad = acos(cosarg)
               else
@@ -14877,7 +14876,7 @@ c     &            ,' cos(rlatb)= ',f8.6)
               endif
 
               pt_heading = pt_heading_rad / dtr
- 
+
             endif
 
             if (pt_heading >= 0.0 .and. pt_heading < 90.) then
@@ -14923,7 +14922,7 @@ c     &                  ,360.-glon(ip),pt_heading,iq
         print *,'            quadct(3)= ',quadct(3),' quadct(4)= '
      &       ,quadct(4)
         print *,' '
-        
+
         write (6,110) cstormid,ifcsthr,'NE',quadmax(1,1),quadmax(1,2)
      &       ,quadmax(1,3)*0.539638,quadmax(1,4)*1.9427
         write (6,110) cstormid,ifcsthr,'SE',quadmax(2,1),quadmax(2,2)
@@ -14933,15 +14932,15 @@ c     &                  ,360.-glon(ip),pt_heading,iq
         write (6,110) cstormid,ifcsthr,'NW',quadmax(4,1),quadmax(4,2)
      &       ,quadmax(4,3)*0.539638,quadmax(4,4)*1.9427
         print *,' '
-        
+
  110    format (' quadmax: ',a3,1x,i3.3,1x,a2,1x,' lon: ',f6.2,'E',1x
      &       ,' lat: ',f6.2,' radius: ',f7.2,' nm',2x,' vmag: '
      &       ,f6.2,' kts')
       endif
-        
+
 c     Now go through each quadrant and put the wind speed distance info
-c     into a temporary array (dtemp), sort that array, and then scan 
-c     through that array to find the various thresholds.  
+c     into a temporary array (dtemp), sort that array, and then scan
+c     through that array to find the various thresholds.
 
       quadrantloop: do k=1,4
 
@@ -14961,7 +14960,7 @@ c     through that array to find the various thresholds.
         allocate (dtemp(quadct(k)),stat=idta)
         allocate (iwork(quadct(k)),stat=iwa)
         if (iisa /= 0 .or. idta /= 0 .or. iwa /= 0) then
-          
+
           if ( verb .ge. 1 ) then
             print *,' '
             print *,'!!! ERROR in getradii allocating isortix, dtemp'
@@ -15045,10 +15044,10 @@ c       -------------------
 
 c       Within this quadrant, go through the sorted array of wind
 c       magnitudes and compare those wind values against the set
-c       wind thresholds to get the wind radii.   The array has 
+c       wind thresholds to get the wind radii.   The array has
 c       been sorted by distance from the storm center in order of
-c       closest (ipoint=1) to farthest (ipoint=quadct(k)).  We 
-c       analyze these wind values by starting at the farthest 
+c       closest (ipoint=1) to farthest (ipoint=quadct(k)).  We
+c       analyze these wind values by starting at the farthest
 c       point and moving inward until we hit a point that has a
 c       wind value of at least 34-knot winds (17.5 m/s).  When
 c       we find that point, we interpolate between that point and
@@ -15075,7 +15074,7 @@ c        print *,'drp: quad= ',k,' quadct= ',quadct(k)
               ! threshold being diagnosed.  The check below avoids,
               ! for example, reporting 50-kt wind radii when the max
               ! wind diagnosed was only 44 kts.  This can happen since
-              ! the radius for searching for radii is larger than the 
+              ! the radius for searching for radii is larger than the
               ! radius for searching for the max wind.
               if (vmaxwind >= windthresh(iwindix)) then
                 if (verb >= 3) then
@@ -15115,27 +15114,27 @@ c     &                   ,' iwindix= ',iwindix
             if (ipoint == quadct(k)) then
 
               if ( verb .ge. 3 ) then
-                print *,' ' 
-                print *,'!!! NOTE: In getradii, a max wind radius was' 
-                print *,'!!! found at the maximum radius checked, so ' 
+                print *,' '
+                print *,'!!! NOTE: In getradii, a max wind radius was'
+                print *,'!!! found at the maximum radius checked, so '
                 print *,'!!! you may want to make sure that you are'
-                print *,'!!! checking at a far enough distance from  ' 
+                print *,'!!! checking at a far enough distance from  '
                 print *,'!!! the fix position, that is, you may want to'
                 print *,'!!! increase the value of radmax in subroutine'
                 print *,'!!! getradii. Currently, radmax (km) = ',radmax
                 print *,'!!! iwindix = ',iwindix,' quadrant= ',k
               endif
 
-              vradius(iwindix,k) = int( ((quadinfo(k,isortix(ipoint),2) 
+              vradius(iwindix,k) = int( ((quadinfo(k,isortix(ipoint),2)
      &                                  * 0.5396) / 5.0) + 0.5) * 5
-            else 
+            else
 
 c             Interpolate between the 2 closest distances to each wind
 c             threshold to get "exact" distance to that wind threshold
-c             radius, convert from km to nm, and then round to the 
-c             nearest 5 nm (since TPC uses this precision). 
+c             radius, convert from km to nm, and then round to the
+c             nearest 5 nm (since TPC uses this precision).
 c             7/23/98 UPDATE: Jim Gross has asked that values not be
-c             rounded to the nearest 5 nm, but rather only to the 
+c             rounded to the nearest 5 nm, but rather only to the
 c             nearest 1 nm.
 
               exactdistkm = quadinfo(k,isortix(ipoint),2) +
@@ -15159,15 +15158,15 @@ cc             vradius(iwindix,k) = int( (exactdistnm / 5.0) + 0.5) * 5
 
             endif
 
-c           The possibility exists, especially for coarse  output 
+c           The possibility exists, especially for coarse  output
 c           grids, that there could be a jump over more than 1 wind-
 c           thresh category when going from 1 grid point to the next, so
 c           we need to account for this.  For example, if 1 point has
-c           vmag = 15 m/s and the next point closer in has vmag = 28 
+c           vmag = 15 m/s and the next point closer in has vmag = 28
 c           m/s, then between those 2 points you have the thresholds
 c           for gale force AND storm force winds, so to be safe, we
-c           actually need to add 1 to ipoint and re-check the current 
-c           point, if the wind value at that point is found to be 
+c           actually need to add 1 to ipoint and re-check the current
+c           point, if the wind value at that point is found to be
 c           greater than a wind threshold value (which it has if you've
 c           gotten to this point in threshloop).
 
@@ -15260,26 +15259,26 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine looks through the wind data near an
 c     input storm center (fixlon,fixlat) and gets the radii of various
-c     surface winds in each of the 4 storm quadrants (NE,NW,SE,SW).  
+c     surface winds in each of the 4 storm quadrants (NE,NW,SE,SW).
 c     The wind thresholds that are sought are gale force (34kt|17.5m/s),
-c     storm force (50kt|25.7m/s), and hurricane force (64kt|32.9m/s). 
+c     storm force (50kt|25.7m/s), and hurricane force (64kt|32.9m/s).
 c
 c     This subroutine is a new version,created in May 2022, in response
 c     to feedback from EMC and GFDL modeling groups.  Their input was
-c     that for newer, hi-res, FV3-based regional models (HAFS-A and 
+c     that for newer, hi-res, FV3-based regional models (HAFS-A and
 c     T-SHiELD), the current wind radii scheme was detecting grid points
 c     that were isolated outliers and diagnosing the R34 values as being
-c     out at those extended radii.  I had discussions with NHC folks, 
+c     out at those extended radii.  I had discussions with NHC folks,
 c     who concurred that those isolated outliers should not be
 c     considered as part of the mean circulation of the storm.  I then
 c     spoke with John Knaff, who said that his group at STAR had run
 c     into similar issues with diagnosing R34 from Synthetic Aperture
 c     Radar (SAR) winds.  So what they do is analyze the wind in
-c     radial bands and assign a value for each band, but instead of 
-c     using the max wind value in each band, they use the 95th 
+c     radial bands and assign a value for each band, but instead of
+c     using the max wind value in each band, they use the 95th
 c     percentile value.  I am going to try an additional constraint,
-c     whereby the mean tangential wind is also calculated in each 
-c     radial band, and if that mean Vt falls below a threshold for 
+c     whereby the mean tangential wind is also calculated in each
+c     radial band, and if that mean Vt falls below a threshold for
 c     more than a few bands (i.e., a distance of ~10-15 km), then the
 c     diagnosed R34 cannot be permitted to extend beyond that distance,
 c     either.
@@ -15307,20 +15306,20 @@ c     need_to_expand_r34 1-character array that specifies which of the
 c               4 quadrants still need to be expanded on this time
 c               through getradii in order to get an R34 value that is
 c               not right at the outermost boundary.
-c     vmaxwind  max wind (in m/s) that was reported from the 
+c     vmaxwind  max wind (in m/s) that was reported from the
 c               get_max_wind subroutine
 c     radmax    input max radius (km) that will be used for this
 c               iteration of getradii.  Keep in mind that this gets
 c               re-defined in this routine.
 c     first_time_thru_getradii  logical flag.  It is used so that any
-c               checking for 50- or 64-kt radii is only done on the 
-c               first time through getradii.  Only the checking for 
+c               checking for 50- or 64-kt radii is only done on the
+c               first time through getradii.  Only the checking for
 c               34-kt radii is done on multiple iterations.
 c     igrct     integer that indicates what iteration of getradii this
 c               call is.
 c
 c     OUTPUT:
-c   
+c
 c     igrret    return code from this subroutine
 c     vradius   Contains the distance from the storm fix position to
 c               each of the various wind threshhold distances in each
@@ -15368,11 +15367,11 @@ c
       character :: need_to_expand_r34(4)*1
       character :: holland_good_1_flag*1,holland_good_2_flag*1
 
-c     ---------------------------------------------------------------- 
-c     Fill the rdist array, initially using an r34_bin_width of every 
-c     3 km, starting from 3 km from the center and going out to 
+c     ----------------------------------------------------------------
+c     Fill the rdist array, initially using an r34_bin_width of every
+c     3 km, starting from 3 km from the center and going out to
 c     1059 km max radius (num_r34_bins = 353)
-c     ---------------------------------------------------------------- 
+c     ----------------------------------------------------------------
 
       igrret  = 0
 
@@ -15391,11 +15390,11 @@ c     ----------------------------------------------------------------
         ! need to simply calculate the new ix_radii_end for this current
         ! iteration, which will be for an additional 50 km out.
 
-        ix_radii_end = ix_radii_beg 
+        ix_radii_end = ix_radii_beg
      &               + int((50.0 / r34_bin_width) + 0.5)
 
         ! Now for this iteration through, we need to bump up the value
-        ! of ix_radii_beg by 1.  The reason is that, coming into this 
+        ! of ix_radii_beg by 1.  The reason is that, coming into this
         ! routine, ix_radii_beg held the value of ix_radii_end from the
         ! last call to getradii_2.  So in the statement just above, we
         ! correctly use that as the point to start from when adding on
@@ -15420,7 +15419,7 @@ c     ----------------------------------------------------------------
       endif
 
 c     -----------------------------------------------------------------
-c     In this series of loops, we are computing the wind values in 
+c     In this series of loops, we are computing the wind values in
 c     that will be considered representative of the wind value in each
 c     quadrant radial band.  Work through each radius, and for each
 c     radius process each quadrant, and then within each quadrant work
@@ -15428,9 +15427,9 @@ c     your way around through the azimuths, one by one degree, in order
 c     to "generate" a large sample of wind data points in each quadrant
 c     radial band.
 c     Important note: The pctile_quad_bin_wind array is passed back &
-c     forth to the calling routine with each iteration through this 
+c     forth to the calling routine with each iteration through this
 c     subroutine.  This is done so that, for each iteration through as
-c     we iteratively add 50 km on to our search radius for R34, we 
+c     we iteratively add 50 km on to our search radius for R34, we
 c     don't need to re-compute all the values in the radial bins up to
 c     the point that we already computed on the last run through this
 c     subroutine.
@@ -15466,9 +15465,9 @@ c     -----------------------------------------------------------------
             call distbear (xcenlat,xcenlon,rdist(idist)
      &                    ,bear,targlat,targlon)
 
-            ! NOTE: The 1020 in the ilevint variable in the 
+            ! NOTE: The 1020 in the ilevint variable in the
             ! calling arguments here is just a number/code to
-            ! indicate to the interpolation subroutine to process 
+            ! indicate to the interpolation subroutine to process
             ! sfc winds....
 
             call bilin_int_uneven (targlat,targlon
@@ -15499,7 +15498,7 @@ c     -----------------------------------------------------------------
               else
                 iprint = 24
               endif
-                
+
               call getvrvt (xcenlon,xcenlat,targlon,targlat
      &                     ,xintrp_u,xintrp_v,vr
      &                     ,vt,iprint,igvtret)
@@ -15525,7 +15524,7 @@ c              endif
           enddo qtr_azimloop1
 
           if (azimuth_ct > 0) then
-            ! Compute quadrant-azimuthally-averaged winds at 
+            ! Compute quadrant-azimuthally-averaged winds at
             ! this distance
             mean_radii_wind(iquad,idist) = wmag_sum / float(azimuth_ct)
             mean_radii_vr(iquad,idist)   = vr_sum / float(azimuth_ct)
@@ -15536,7 +15535,7 @@ c              endif
      &               ,mean_radii_vt_4quad_sum
             endif
 
-            mean_radii_vt_4quad_sum      = mean_radii_vt_4quad_sum 
+            mean_radii_vt_4quad_sum      = mean_radii_vt_4quad_sum
      &                                   + mean_radii_vt(iquad,idist)
 
             if (idist == 1) then
@@ -15551,10 +15550,10 @@ c              endif
             mean_radii_vt(iquad,idist)   = -999.0
           endif
 
-          ! Now sort the values in radii_wmag_bucket in order to 
+          ! Now sort the values in radii_wmag_bucket in order to
           ! determine the XXth percentile wind value for the radial
           ! band we just processed (where the value of "XX" for that
-          ! percentile wind value is input by the user in the 
+          ! percentile wind value is input by the user in the
           ! radii_pctile variable in the input namelist).
 
           isortix = 0
@@ -15566,7 +15565,7 @@ c              endif
           ! run through the sorted array (qsort sorts in increasing
           ! order, with the missing -999 values being at the beginning
           ! of the sorted index) and make note of the first array
-          ! position that has valid data.  Also count the number of 
+          ! position that has valid data.  Also count the number of
           ! data points in the bin with valid wind data.
 
           first_valid_ix = -99
@@ -15588,13 +15587,13 @@ c              endif
           !
           ! radii_pctile = Percentile wind value in a radial
           !             bin that the user has requested.
-          ! target_slot = The spot in the order of wind values that 
+          ! target_slot = The spot in the order of wind values that
           !             will be used for the percentile wind value.
-          !             For example, if the user wants the 95th 
+          !             For example, if the user wants the 95th
           !             percentile wind value, we have (assuming no
-          !             points lost to running into a regional 
+          !             points lost to running into a regional
           !             boundary) 0.95 * 90 (because 90 points in
-          !             each quadrant radial band) = 85.5... and 
+          !             each quadrant radial band) = 85.5... and
           !             point 85.5 in the array is our target_slot,
           !             meaning that we have to interpolate in
           !             between sorted array positions 85 and 86
@@ -15602,7 +15601,7 @@ c              endif
           !             wind value for this radial band.
           ! target_ix = The INTEGER array index that is actually
           !             *below* the REAL value of target_slot, and
-          !             then for the interpolation we bracket this 
+          !             then for the interpolation we bracket this
           !             with target_ix+1 as the upper value
 
           if (radii_pctile > 0.0 .and. radii_pctile <= 100.0) then
@@ -15622,7 +15621,7 @@ c              endif
           if (valid_wind_ct == num_qtr_azim) then
             if (int(target_slot) == num_qtr_azim) then
               ! Just use the value at the highest array position.  This
-              ! would only happen if radii_pctile = 100% and so that is 
+              ! would only happen if radii_pctile = 100% and so that is
               ! unlikely that someone will choose 100%.
               pctile_quad_bin_wind(iquad,idist)
      &            = radii_wmag_bucket(isortix(num_qtr_azim))
@@ -15642,7 +15641,7 @@ c              endif
               else
                 one_minus_target_remainder = 1.0 - target_remainder
                 pctile_quad_bin_wind(iquad,idist)
-     &               = (target_remainder 
+     &               = (target_remainder
      &               * radii_wmag_bucket(isortix(target_ix+1))
      &               + (one_minus_target_remainder
      &               * radii_wmag_bucket(isortix(target_ix))) )
@@ -15658,7 +15657,7 @@ c              endif
               print *,' '
             endif
             pctile_quad_bin_wind(iquad,idist) = -999.0
-          endif 
+          endif
 
         enddo quadloop1
 
@@ -15692,7 +15691,7 @@ c              endif
       endif
 
 c     -----------------------------------------------------------------
-c     Now go through the array of pctile_quad_bin_wind values and 
+c     Now go through the array of pctile_quad_bin_wind values and
 c     compare those wind values against the set wind thresholds to get
 c     the wind radii.  We analyze these wind values by starting at the
 c     farthest point and moving inward until we hit a point that has a
@@ -15719,7 +15718,7 @@ c     -----------------------------------------------------------------
         else
           print *,'+ R34 okay for quadrant ',iquad,'... skipping...'
           cycle quadloop2
-        endif 
+        endif
 
         iwindix = 1
         idist  = ix_radii_end + 1
@@ -15737,7 +15736,7 @@ c     -----------------------------------------------------------------
               ! threshold being diagnosed.  The check below avoids,
               ! for example, reporting 50-kt wind radii when the max
               ! wind diagnosed was only 44 kts.  This can happen since
-              ! the radius for searching for radii is larger than the 
+              ! the radius for searching for radii is larger than the
               ! radius for searching for the max wind.
               if (vmaxwind >= windthresh(iwindix)) then
                 if (verb >= 3) then
@@ -15798,15 +15797,15 @@ c     &                     ,' iwindix= ',iwindix
               ! the idea that the axisymmetric, 4-quadrant average check
               ! from Check #1 failed, and this may be due to the model
               ! storm having asymmetric structure.  So we consider that
-              ! one quadrant may have a larger R34 and we check for 
+              ! one quadrant may have a larger R34 and we check for
               ! just this quadrant but require that it has a higher bar
               ! to get over, with that 65% threshold.
               !
               ! Check #1: If r34c is the candidate selected R34
               ! distance, then the mean cyclonic Vt must be at least 50%
               ! of the Holland profile value over a range of distances
-              ! from r34c - X, where X ~ 10% of the r34c value (e.g., if 
-              ! r34c was found at 190 km, then that threshold would 
+              ! from r34c - X, where X ~ 10% of the r34c value (e.g., if
+              ! r34c was found at 190 km, then that threshold would
               ! have to be met from ~171-190 km
               !
               ! Check #2: Very similar to Check #1, but in this one the
@@ -15814,13 +15813,13 @@ c     &                     ,' iwindix= ',iwindix
               ! the threshold is higher: the mean cyclonic Vt must be at
               ! least 65% of the Holland profile value instead of the
               ! 50% that was used in Check #1.
-              ! 
+              !
               ! NOTE: We do NOT do this checking for R50 or R64, only
               ! for R34 (i.e., when iwindix=1).
 
               b = 2.0
               if (axi_rmw <= 0.0) then
-                ! If axi_rmw is undefined, then set holl_rmw to some 
+                ! If axi_rmw is undefined, then set holl_rmw to some
                 ! middle-of-the-road value just so that we can get a
                 ! wind value from the Holland wind profile equation.
                 holl_rmw = 50.0
@@ -15927,7 +15926,7 @@ c     &                     ,' iwindix= ',iwindix
 
               if (pct_holland_good_1 >= 0.75) then
                 ! This means that at least 75% of the radial bins near
-                ! this candidate R34 had a mean Vt value of at least 
+                ! this candidate R34 had a mean Vt value of at least
                 ! 50% of the Holland profile value for that radius.
                 holland_good_1_flag = 'y'
                 if (verb >= 3) then
@@ -15949,7 +15948,7 @@ c     &                     ,' iwindix= ',iwindix
               ! If the result from the first check of the 4-quadrant
               ! mean Vt was good (i.e.,holland_good_1_flag == 'y'),
               ! then skip thru this.  Otherwise, now do a check for
-              ! just this quadrant, but with a more stringent 
+              ! just this quadrant, but with a more stringent
               ! threshold criterion.
               !-----------------------------------------------------
 
@@ -16046,12 +16045,12 @@ c     &                     ,' iwindix= ',iwindix
 
             !-----------------------------------------------------------
             ! If we have determined that we have diagnosed a valid wind
-            ! radius, then interpolate between the nearest two radial 
+            ! radius, then interpolate between the nearest two radial
             ! bands to get the exact location.
             !-----------------------------------------------------------
 
             if (iwindix > 1 .or.
-     &          (iwindix == 1 .and. 
+     &          (iwindix == 1 .and.
      &             (holland_good_1_flag == 'y' .or.
      &              holland_good_2_flag == 'y')) ) then
 
@@ -16070,7 +16069,7 @@ c     &                     ,' iwindix= ',iwindix
               else
 
 c               Do not interpolate between radial bands to try to get a
-c               more precise wind radius distance.  The reason is that 
+c               more precise wind radius distance.  The reason is that
 c               it won't work, because the wind values are not sorted
 c               into any type of ascending or descending order, so the
 c               interpolation will fail.  We already (as of May 2022)
@@ -16089,7 +16088,7 @@ c     &                 ,pctile_quad_bin_wind(iquad,idist+1)
 c                print *,'rdist(idist+1)= ',rdist(idist+1)
 
 c               c exactdistkm = rdist(idist) +
-c     &         c ( ((pctile_quad_bin_wind(iquad,idist) 
+c     &         c ( ((pctile_quad_bin_wind(iquad,idist)
 c     &         c  - windthresh(iwindix)) /
 c     &         c   (pctile_quad_bin_wind(iquad,idist) -
 c     &         c    pctile_quad_bin_wind(iquad,idist+1))) *
@@ -16111,7 +16110,7 @@ c     &         c   (rdist(idist+1) - rdist(idist)) )
 
               endif
 
-c             The possibility exists, especially for coarse  output 
+c             The possibility exists, especially for coarse  output
 c             grids, that there could be a jump over more than 1 wind-
 c             thresh category when going from 1 grid point to the next,
 c             so we need to account for this.  For example, if 1 point
@@ -16146,8 +16145,8 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine looks for the maximum near-surface wind
 c     near the storm center.  This subroutine is only concerned with the
-c     value of the max wind, NOT where it's located radially with 
-c     respect to the center.  The value that's returned in vmax is the 
+c     value of the max wind, NOT where it's located radially with
+c     respect to the center.  The value that's returned in vmax is the
 c     max wind speed in m/s, which are the units the data are stored in.
 c     However, when the max wind values are  output in output_atcf, they
 c     will be converted from m/s to knots.
@@ -16162,18 +16161,18 @@ c     dx        grid spacing in i-direction of model grid
 c     dy        grid spacing in j-direction of model grid
 c     valid_pt  logical bitmap for valid data at a grid point
 c     levsfc    integer holding the value of the array member that holds
-c               the near-surface winds in the u and v arrays (as of 
+c               the near-surface winds in the u and v arrays (as of
 c               1/2022 modifications, it's = 5).
 c
 c     OUTPUT:
-c    
+c
 c     vmax      value of maximum near-surface wind near the storm ctr
 c     rmax      radius of max winds
 c     igmwret   return code from this subroutine
 c
 c     LOCAL:
 c
-c     radmaxwind the maximum radius to look for a max wind near the 
+c     radmaxwind the maximum radius to look for a max wind near the
 c                storm center.  You have to allow this to be bigger for
 c                model grids with coarse resolution (ECMWF 2.5 degree).
 
@@ -16235,8 +16234,8 @@ c     and fix xcenlon to the grid point just EASTward of xcenlon.
 
           igmwret = 99
           return
-        endif    
-      endif   
+        endif
+      endif
 
       if (ilonfix < 1) then
         if (trkrinfo%gridtype == 'global') then
@@ -16256,7 +16255,7 @@ c     and fix xcenlon to the grid point just EASTward of xcenlon.
 
           igmwret = 99
           return
-        endif    
+        endif
       endif
 
 c     Calculate number of grid points to have surrounding the storm so
@@ -16265,7 +16264,7 @@ c     that we are sure radmaxwind is within those points.
       cosfac  = cos (xcenlat * dtr)
       numipts = ceiling((radmaxwind/(dtk*dx))/cosfac)
       numjpts = ceiling(radmaxwind/(dtk*dy))
- 
+
       jbeg = jlatfix - numjpts
       jend = jlatfix + numjpts + 1
       ibeg = ilonfix - (numipts + 1)
@@ -16288,7 +16287,7 @@ c     that we are sure radmaxwind is within those points.
 
       if (jbeg < 1) then
         ! Storm is close to southern boundary of grid. Set jbeg=1,
-        ! but check to make sure that this point is still south of 
+        ! but check to make sure that this point is still south of
         ! jlatfix.  If it's not, then this makes no sense, as it would
         ! mean that the center of the storm is off the grid....
         jbeg_hold = jbeg
@@ -16320,13 +16319,13 @@ c     that we are sure radmaxwind is within those points.
             print *,'original jbeg = jbeg_hold = ',jbeg_hold
             print *,'modified jbeg = jbeg= ',jbeg
             print *,'jlatfix = ',jlatfix
-          endif 
+          endif
         endif
       endif
 
       if (jend > jmax) then
         ! Storm is close to northern boundary of grid. Set jend=jmax,
-        ! but check to make sure that this point is still north of 
+        ! but check to make sure that this point is still north of
         ! jlatfix.  If it's not, then this makes no sense, as it would
         ! mean that the center of the storm is off the grid....
         jend_hold = jend
@@ -16413,7 +16412,7 @@ c     that we are sure radmaxwind is within those points.
               endif
               bimwct = bimwct + 1
               cycle iloop
-            endif   
+            endif
           endif
 
           call calcdist (xcenlon,xcenlat,glon(ip),glat(j),dist,degrees)
@@ -16466,21 +16465,21 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine calculates the axisymmetric RMW (ARMW),
 c     as opposed to the gridpoint RMW that was found in subroutine
-c     get_max_wind.  We will compute the mean wind in bands that are 
+c     get_max_wind.  We will compute the mean wind in bands that are
 c     3-km wide, extending from 0 out to 125 km for a first pass.  The
-c     max value is determined, then a check is done to ensure that the 
+c     max value is determined, then a check is done to ensure that the
 c     integral of dV/dr > 0 going out to the diagnosed ARMW, and then
 c     the integral of dV/dr < 0 going outward from the ARMW.  If these
 c     do not, then we will shift the search range to go from 75 km out
 c     to 200 km, check again, and if still needed, try up to two more
 c     times with ranges of 150-275 km and then 225-350 km.  Note that
-c     we do not have to worry about sign of the winds for NHem vs. 
-c     SHem as we do in the wind structure routines, which deal with 
+c     we do not have to worry about sign of the winds for NHem vs.
+c     SHem as we do in the wind structure routines, which deal with
 c     tangential winds.  Here, we are just concerned with wind
 c     magnitude.
 c
 c     NOTE: As of May 2022, the units returned from this subroutine are
-c     in km for axisymet_rmw_dist and m/s for axisymet_rmw_val.  Both 
+c     in km for axisymet_rmw_dist and m/s for axisymet_rmw_val.  Both
 c     of those values are converted in output_atcfunix, for km-->nmi
 c     and m/s-->kts.
 c
@@ -16498,7 +16497,7 @@ c     axisymet_rmw_dist  real distance to the axisymet RMW
 c     axisymet_rmw_val   real value of axisymet wind at axisymet RMW
 c
 c     OUTPUT:
-c    
+c
 c     axisymet_rmw  value of the axisymmetric RMW
 c     igarret   return code from this subroutine
 c
@@ -16562,7 +16561,7 @@ c
 
         ! This rdistloop goes through at least one list of radii to
         ! search over (starting with the rdist1 array), and perhaps up
-        ! to four lists (ending with the rdist4 array), depending on 
+        ! to four lists (ending with the rdist4 array), depending on
         ! whether or not an acceptable ARMW is found.
 
         azim_ave_wmag = -999.0
@@ -16610,7 +16609,7 @@ c              endif
           enddo azimloop
 
           if (azimuth_ct > 0) then
-            ! Compute azimuthally-averaged winds at 
+            ! Compute azimuthally-averaged winds at
             ! this distance
             azim_ave_wmag(idist) = wmag_sum / float(azimuth_ct)
           else
@@ -16655,7 +16654,7 @@ c              endif
 
         if ( verb .ge. 3 ) then
           print '(2x,a17,i3,2(a15,f8.2,a5),a13,i4)'
-     &          ,'After ARMW loop# ',rdist_ix 
+     &          ,'After ARMW loop# ',rdist_ix
      &          ,'  maxrmw_wmag= ',maxrmw_wmag,' m/s '
      &          ,'  maxrmw_dist= ',maxrmw_dist,' km '
      &          ,'  maxrmw_ix= ',maxrmw_ix
@@ -16664,7 +16663,7 @@ c              endif
         !--------------------------------------------------------------
         ! Now go through the array of azimuthally averaged wind values
         ! and ensure that the integral of dV/dr > 0 for radii leading
-        ! up to maxrmw_dist and the integral of dV/dr < 0 for radii 
+        ! up to maxrmw_dist and the integral of dV/dr < 0 for radii
         ! extending outward from maxrmw_dist.  For this analysis, look
         ! at distances up to +/- 50 km from maxrmw_dist.
         !--------------------------------------------------------------
@@ -16677,9 +16676,9 @@ c              endif
         if (maxrmw_ix < 18) then
           ! maxrmw_ix is close to the low range of the rdist array.  If
           ! less than 5, it is possible that this model might not have
-          ! a wind profile for this case that increases from a weaker 
+          ! a wind profile for this case that increases from a weaker
           ! value out to the RMW, so we will assume that is the case
-          ! and set a flag to not do the check of the integral of 
+          ! and set a flag to not do the check of the integral of
           ! dV/dr and just give the test value a nominal passing value
           ! so it will pass the check further below here.
           if (maxrmw_ix < 5) then
@@ -16729,7 +16728,7 @@ c              endif
               axisymet_rmw_dist = -999.0
               axisymet_rmw_val  = -999.0
               return
-            endif 
+            endif
           else
             ! The maxrmw_ix index is somewhere between numdist-17 and
             ! numdist-5, so we can calculate the integral of dV/dr, and
@@ -16742,7 +16741,7 @@ c              endif
 
         !---------------------------------------------------------------
         ! Compute the integral of dV/dr on the rising part of the wind
-        ! profile curve (leading up to the RMW).  Start at idv_start 
+        ! profile curve (leading up to the RMW).  Start at idv_start
         ! and go up to the index for where we found the maxrmw.
         !---------------------------------------------------------------
 
@@ -16763,7 +16762,7 @@ c              endif
         !---------------------------------------------------------------
         ! Compute the integral of dV/dr on the declining part of the
         ! wind profile curve (extending outward from the RMW).  Start
-        ! at the index for where we found the maxrmw and go out to 
+        ! at the index for where we found the maxrmw and go out to
         ! the index we calculated for idv_end.
         !---------------------------------------------------------------
 
@@ -16780,9 +16779,9 @@ c              endif
         enddo
 
         !---------------------------------------------------------------
-        ! Now check to see if rising_sum_dvdr (i.e., the integral of 
+        ! Now check to see if rising_sum_dvdr (i.e., the integral of
         ! dV/dr on the rising side of the curve) is at least equal
-        ! to the value of integ_dvdr_thresh and also to see if 
+        ! to the value of integ_dvdr_thresh and also to see if
         ! declining_sum_dvdr (the integral of dV/dr on the declining
         ! side of the curve) is at least equal to the negative value
         ! of integ_dvdr_thresh or lower.
@@ -16838,12 +16837,12 @@ c-----------------------------------------------------------------------
      &               ,inp,stderr,fixlon,fixlat,xvalues,maxstorm,ifret)
 c
 c     ABSTRACT: This subroutine loops through the different parameters
-c               for the input storm number (ist) and calculates the 
+c               for the input storm number (ist) and calculates the
 c               center position of the storm by taking an average of
 c               the center positions obtained for those parameters.
-c               First we check to see which parameters are within a 
+c               First we check to see which parameters are within a
 c               max error range (errmax), and we discard those that are
-c               not within that range.  Of the remaining parms, we get 
+c               not within that range.  Of the remaining parms, we get
 c               a mean position, and then we re-calculate the position
 c               by giving more weight to those estimates that are closer
 c               to this mean first-guess position estimate.
@@ -16862,7 +16861,7 @@ c     maxstorm max # of storms to be handled in this run
 c
 c     INPUT/OUTPUT:
 c     stderr   Standard deviation of the position "error" of the parms
-c              relative to the guess storm position.  As long as the 
+c              relative to the guess storm position.  As long as the
 c              distance of a parm center to the guess center is <=
 c              errpmax, it is included in the std dev calculation.
 c
@@ -16877,11 +16876,11 @@ c     trkerr_avg  Sum/avg of the track errors for all parms for this
 c                 fcst hour, regardless of whether or not the error was
 c                 > errmax.  It's used for getting the std deviation of
 c                 the position error for this forecast time, to be used
-c                 as part of the errmax calculation for the next fcst 
+c                 as part of the errmax calculation for the next fcst
 c                 time.
-c     iclose      Number of parameters whose position estimates are 
+c     iclose      Number of parameters whose position estimates are
 c                 found to be within a distance errmax of the guess pos
-c     wtpos       The weight given to each position estimate.  It's 
+c     wtpos       The weight given to each position estimate.  It's
 c                 based on the distance from the average position.
 c     errdist     The "error" of the parameter center position relative
 c                 to the storm's guess position.
@@ -16890,28 +16889,28 @@ c                 relative to the storm's guess position.
 c     use4next    Logical; If a parm center has been calculated but its
 c                 distance from the guess position is > errmax, we don't
 c                 use this center in calculating the new guess position,
-c                 however we will use this position in calculating the 
-c                 standard deviation of the current time's guess 
-c                 positions, to be used in calculating the new errmax 
+c                 however we will use this position in calculating the
+c                 standard deviation of the current time's guess
+c                 positions, to be used in calculating the new errmax
 c                 for the next forecast time.  So in this subroutine,
 c                 calcparm may be set to FALSE if errdist > errmax, but
-c                 use4next will not be set to FALSE (Actually, it is 
-c                 only set to FALSE if errdist > errpmax, which is 
+c                 use4next will not be set to FALSE (Actually, it is
+c                 only set to FALSE if errdist > errpmax, which is
 c                 defined in error_parms and is roughly 600km).
 c     stderr_close  Standard deviation of position errors for parms that
-c                 have center estimates that are within a distance 
+c                 have center estimates that are within a distance
 c                 errmax of the guess position.
-c     clon_fguess These are the first-guess mean position estimates, 
+c     clon_fguess These are the first-guess mean position estimates,
 c     clat_fguess which are the means of the position estimates that
 c                 are within a distance errmax.  These first-guess mean
 c                 positions will be refined by giving more weight to
-c                 individual parameter estimates that are closer to 
+c                 individual parameter estimates that are closer to
 c                 this first-guess mean position.
 c     dist_from_mean Contains the "error" distance of each parameter
 c                 from the first-guess mean position (clon_fguess,
 c                 clat_fguess).  NOTE: If a parameter is not within
 c                 a distance errmax of the guess position for this
-c                 time (geslon,geslat), then there will be NO 
+c                 time (geslon,geslat), then there will be NO
 c                 dist_from_mean calculated for that parm.
 c
       USE error_parms; USE set_max_parms; USE inparms; USE def_vitals
@@ -16946,22 +16945,22 @@ c
       ifret=0
 c
 c     We need to judge whether each parameter position is reasonable,
-c     so we'll check to make sure that the dist from each parameter's 
-c     estimate to the guess position is less than a maximum allowable 
-c     error. If it's the first forecast time, use the initial error max 
-c     (defined as errinit in error_parms) as errmax.  Otherwise, the 
-c     max error criterion is that the distance error must not exceed 3 
-c     times the previous forecast time's standard deviation (after a 
+c     so we'll check to make sure that the dist from each parameter's
+c     estimate to the guess position is less than a maximum allowable
+c     error. If it's the first forecast time, use the initial error max
+c     (defined as errinit in error_parms) as errmax.  Otherwise, the
+c     max error criterion is that the distance error must not exceed 3
+c     times the previous forecast time's standard deviation (after a
 c     small growth factor has been applied).
 c     UPDATE 3/5/98: During testing, it was found that just using the
 c     previous time's stdev made errmax too "jumpy" (i.e., at vt=48h,
 c     errmax could = 380, and then at vt=54h, errmax could jump down
-c     to 190, so we've changed it so that it uses an average of the 
+c     to 190, so we've changed it so that it uses an average of the
 c     stdev's from the 3 previous forecast times to maintain some
 c     continuity between successive forecast times).
 c
       if (ifh == 1) then
-        if (atcfname == 'GFSO' .or. atcfname == 'MRFO' .or. 
+        if (atcfname == 'GFSO' .or. atcfname == 'MRFO' .or.
      &      atcfname == 'GDAS' .or. atcfname == 'GFDT' .or.
      &      atcfname(1:3) == 'AP0' .or. atcfname(1:3) == 'AN0' .or.
      &      atcfname(1:3) == 'AP1' .or. atcfname(1:3) == 'AN1' .or.
@@ -16997,7 +16996,7 @@ c
           xavg_stderr = stderr(ist,ifh-1)
         endif
 
-c       The following errmax statement was replaced by the ensuing 4 
+c       The following errmax statement was replaced by the ensuing 4
 c       lines due to a compiler bug on some other platforms:
 c        errmax = amin1(amax1(3.0*xavg_stderr*errpgro,errinit)
 c     &                ,errpmax)
@@ -17014,7 +17013,7 @@ c     &                ,errpmax)
         if (ifh > 1) then
           print '(a42,f8.2,a15,f8.2)'
      &         ,' At beg of fixcenter, stderr(ist,ifh-1) = '
-     &         ,stderr(ist,ifh-1),'  xavg_stderr= ',xavg_stderr 
+     &         ,stderr(ist,ifh-1),'  xavg_stderr= ',xavg_stderr
         else
           print '(a45,a18)'
      &         ,' At beg of fixcenter, stderr(ist,ifh-1) = N/A'
@@ -17027,13 +17026,13 @@ c     &                ,errpmax)
       endif
 
       trkerr_avg = 0.0
-      iclose = 0; itot4next = 0 
+      iclose = 0; itot4next = 0
       clonsum = 0.0; clatsum = 0.0
       errdist = 0.0
       use4next = .FALSE.
       gt345_ct = 0
       lt15_ct  = 0
- 
+
 c     For each parm, check to see if the estimated center is within
 c     distance errmax of the guess center.  If it's within errmax,
 c     then use that parm for locating the center.  If it's NOT
@@ -17043,15 +17042,15 @@ c     helping to determine the errmax for the next forecast hour.
 
 c OLD NOTE: For calculating the std dev to be used for the next
 c OLD forecast hour, do NOT use vmag 850, vmag 700 or vmag sfc, since
-c OLD those parms are always guaranteed to be within a short range of 
+c OLD those parms are always guaranteed to be within a short range of
 c OLD the guess, due to the nature of the algorithm (see subroutine
 c OLD get_uv_center for further details on that).
 
       do ip=1,maxtp
 
         if (ip == 4 .or. ip == 6) then   ! Parms 4 & 6 not defined.
-          calcparm(ip,ist) = .FALSE.   
-          cycle  
+          calcparm(ip,ist) = .FALSE.
+          cycle
         endif
         if (calcparm(ip,ist)) then
           call calcdist (geslon,geslat,clon(ist,ifh,ip)
@@ -17072,7 +17071,7 @@ c OLD get_uv_center for further details on that).
             endif
             clonsum = clonsum + clon(ist,ifh,ip)
             clatsum = clatsum + clat(ist,ifh,ip)
-          else 
+          else
             calcparm(ip,ist) = .FALSE.
           endif
         endif
@@ -17094,7 +17093,7 @@ c OLD get_uv_center for further details on that).
         clat_fguess = clatsum / float(iclose)
       endif
 
-c     Print out a table listing of the locations of the  fixes for 
+c     Print out a table listing of the locations of the  fixes for
 c     the individual parameters.
 
       if ( verb .ge. 3 ) then
@@ -17120,7 +17119,7 @@ c     the individual parameters.
         print *,'from a specific gridpoint.'
         write (6,21) geslon,360.-geslon,geslat
         write (6,*)  ' '
-        write (6,23) 
+        write (6,23)
         write (6,25)
       endif
 
@@ -17131,7 +17130,7 @@ c     the individual parameters.
         charmaxmin(5)  = '  Max   '
         charmaxmin(10) = '  Max   '
         charmaxmin(11) = '  Max   '
-      else 
+      else
         charmaxmin(1)  = '  Min   '
         charmaxmin(2)  = '  Min   '
         charmaxmin(3)  = '  Min   '
@@ -17141,10 +17140,10 @@ c     the individual parameters.
       endif
 
       do ip=1,maxtp
-        if (ip == 1 .or. ip == 2 .or. ip == 11) then 
-          ! This IF block allows vorticity values to be 
+        if (ip == 1 .or. ip == 2 .or. ip == 11) then
+          ! This IF block allows vorticity values to be
           ! written out and scaled up by 1e5 ...
-          if (clon(ist,ifh,ip) < 0.001 .and. 
+          if (clon(ist,ifh,ip) < 0.001 .and.
      &        clon(ist,ifh,ip) > -0.001) then
 
             if ( verb .ge. 3 ) then
@@ -17245,8 +17244,8 @@ c       Get distances from first-guess mean position....
             dist_from_mean(ip) = dist
           endif
         enddo
-           
-c       Get the mean distance of each parameter estimate from 
+
+c       Get the mean distance of each parameter estimate from
 c       the first-guess mean position
 
         call avgcalc (dist_from_mean,maxtp,calcparm(1,ist)
@@ -17285,7 +17284,7 @@ c       the first-guess mean position
         endif
 
         if (calcparm(1,ist) .or. calcparm(2,ist) .or. calcparm(7,ist)
-     &      .or. calcparm(8,ist) .or. calcparm(9,ist) 
+     &      .or. calcparm(8,ist) .or. calcparm(9,ist)
      &      .or. calcparm(11,ist) .or. calcparm(3,ist)
      &      .or. calcparm(10,ist) .or. calcparm(5,ist)
      &      .or. calcparm(12,ist) .or. calcparm(13,ist)
@@ -17313,14 +17312,14 @@ c       the first-guess mean position
           return
         endif
 
-c       Now re-calculate the mean position by giving more weight 
+c       Now re-calculate the mean position by giving more weight
 c       to those position estimates that are closer to the first
 c       guess mean position.  Note that if stderr_close < 5.0, we
-c       force it to be 5.0; we do this to avoid getting very 
-c       large numbers for devia values, which could make the 
+c       force it to be 5.0; we do this to avoid getting very
+c       large numbers for devia values, which could make the
 c       weights (wtpos) equal to 0.  This occurred during testing
 c       when only 2 parameters were valid, and so, of course, the
-c       standard deviation from the mean of those 2 parameters 
+c       standard deviation from the mean of those 2 parameters
 c       was close to 0, which gave devia values around 6000, and
 c       then wtpos values of 0, leading to a divide by 0 crash
 c       later on in subroutine  wtavrg.
@@ -17359,7 +17358,7 @@ c       later on in subroutine  wtavrg.
   113     format (1x,'ip= ',i2,' kprm= ',i2,' dist_from_mean= ',f7.3
      &           ,' devia= ',f7.3,' wtpos= ',f8.5,2x,3(2x,f7.2))
         else
-c     
+c
 c         This next if statement is for the case in which only 1
 c         parameter is valid, for which the stderr_close will = 0
 c         (obviously), but as long as we have 1 valid parameter,
@@ -17377,7 +17376,7 @@ c
               endif
             enddo
           else
-            
+
             if ( verb .ge. 1 ) then
               print *,' '
               print *,'!!! ERROR IN FIXCENTER, stderr_close not > 0'
@@ -17464,14 +17463,14 @@ c
         fixlat(ist,ifh) = -999.0
         ifret = 95
         return
-      endif 
- 
+      endif
+
 c     Now calculate the average error of all the parms that are within
 c     a radius errpmax (defined in error_parms, ~600km), and the std
 c     dev of those errors.  This standard deviation will be used in
-c     calculating the maximum allowable error for the next forecast 
+c     calculating the maximum allowable error for the next forecast
 c     time.
- 
+
       if (itot4next > 0 .and. ifret /= 95) then
         trkerr_avg = trkerr_avg / float(itot4next)
         call stdevcalc (errdist,maxtp,use4next,trkerr_avg
@@ -17499,10 +17498,10 @@ c-----------------------------------------------------------------------
       subroutine avgcalc (xdat,kmax,valid,xavg,iaret)
 c
 c     ABSTRACT: This subroutine just calculates a straight average of
-c     the parameters in the input array (xdat).  The logical array 
+c     the parameters in the input array (xdat).  The logical array
 c     (valid) indicates whether or not to include a particular array
 c     member or not in the calculation.
- 
+
       USE verbose_output
 
       real      xdat(kmax)
@@ -17517,7 +17516,7 @@ c
           xsum = xsum + xdat(i)
           ict = ict + 1
         endif
-      enddo 
+      enddo
 c
       if (ict > 0) then
         xavg = xsum / float(ict)
@@ -17531,7 +17530,7 @@ c
         xavg = xdat(1)
         iaret = 95
       endif
-c 
+c
       return
       end
 c
@@ -17540,7 +17539,7 @@ c
 c-----------------------------------------------------------------------
       subroutine wtavrg (xdat,wt,kmax,xwtavg,iwtret)
 c
-c     ABSTRACT: This subroutine calculates a weighted average of the 
+c     ABSTRACT: This subroutine calculates a weighted average of the
 c     parameters in the input array (xdat) using the input weights
 c     in the input array (wt).  It is used to calculate the center lat
 c     and lon fix positions.
@@ -17582,7 +17581,7 @@ c
 c     ABSTRACT: This subroutine calculates a weighted average of the
 c     parameters in the input array (xlon) using the input weights
 c     in the input array (wt).  This subroutine is specifically used
-c     to find the center lon fix positions.  It contains code to 
+c     to find the center lon fix positions.  It contains code to
 c     account for wrapping around the Greenwich Meridian.
 c
 
@@ -17595,7 +17594,7 @@ c
       gt345_ct = 0
       lt15_ct  = 0
 
-c     First check to see if we have lons that are both to the left 
+c     First check to see if we have lons that are both to the left
 c     and the right of the greenwich meridian
 
       do i = 1,kmax
@@ -17609,7 +17608,7 @@ c     and the right of the greenwich meridian
 
       if (gt345_ct > 0 .and. lt15_ct > 0) then
         ! We have some lons that are in the 300's (west of the GM), and
-        ! some that are in the 0's (east of the GM).  We need to 
+        ! some that are in the 0's (east of the GM).  We need to
         ! standardize these if we want to get a meaningful average.
         do i = 1,kmax
           if (xlon(i) < 15.) then
@@ -17664,7 +17663,7 @@ c-----------------------------------------------------------------------
           ict = ict + 1
         endif
       enddo
- 
+
       if (ict > 0) then
         stdx = sqrt(stdx/float(ict))
         if (stdx == 0.0) then
@@ -17701,26 +17700,26 @@ c-----------------------------------------------------------------------
      &                     ,cmodel_type,maxmin,ifh,igwcret)
 c
 c     ABSTRACT: This subroutine calculates the center fix position for
-c     the wind circulation near the storm center.  This center fix is 
+c     the wind circulation near the storm center.  This center fix is
 c     done differently than for the other parms.  With this fix,
 c     we limit the area that is searched.  This subroutine is not
 c     called until center fixes have been made for the 5 other parms
 c     (z850, z700, zeta850, zeta700, mslp).  Once those  fixes have been
-c     made, a modified first guess is made of the average of the 
-c     original guess position for this lead time and the 5 other parm 
-c     fixes that have already been made for this lead time.  That 
+c     made, a modified first guess is made of the average of the
+c     original guess position for this lead time and the 5 other parm
+c     fixes that have already been made for this lead time.  That
 c     modified guess position is passed into this subroutine as uvgeslon
-c     and uvgeslat, and that's where the searching for the wind 
+c     and uvgeslat, and that's where the searching for the wind
 c     circulation is centered.
 c
-c     This subroutine works by converting the winds to Vt and Vr at 
+c     This subroutine works by converting the winds to Vt and Vr at
 c     each grid point evaluated, relative to each candidate center point
 c     that is being evaluated at the time in the loop.  We then compute
-c     the circulation at each of 24 azimuths surrounding the storm 
+c     the circulation at each of 24 azimuths surrounding the storm
 c     center, where circulation = Vt * (length of a 1/24 arc, in meters)
-c     This process is repeated for 7 successive radii and the results 
-c     are summed up over all radii, approximating a solid disk 
-c     circulation.  The point at which the circulation is maximized 
+c     This process is repeated for 7 successive radii and the results
+c     are summed up over all radii, approximating a solid disk
+c     circulation.  The point at which the circulation is maximized
 c     (NHEM) or minimized (SHEM) is the center of circulation.
 c
 c     grid_maxlat northernmost latitude on the input grid being sent to
@@ -17810,7 +17809,7 @@ c
       fmax  = -1.0e+15; fmin  =  1.0e+15
       ctlon = 0.0; ctlat = 0.0
 
-c     Distances checked and the radial intervals are a function of 
+c     Distances checked and the radial intervals are a function of
 c     the grid resolution....
 
       if (dell > 0.50) then
@@ -17884,8 +17883,8 @@ c     the grid resolution....
         grid_buffer = 0.0
       endif
 
-c     For the  wind circulation analysis, we will want to speed things 
-c     up for finer resolution grids.  We can do this by skipping some 
+c     For the  wind circulation analysis, we will want to speed things
+c     up for finer resolution grids.  We can do this by skipping some
 c     of the points in the  wind circulation analysis.
 
       if (dell > 0.20) then
@@ -18007,8 +18006,8 @@ c         and go to the next point.
           if (dist .gt. rads) cycle iloop1
 
 c         Now go through each radius, starting from inner and working
-c         to outer, and at each one, go around through all of the 24 
-c         discrete azimuths, starting at 7.5 and adding 15 degrees 
+c         to outer, and at each one, go around through all of the 24
+c         discrete azimuths, starting at 7.5 and adding 15 degrees
 c         clockwise each time, all the way up through 352.5.
 
           vt_mean = 0.0
@@ -18050,14 +18049,14 @@ ctmwc              endif
 
               ! These calls to bilin_int_uneven pass a variable "level"
               ! that contains the vertical level to pull the wind data
-              ! from, either 850, 700 or surface (which will be 
+              ! from, either 850, 700 or surface (which will be
               ! indicated by a value/code of 1020).
 
 c              if (ifh == 24) then
 c                print *,' '
 c                print *,'*------------------ aix --------------------*'
 c              endif
-          
+
               call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
      &            ,valid_pt,bimct,ifh,ibiret1)
@@ -18085,16 +18084,16 @@ c                vt_azim_sum = vt_azim_sum + vt(iazim,idist)
             enddo azimloop1
 
             if (azimuth_ct > 0) then
-              ! Add the value for the circulation in this radial 
-              ! band (circul_band(idist)) to the "solid disk" 
-              ! circulation total.  Also, 
+              ! Add the value for the circulation in this radial
+              ! band (circul_band(idist)) to the "solid disk"
+              ! circulation total.  Also,
               ! Compute azimuthally-averaged Vt at this distance
               circul_disk = circul_disk + circul_band(idist)
               vt_mean(idist) = vt_azim_sum / float(azimuth_ct)
             else
 c              vt_mean(idist) = -999.0
               print *,' '
-            endif  
+            endif
 
           enddo radiusloop1
 
@@ -18138,9 +18137,9 @@ c              vt_mean(idist) = -999.0
      &       ,'W  ctlat= ',f8.3,'  xmax_circul_disk = ',f15.1)
   63  format (' After first run, Wind Circulation (SHEM) ctlon= ',f8.3
      &       ,'W  ctlat= ',f8.3,'  xmin_circul_disk = ',f15.1)
- 
-c     If nhalf is specified as 0, then don't go through any more 
-c     iterations of this routine, just exit with the value that we 
+
+c     If nhalf is specified as 0, then don't go through any more
+c     iterations of this routine, just exit with the value that we
 c     already got the first time through the loop, above.
 
       if (dell > 0.50) then
@@ -18154,7 +18153,7 @@ c     already got the first time through the loop, above.
       else if (dell <= 0.05) then
 c        nhalf = 0
         nhalf = 1
-c        if ( verb .ge. 3 ) then        
+c        if ( verb .ge. 3 ) then
 c          print *,' '
 c          print *,'In get_wind_circulation, dell is < 0.05 deg, so '
 c          print *,'nhalf is set to 0 and only the first iteration of'
@@ -18185,8 +18184,8 @@ c     through for the center fix and exit the routine.
           fxval = xmin_circul_disk
         endif
         return
-      endif          
-          
+      endif
+
 c     ---------------------------------------------------------------
 c     ---------------------------------------------------------------
 c     Halve the grid spacing to refine the location and value of the
@@ -18198,12 +18197,12 @@ c      npts = npts/2
 c     -------------------------------------------------------------
 c     First, recalculate the i and j beginning and ending points to
 c     be used in the  barnes analysis subroutine.  Only do this once
-c     for this grid-refinement (even though the grid is redefined 
+c     for this grid-refinement (even though the grid is redefined
 c     nhalf times in this subroutine), but make sure to have the
 c     possible search grid be big enough to allow the possibility of
 c     the grid shifting way right or way left each time through the
-c     loop (get_ij_bounds takes care of this).  Cut the value of 
-c     rads in half (only do this once) so that any points beyond 
+c     loop (get_ij_bounds takes care of this).  Cut the value of
+c     rads in half (only do this once) so that any points beyond
 c     rads/2 are not considered as potential centers.
 
       rads = 0.5 * rads
@@ -18246,7 +18245,7 @@ c        xmin_circ_diff_mean =  9999.0
 c        xmax_circ_diff_mean = -9999.0
         xmin_circul_disk =  9999.0
         xmax_circul_disk = -9999.0
-        
+
         iskip = bskip2
 
         if ( verb .ge. 3 ) then
@@ -18331,7 +18330,7 @@ c           clockwise each time, all the way up through 352.5.
               azimuth_ct = 0
               vt_azim_sum = 0.0
 
-              ! Compute the length of a 1/numazim arc at this radius, 
+              ! Compute the length of a 1/numazim arc at this radius,
               ! and be sure to multiply by 1000 to convert from km to m
               ! for use in computing the circulation....
 
@@ -18359,7 +18358,7 @@ ctmwc                endif
                 call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
      &            ,valid_pt,bimct,ifh,ibiret1)
-  
+
                 call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
      &            ,valid_pt,bimct,ifh,ibiret2)
@@ -18379,7 +18378,7 @@ c                  vt_azim_sum = vt_azim_sum + vt(iazim,idist)
                   igwcret = 95
                   return
                 endif
- 
+
               enddo azimloop2
 
               if (azimuth_ct > 0) then
@@ -18465,21 +18464,21 @@ c
 c     ABSTRACT: This subroutine calculates the center fix position for
 c     the minimum in the wind speed near the storm center.  This center
 c     fix is done differently than for the other parms.  With this fix,
-c     we severely limit the area that is searched, because we do not 
-c     want to confuse a wind minimum out on the periphery of a storm 
+c     we severely limit the area that is searched, because we do not
+c     want to confuse a wind minimum out on the periphery of a storm
 c     with the center wind minimum.  Therefore, this subroutine is not
 c     called until center fixes have been made for the 5 other parms
 c     (z850, z700, zeta850, zeta700, mslp).  Once those  fixes have been
 c     made, a modified first guess is made of the average of the guess
 c     position for this time and the 5 other parm fixes.  That modified
-c     guess position is passed into this subroutine as uvgeslon and 
-c     uvgeslat, and that's where the searching for the wind minimum 
-c     is done.  To get the wind minimum, the u and v data are first 
+c     guess position is passed into this subroutine as uvgeslon and
+c     uvgeslat, and that's where the searching for the wind minimum
+c     is done.  To get the wind minimum, the u and v data are first
 c     interpolated down to a fine grid (see details below for exact
 c     figures), and then a single-pass barnes analysis is done on that
 c     fine grid.  The reason that we first interpolate the data (which
-c     is different from how we do the other parms) is that if we just 
-c     use the original grid resolution, we may not be able to 
+c     is different from how we do the other parms) is that if we just
+c     use the original grid resolution, we may not be able to
 c     accurately pick out a minimum in the wind field at the center.
 c
       USE radii; USE grid_bounds; USE tracked_parms; USE trig_vals
@@ -18503,7 +18502,7 @@ c     -----------------------------------------------------------------
 c     INTERPOLATE INPUT GRID TO SMALLER GRID
 c     -----------------------------------------------------------------
 c
-c     Get beginning and ending j points (on the input grid) for a 
+c     Get beginning and ending j points (on the input grid) for a
 c     smaller array that surrounds the storm.  It is this smaller array
 c     that we will interpolate to a finer grid.
 c
@@ -18515,7 +18514,7 @@ c
      &             ,glatmax,glatmin,glonmax,glonmin,uvgeslon,uvgeslat
      &             ,trkrinfo,ilonfix,jlatfix,ibeg,jbeg,iend,jend,igiret)
 
-      if ( verb .ge. 3 ) then  
+      if ( verb .ge. 3 ) then
         print *,' '
         print *,' After get_ij D, ibeg jbeg = ',ibeg,jbeg
         print *,' After get_ij D, iend jend = ',iend,jend
@@ -18523,7 +18522,7 @@ c
 
       if (igiret /= 0) then
 
-        if ( verb .ge. 1 ) then  
+        if ( verb .ge. 1 ) then
           print *,' '
           print *,'!!! ERROR in get_uv_center from call to '
           print *,'!!! get_ij_bounds, stopping processing for '
@@ -18537,7 +18536,7 @@ c
       if (ibeg < 1) then
         if (trkrinfo%gridtype == 'global') then
 
-          if ( verb .ge. 3 ) then  
+          if ( verb .ge. 3 ) then
             print *,' '
             print *,'!!! NOTE: In get_uv_center, the ibeg returned from'
             print *,'!!! get_ij_bounds is < 1, but our gridtype is '
@@ -18548,7 +18547,7 @@ c
 
         else
 
-          if ( verb .ge. 3 ) then  
+          if ( verb .ge. 3 ) then
             print *,' '
             print *,'!!! NOTE: In get_uv_center, the ibeg returned from'
             print *,'!!! get_ij_bounds is < 1, and our gridtype is NOT'
@@ -18565,7 +18564,7 @@ c
       if (ibeg > imax .or. jbeg > jmax .or. jbeg < 1 .or.
      &    iend < 1 .or. jend < 1) then
 
-        if ( verb .ge. 1 ) then  
+        if ( verb .ge. 1 ) then
           print *,' '
           print *,'ERROR in get_uv_center calculating ibeg, iend, jbeg'
           print *,'or jend.  ibeg= ',ibeg,' iend= ',iend,' jbeg= ',jbeg
@@ -18580,7 +18579,7 @@ c
       if (iend > imax) then
         if (trkrinfo%gridtype == 'global') then
 
-          if ( verb .ge. 3 ) then  
+          if ( verb .ge. 3 ) then
             print *,' '
             print *,'!!! NOTE: In get_uv_center, the iend returned from'
             print *,'!!! get_ij_bounds is > imax, but our gridtype is '
@@ -18591,7 +18590,7 @@ c
 
         else
 
-          if ( verb .ge. 3 ) then  
+          if ( verb .ge. 3 ) then
             print *,' '
             print *,'!!! NOTE: In get_uv_center, the iend returned from'
             print *,'!!! get_ij_bounds is > imax, and our gridtype is'
@@ -18621,7 +18620,7 @@ c
       end select
 
 c     This next if statement determines how many times to interpolate
-c     the input grid to a smaller grid.  Here are the grid sizes for 
+c     the input grid to a smaller grid.  Here are the grid sizes for
 c     some of the typical grids that will be used:
 c
 c      Original grid size     # of interps        Final grid size
@@ -18641,7 +18640,7 @@ c     2.50 deg (277.99 km)        4             0.156 deg (17.4 km)
       else if ((dx+dy)/2. <= 0.10) then
         numinterp = 0
       endif
-  
+
       dell = (dx+dy)/2.
       imxold = iend - ibeg + 1
       jmxold = jend - jbeg + 1
@@ -18661,7 +18660,7 @@ c     get_ij_bounds.
             ip = i - imax   ! If wrapping past GM
           else
 
-            if ( verb .ge. 1 ) then  
+            if ( verb .ge. 1 ) then
               print *,' '
               print *,'!!! ERROR: In get_uv_center, the '
               print *,'!!!    user-requested eastern search boundary'
@@ -18686,7 +18685,7 @@ c     get_ij_bounds.
             ip = i + imax   ! If wrapping past GM
           else
 
-            if ( verb .ge. 1 ) then  
+            if ( verb .ge. 1 ) then
               print *,' '
               print *,'!!! ERROR: i < 1 in subroutine  get_uv_center'
               print *,'!!! for a non-global grid.  STOPPING....'
@@ -18712,7 +18711,7 @@ c     Now begin the interpolation process
       allocate (rlonold(imxold),stat=iloo)
       allocate (rlatold(jmxold),stat=ilao)
       if (iuo /= 0 .or. ivo /= 0 .or. iloo /= 0 .or. ilao /= 0) goto 970
- 
+
       do intnum = 1,numinterp
 
         if (intnum == 1) then
@@ -18726,7 +18725,7 @@ c     Now begin the interpolation process
                 ik = i + imax  !GM wrapping
               else
 
-                if ( verb .ge. 1 ) then  
+                if ( verb .ge. 1 ) then
                   print *,'!!! ERROR in get_uv_center, i < 1'
                   print *,'!!! for a non-global grid at AA.'
                   print *,'!!! i = ',i
@@ -18737,12 +18736,12 @@ c     Now begin the interpolation process
               endif
             endif
 
-            if (i > imax) then 
+            if (i > imax) then
               if (trkrinfo%gridtype == 'global') then
                 ik = i - imax  !GM wrapping
               else
 
-                if ( verb .ge. 1 ) then  
+                if ( verb .ge. 1 ) then
                   print *,'!!! ERROR in get_uv_center, i > imax'
                   print *,'!!! for a non-global grid at AA.'
                   print *,'!!! i = ',i,' imax= ',imax
@@ -18794,7 +18793,7 @@ c     Now begin the interpolation process
           deallocate (rlonnew); deallocate (rlatnew)
 
         endif
- 
+
         dell = 0.5 * dell
         imxnew = 2 * imxold - 1
         jmxnew = 2 * jmxold - 1
@@ -18803,7 +18802,7 @@ c     Now begin the interpolation process
         allocate (vnew(imxnew,jmxnew),stat=ivo)
         allocate (rlonnew(imxnew),stat=iloo)
         allocate (rlatnew(jmxnew),stat=ilao)
-        if (iuo /= 0 .or. ivo /= 0 .or. 
+        if (iuo /= 0 .or. ivo /= 0 .or.
      &      iloo /= 0 .or. ilao /= 0) goto 971
 
         call bilin_int_even (imxold,jmxold,uold
@@ -18813,7 +18812,7 @@ c     Now begin the interpolation process
 c        call lin_int (imxold,imxnew,rlonold,rlonnew,iliret)
         call lin_int_lon (imxold,imxnew,rlonold,rlonnew,iliret)
         call lin_int     (jmxold,jmxnew,rlatold,rlatnew,iliret)
- 
+
         chk_lonspc_old = rlonold(imxold) - rlonold(imxold - 1)
         chk_latspc_old = rlatold(jmxold) - rlatold(jmxold - 1)
         chk_lonspc_new = rlonnew(imxnew) - rlonnew(imxnew - 1)
@@ -18823,8 +18822,8 @@ c        call lin_int (imxold,imxnew,rlonold,rlonnew,iliret)
         grid_minlat = rlatnew(jmxnew)
         grid_minlon = rlonnew(1)
         grid_maxlon = rlonnew(imxnew)
-        
-        if ( verb .ge. 3 ) then  
+
+        if ( verb .ge. 3 ) then
           print *,' '
           print *,'In get_uv_center, intnum= ',intnum
           print *,'imxold= ',imxold,' imxnew= ',imxnew
@@ -18835,9 +18834,9 @@ c        call lin_int (imxold,imxnew,rlonold,rlonnew,iliret)
           print *,'grid_maxlon= ',grid_maxlon,' grid_minlon= '
      &           ,grid_minlon
         endif
- 
+
       enddo
- 
+
 c     ------------------
 
       deallocate (uold); deallocate (vold)
@@ -18855,7 +18854,7 @@ c     ------------------
             continue
           else
 
-            if ( verb .ge. 1 ) then  
+            if ( verb .ge. 1 ) then
               print *,' '
               print *,'ERROR in get_uv_center:  Should not have gotten'
               print *,'to this point in get_uv_center for a regional '
@@ -18872,7 +18871,7 @@ c     ------------------
             continue
           else
 
-            if ( verb .ge. 1 ) then  
+            if ( verb .ge. 1 ) then
               print *,' '
               print *,'ERROR in get_uv_center:  Should not have gotten'
               print *,'to this point in get_uv_center for a regional'
@@ -18928,7 +18927,7 @@ c     ------------------
       grid_minlon = rlonnew(1)
       grid_maxlon = rlonnew(imxnew)
 
-      if ( verb .ge. 3 ) then  
+      if ( verb .ge. 3 ) then
         print *,'Grid boundaries of modified uv grid in get_uv_center:'
         print *,'grid_maxlat= ',grid_maxlat,' grid_minlat= ',grid_minlat
         print *,'grid_maxlon= ',grid_maxlon,' grid_minlon= ',grid_minlon
@@ -18939,10 +18938,10 @@ c     ------------------
       if (ivm /= 0 .or. ilb /= 0) goto 972
       call calc_vmag (unew,vnew,imxnew,jmxnew,vmag,icvret)
       deallocate (unew); deallocate (vnew)
- 
+
       lbi = .TRUE.
 
-      if ( verb .ge. 3 ) then  
+      if ( verb .ge. 3 ) then
         print *,' '
         print *,'Before call to find_maxmin, imxnew= ',imxnew
      &       ,'jmxnew= ',jmxnew,' ist= ',ist
@@ -18951,10 +18950,10 @@ c     ------------------
      &       ,'  uvgeslat= ',f8.3)
       endif
 
-c     Note that in the next call, I pass the 'global' argument to 
+c     Note that in the next call, I pass the 'global' argument to
 c     find_maxmin.  This defines what type of grid it is, so that the
 c     proper grid_buffer can be chosen.  This grid_buffer is designed
-c     to avoid having a center be chosen too close to the grid 
+c     to avoid having a center be chosen too close to the grid
 c     boundary.  However, in the case of vmag here, we are only using
 c     a small subgrid, and we want to make sure we use *all* points
 c     in that subgrid for searching, and that will occur if we set that
@@ -18972,7 +18971,7 @@ c
       else
         igucret = ifmret
 
-        if ( verb .ge. 1 ) then  
+        if ( verb .ge. 1 ) then
           print *,' '
           print *,'!!! ERROR in get_uv_center in call to find_maxmin'
           print *,'!!! storm num = ',ist,' igucret = ',igucret
@@ -18982,8 +18981,8 @@ c
       endif
 c
  970  continue
-        
-      if ( verb .ge. 1 ) then  
+
+      if ( verb .ge. 1 ) then
         print *,' '
         print *,'!!! ERROR ALLOCATING either uold, vold,'
         print *,'!!! rlonold or rlatold in get_uv_center'
@@ -19000,7 +18999,7 @@ c
 
  971  continue
 
-      if ( verb .ge. 1 ) then  
+      if ( verb .ge. 1 ) then
         print *,' '
         print *,'!!! ERROR ALLOCATING either unew, vnew,'
         print *,'!!! rlonnew or rlatnew in get_uv_center'
@@ -19016,8 +19015,8 @@ c
       goto 998
 
  972  continue
-      
-      if ( verb .ge. 1 ) then  
+
+      if ( verb .ge. 1 ) then
         print *,' '
         print *,'!!! ERROR ALLOCATING either vmag or lbi in '
         print *,'!!! subroutine  get_uv_center'
@@ -19030,8 +19029,8 @@ c
       goto 998
 
  975  continue
-      
-      if ( verb .ge. 1 ) then  
+
+      if ( verb .ge. 1 ) then
         print *,' '
         print *,'!!! Inside  get_uv_center, at least one of the points'
         print *,'!!! is not a valid data point.  This point may be '
@@ -19044,7 +19043,7 @@ c
       goto 998
 c
   995 continue
-      igucret = 0 
+      igucret = 0
 c
   998 continue
       return
@@ -19057,19 +19056,19 @@ c-----------------------------------------------------------------------
      &                       ,calcparm,ist,ifh,maxstorm
      &                       ,uvgeslon,uvgeslat,igugret)
 c
-c     ABSTRACT: The purpose of this subroutine is to get a modified 
-c               first guess lat/lon position before searching for the 
+c     ABSTRACT: The purpose of this subroutine is to get a modified
+c               first guess lat/lon position before searching for the
 c               minimum in the wind field.  The reason for doing this is
 c               to better refine the guess and avoid picking up a wind
-c               wind minimum far away from the center.  So, use the 
+c               wind minimum far away from the center.  So, use the
 c               first guess position (and give it strong weighting), and
 c               then also use the  fix positions for the current time
 c               (give the vorticity centers stronger weighting as well),
 c               and then take the average of these positions.
 c
 c     INPUT:
-c     guesslon  guess longitude for this forecast time 
-c     guesslat  guess latitude for this forecast time 
+c     guesslon  guess longitude for this forecast time
+c     guesslat  guess latitude for this forecast time
 c     clon      array with center longitude  fixes for the various parms
 c     clat      array with center latitude  fixes for the various parms
 c     calcparm  logical; tells whether or not a parm has a valid fix
@@ -19103,22 +19102,22 @@ c
       lt15_ct  = 0
 
 c     NOTE: We need to be careful in this routine when averaging
-c     the longitudes together, in case we cross the greenwich 
-c     meridian, because then we may be averaging 345+ lons with 
+c     the longitudes together, in case we cross the greenwich
+c     meridian, because then we may be averaging 345+ lons with
 c     lons that are less than 15, giving incorrect results.
 c     Therefore, check for this, and if it occurs, add 360 onto
-c     any of the <15 lons (add it twice for those lons being 
+c     any of the <15 lons (add it twice for those lons being
 c     counted twice (guesslon and the vorticity centers)).
 
-c     Weight the uv guess position by counting the storm's guess 
-c     position twice.  
+c     Weight the uv guess position by counting the storm's guess
+c     position twice.
 
       sumlon = sumlon + 2.*guesslon
       sumlat = sumlat + 2.*guesslat
       ict = ict + 2
 
       if (guesslon > 345.) then
-        gt345_ct = gt345_ct + 1 
+        gt345_ct = gt345_ct + 1
       endif
       if (guesslon < 15.) then
         lt15_ct  = lt15_ct + 2   ! Yes, 2 is correct....
@@ -19126,24 +19125,24 @@ c     position twice.
 
       do ip = 1,maxtp
         if ((ip > 2 .and. ip < 7) .or. ip == 10) then
-          cycle   ! because 3-6 are for 850 & 700 u & v and 10 is 
+          cycle   ! because 3-6 are for 850 & 700 u & v and 10 is
                   ! for surface wind magnitude.
         else
           if (calcparm(ip,ist)) then
             call calcdist (guesslon,guesslat,clon(ist,ifh,ip)
      &                    ,clat(ist,ifh,ip),dist,degrees)
- 
+
             if (dist < uverrmax) then
 c
 c             Give the vorticity centers 2x weighting as well
-c 
+c
               if (ip == 1 .or. ip == 2 .or. ip == 11) then
                 sumlon = sumlon + 2.*clon(ist,ifh,ip)
                 sumlat = sumlat + 2.*clat(ist,ifh,ip)
                 ict = ict + 2
                 if (clon(ist,ifh,ip) > 345.) then
-                  gt345_ct = gt345_ct + 1       
-                endif                           
+                  gt345_ct = gt345_ct + 1
+                endif
                 if (clon(ist,ifh,ip) < 15.) then
                   lt15_ct  = lt15_ct + 2  ! Yes, 2 is correct...
                 endif
@@ -19152,8 +19151,8 @@ c
                 sumlat = sumlat + clat(ist,ifh,ip)
                 ict = ict + 1
                 if (clon(ist,ifh,ip) > 345.) then
-                  gt345_ct = gt345_ct + 1       
-                endif                           
+                  gt345_ct = gt345_ct + 1
+                endif
                 if (clon(ist,ifh,ip) < 15.) then
                   lt15_ct  = lt15_ct + 1  ! Only 1 for non-zeta parms
                 endif
@@ -19164,7 +19163,7 @@ c
           endif
         endif
       enddo
-c 
+c
       if (ict > 0) then
         if (gt345_ct > 0 .and. lt15_ct > 0) then
           ! We have some parms left of the GM and some to the right,
@@ -19192,7 +19191,7 @@ c
       endif
 c
       return
-      end      
+      end
 c
 c-----------------------------------------------------------------------
 c
@@ -19219,7 +19218,7 @@ c-----------------------------------------------------------------------
       subroutine bilin_int_even (imxold,jmxold,xold
      &                          ,imxnew,jmxnew,xnew,ibiret)
 c
-c     ABSTRACT: This subroutine does a bilinear interpolation on a 
+c     ABSTRACT: This subroutine does a bilinear interpolation on a
 c     grid of evenly spaced data.  Do NOT attempt to use this subroutine
 c     with data that are not evenly spaced or you will get unpredictable
 c     results.
@@ -19231,7 +19230,7 @@ c  ---------------------------------------------------------------------
 c         Latitude ---->          |
 c                                 |
 c  L   O  e  O  e  O  e  O  e  O  | O: original point from input array
-c  o                              | 
+c  o                              |
 c  n   e  1  2  1  2  1  2  1  e  | 1: interpolated, primary inter. pt
 c  g                              |
 c  i   O  2  O  2  O  2  O  2  O  | e: interpolated edge point
@@ -19240,7 +19239,7 @@ c  u   e  1  2  1  2  1  2  1  e  | 2: interpolated, secondary inter. pt
 c  d                              |
 c  e   O  2  O  2  O  2  O  2  O  | Interpolations are done in the order
 c                                 | as indicated above; First, the input
-c  |   e  1  2  1  2  1  2  1  e  | 'O' pts are placed onto the new, 
+c  |   e  1  2  1  2  1  2  1  e  | 'O' pts are placed onto the new,
 c  |                              | larger grid. From that, the '1' pts
 c  |   O  2  O  2  O  2  O  2  O  | can be interpolated.  Next, the edge
 c  |                              | (e) pts are interpolated using an
@@ -19262,7 +19261,7 @@ c     -----------------------------------------------------------------
 c
       do i=1,imxold
         do j=1,jmxold
-          xnew(2*i-1,2*j-1) = xold(i,j) 
+          xnew(2*i-1,2*j-1) = xold(i,j)
         enddo
       enddo
 c
@@ -19285,7 +19284,7 @@ c     ... Northernmost 'e' points ...
 c
       j=1
       do i=1,imxold-1
-        xnew(2*i,j) = 0.3333 * (xnew(2*i-1,j) + xnew(2*i+1,j) 
+        xnew(2*i,j) = 0.3333 * (xnew(2*i-1,j) + xnew(2*i+1,j)
      &                                        + xnew(2*i,2))
       enddo
 c
@@ -19335,7 +19334,7 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine linearly interpolates evenly spaced
 c               data from one grid to another.
-c 
+c
       real      xold(ioldmax), xnew(inewmax)
 c
 c     First just copy points from old grid onto new, larger grid
@@ -19360,9 +19359,9 @@ c-----------------------------------------------------------------------
       subroutine lin_int_lon (ioldmax,inewmax,xold,xnew,iliret)
 c
 c     ABSTRACT: This subroutine linearly interpolates evenly spaced
-c               data from one grid to another.  This particular 
-c               routine is specifically used for interpolating 
-c               longitudes, and it factors in the possibility of 
+c               data from one grid to another.  This particular
+c               routine is specifically used for interpolating
+c               longitudes, and it factors in the possibility of
 c               interpolating across the greenwich meridian.
 c
       real      xold(ioldmax), xnew(inewmax)
@@ -19397,9 +19396,9 @@ c-----------------------------------------------------------------------
      &                     ,valid_pt,ist,ifh,maxstorm,inp,igzvret)
 c
 c     ABSTRACT: This subroutine finds the maximum and mean zeta values
-c     at 850 & 700 mb, near a storm center.  It is called from 
-c     subroutine  tracker, and its purpose is to report these values 
-c     that will then be written out to a special, modified version of 
+c     at 850 & 700 mb, near a storm center.  It is called from
+c     subroutine  tracker, and its purpose is to report these values
+c     that will then be written out to a special, modified version of
 c     the atcfunix file (the "atcf_gen" file).
 
       USE tracked_parms; USE radii; USE trig_vals; USE set_max_parms
@@ -19448,10 +19447,10 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
             print *,'!!!         '
             print *,' '
           endif
-          
+
           igzvret = 99
           return
-        endif   
+        endif
       endif
 
       if (ilonfix < 1) then
@@ -19470,16 +19469,16 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
 
           igzvret = 99
           return
-        endif   
+        endif
       endif
 
       if ( verb .ge. 3 ) then
         write (6,*) ' '
-        write (6,601) 
-        write (6,603) 
-        write (6,605) 
-        write (6,607) 
-        write (6,609) 
+        write (6,601)
+        write (6,603)
+        write (6,605)
+        write (6,607)
+        write (6,609)
         write (6,*) ' '
         write (6,613) ist,ifh
         write (6,615) fixlon(ist,ifh),360.-fixlon(ist,ifh)
@@ -19496,7 +19495,7 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
  615  format(1x,'    Fix location for this time: ',f7.2,'E  (',f6.2,'W)'
      &     ,2x,f7.2)
  617  format(1x,'    ilonfix= ',i4,'  jlatfix= ',i4)
-        
+
       report_zeta_loop: do n=1,2
 
         gridpoint_maxmin = -99.0
@@ -19548,10 +19547,10 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
  520        format (1x,' get_zeta_values returned a non-zero return')
  521        format (1x,' code.  The search for zeta values will not')
  523        format (1x,' be done.  Missing values will be assigned.')
-            exit report_zeta_loop  ! If out of grid bounds at 850, 
+            exit report_zeta_loop  ! If out of grid bounds at 850,
                                    ! then will also be out at 700...
-            
-          endif 
+
+          endif
 
         else
             imeanzeta(n) = -99
@@ -19565,12 +19564,12 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
      &         ,' xsmoothval= ',f9.6,'  imeanzeta (*1e6)= ',i8)
           write (6,*) '  --- mean zeta raw = ',xsmoothval
         endif
-     
+
         ! -----------------------------------------------
         ! Call fix_latlon_to_ij to get the nearest actual
         ! raw (grid) zeta data value, not the mean value.
         ! -----------------------------------------------
-     
+
         call fix_latlon_to_ij (imax,jmax,dx,dy
      &     ,zeta(1,1,n),cvort_maxmin,valid_pt,fixlon(ist,ifh)
      &     ,fixlat(ist,ifh),xsmoothval,idum,jdum
@@ -19590,17 +19589,17 @@ c     These (i,j) coordinates are returned as ilonfix and jlatfix.
      &         ,' ifilret= ',i3)
           write (6,*) '  --- grid zeta raw= ',gridpoint_maxmin
         endif
-    
+
       enddo report_zeta_loop
 
       if ( verb .ge. 3 ) then
         write (6,*) ' '
-        write (6,631) 
+        write (6,631)
         write (6,633)
         write (6,635)
         write (6,*) ' '
       endif
-        
+
  631  format(1x,'#---------------------------------------------------#')
  633  format(1x,'# End of loop to get 850 & 700 zeta for atcf_gen'
      &         ,' file.  #')
@@ -19620,10 +19619,10 @@ c
 c     This routine  finds the location (clon,clat) of and value of the
 c     the max or min of fxy in the vicinity of slon,slat.  The value of
 c     the input flag maxmin determines whether to look for a max or a
-c     min value.  The max/min is determined by finding the point which 
-c     gives the max/min value of a single point barnes analysis of fxy 
-c     with e-folding radius re (km) and influence radius ri (km). The 
-c     initial search is restricted to a radius rads around the point 
+c     min value.  The max/min is determined by finding the point which
+c     gives the max/min value of a single point barnes analysis of fxy
+c     with e-folding radius re (km) and influence radius ri (km). The
+c     initial search is restricted to a radius rads around the point
 c     (slon,slat) on a grid with lon,lat spacing dx and dy. The location
 c     is refined by reducing the spacing of the search grid by a factor
 c     of two, nhalf times.
@@ -19642,8 +19641,8 @@ c     guesslat Guess latitude of the storm
 c     rlonv    Array containing longitude values of input grid points
 c     rlatv    Array containing latitude values of input grid points
 c     valid_pt Logical bitmap masking non-valid grid points.  This is a
-c              concern for the regional models, which are interpolated 
-c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              concern for the regional models, which are interpolated
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving
 c              grid points around the edges which have no valid data.
 c     trkrinfo derived type detailing user-specified grid info
 c     grid_maxlat northernmost latitude on the input grid being sent to
@@ -19662,7 +19661,7 @@ c     cmodel_type character, 'global' or 'regional'
 c
 c     INPUT/OUTPUT:
 c     compflag Logical; continue processing this storm or not (would be
-c              set to FALSE if, for example, the guess position is 
+c              set to FALSE if, for example, the guess position is
 c              outside the domain of a regional grid)
 c
 c     OUTPUT:
@@ -19671,10 +19670,10 @@ c     ctlat    Center latitude of storm found for this parameter
 c     xval     Max or Min value found at the (ctlon,ctlat)
 c     ifmret   Return code from this subroutine
 c
-c     UPDATE DEC 2009: For the HFIP HRH testing, it was found that 
-c     due to the very limited domain size of some of the models, the 
+c     UPDATE DEC 2009: For the HFIP HRH testing, it was found that
+c     due to the very limited domain size of some of the models, the
 c     barnes scheme was allowing points close to the grid boundaries
-c     to erroneously be selected as the center point.  We add in a 
+c     to erroneously be selected as the center point.  We add in a
 c     buffer (grid_buffer) here to prevent this from occurring.
 
       USE radii; USE grid_bounds; USE set_max_parms; USE level_parms
@@ -19705,14 +19704,14 @@ c
 c
 c     -----------------------------------------------------------
 c     Set initial parms for use in find_maxmin.
-c     Different radii used for V magnitude than for other parms, 
+c     Different radii used for V magnitude than for other parms,
 c     see discussion in module radii for more details.
 c
       if (cparm == 'vmag') then
 
-c       NOTE: The maxvgrid variable determines what size grid to send 
-c             to subroutine  barnes. e.g., maxvgrid = 8 means send an 
-c             8x8 grid; maxvgrid = 12 means send a 12x12 grid.  For 
+c       NOTE: The maxvgrid variable determines what size grid to send
+c             to subroutine  barnes. e.g., maxvgrid = 8 means send an
+c             8x8 grid; maxvgrid = 12 means send a 12x12 grid.  For
 c             ultra-fine mesh grids (finer than 0.04 deg, or 1/25 deg),
 c             we expand to 12 in order to sample a few more points
 c             around each grid point.
@@ -19728,7 +19727,7 @@ c             around each grid point.
 c               sets re equal to half the distance from the gridpoint
 c               in question to the farthest point that will be
 c               sampled when the (maxvgrid x maxvgrid) grid is passed
-c               on to subroutine  barnes.  Thus, just ignore the 
+c               on to subroutine  barnes.  Thus, just ignore the
 c               parameter retrk_vmag, and use this instead.
       else if ((dx+dy)/2. < 1.26 .and. (dx+dy)/2. >= 0.40) then
         rads = rads_most; re = retrk_most; ri = ritrk_most
@@ -19742,7 +19741,7 @@ c               parameter retrk_vmag, and use this instead.
 
       if ( verb .ge. 3 ) then
         print *,' '
-        print *,'At beg of find_maxmin, rads= ',rads,' re= ',re 
+        print *,'At beg of find_maxmin, rads= ',rads,' re= ',re
      &       ,' ri= ',ri,' cparm= ',cparm,' dx= ',dx,' dy= ',dy
       endif
 
@@ -19754,7 +19753,7 @@ c               parameter retrk_vmag, and use this instead.
       if (npts == 0) npts = 1
 
 c     For the  barnes analysis, we will want to speed things up for
-c     finer resolution grids.  We can do this by skipping some of 
+c     finer resolution grids.  We can do this by skipping some of
 c     the points in the  barnes analysis.
 
       if (dell > 0.20) then
@@ -19779,13 +19778,13 @@ c     the points in the  barnes analysis.
         bskip2 = 1
       endif
 
-c     If input parm is vmag, we've already done the minimizing by 
-c     interpolating to the fine mesh grid, so we'll simply send the 
+c     If input parm is vmag, we've already done the minimizing by
+c     interpolating to the fine mesh grid, so we'll simply send the
 c     bounds that were input to this subroutine to barnes
-c     as boundaries for the array to search.  For all other parms, 
-c     however, no minimizing has been done yet, so we need to call 
+c     as boundaries for the array to search.  For all other parms,
+c     however, no minimizing has been done yet, so we need to call
 c     get_ij_bounds to set the boundaries for a much smaller grid that
-c     surrounds the storm (as opposed to having subroutine  barnes 
+c     surrounds the storm (as opposed to having subroutine  barnes
 c     search the entire global grid).
 
       if (cparm == 'vmag') then
@@ -19860,14 +19859,14 @@ c
      &       ,' npts= ',npts
           print *,'ilonfix and jlatfix are meaningless for computing'
           print *,'vmag, so ignore the large values you see for them.'
-        else 
+        else
           print *,'ilonfix= ',ilonfix,' jlatfix= ',jlatfix
      &       ,' npts= ',npts
         endif
         print *,'ibeg= ',ibeg,' jbeg= ',jbeg,' imax= ',imax
         print *,'iend= ',iend,' jend= ',jend,' jmax= ',jmax
       endif
-        
+
       call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &     ,date_time)
 
@@ -19942,7 +19941,7 @@ c         grid, then just cycle the iloop.  In previous versions of the
 c         tracker, we would exit with an error message, but doing it
 c         this way allows us to continue tracking some systems that may
 c         be close to the grid boundary.  Also, remember to factor in
-c         the grid_buffer discussed in the doc block above for this 
+c         the grid_buffer discussed in the doc block above for this
 c         subroutine.
 
           if (rlont >= (grid_maxlon + dx - grid_buffer)) then
@@ -19971,7 +19970,7 @@ c         subroutine.
             endif
           endif
 
-          if (rlatt > (grid_maxlat - grid_buffer) .or. 
+          if (rlatt > (grid_maxlat - grid_buffer) .or.
      &        rlatt < (grid_minlat + grid_buffer)) then
             cycle iloop
           endif
@@ -20013,19 +20012,19 @@ c         and go to the next point.
 
           if (cparm == 'vmag') then
 
-c           This next bit of code gets the ij coordinates for an 8x8 
+c           This next bit of code gets the ij coordinates for an 8x8
 c           box around the current point under consideration. These ij
-c           coordinates are sent to barnes so that barnes only loops 
+c           coordinates are sent to barnes so that barnes only loops
 c           64 times, as opposed to nearly 10,000 if the whole 97x97
-c           array were sent.  So, fix rlatt to the grid point just 
-c           northward of rlatt and fix rlont to the grid point just 
-c           eastward of rlont.  Note that this makes for a modified 
+c           array were sent.  So, fix rlatt to the grid point just
+c           northward of rlatt and fix rlont to the grid point just
+c           eastward of rlont.  Note that this makes for a modified
 c           barnes analysis in that we're  sort of specifying ahead of
 c           time exactly which grid points will be included and we'll
 c           be excluding some points that would be near the periphery
 c           of each (rlont,rlatt)'s range, but as long as we're consis-
 c           tent and do it this way for each point, it's well worth the
-c           trade-off in cpu time.  Parameter maxvgrid determines what 
+c           trade-off in cpu time.  Parameter maxvgrid determines what
 c           size array to send to barnes (maxvgrid=8 means 8x8)
 
             jvlatfix = int((vmag_latmax - rlatt)/dy + 1.)
@@ -20040,9 +20039,9 @@ c            ivlonfix = int((rlont - vmag_lonmin)/dx + 2.)
             if (ibeg < 1 .or. jbeg < 1 .or.
      &          iend > imax .or. jend > jmax) then
 
-              ! DO NOT quit if we find a boundary outside the grid 
+              ! DO NOT quit if we find a boundary outside the grid
               ! bounds.  Rather, just set the J violating bound(s) to
-              ! the min or max limit, and for I bounds, allow the 
+              ! the min or max limit, and for I bounds, allow the
               ! program to continue down to subsequent code below,
               ! provided it's a global grid.
 
@@ -20169,7 +20168,7 @@ c     &           ,'  + before call to vmag barnes, re= ',re,'  ri= ',ri
 
         enddo iloop
       enddo jloop
- 
+
       if ( verb .ge. 3 ) then
         print *,' '
         print *,'After 1st findmax loop, # calls to barnes = ',ibct
@@ -20240,7 +20239,7 @@ c     through for the center fix and exit the routine.
 c     -------------------------------------------------------------
 c     If the grid spacing is
 c     fine enough (I've chosen 0.2-deg as a min threshold), there is
-c     no need to halve the grid more than 3 times, as halving a 
+c     no need to halve the grid more than 3 times, as halving a
 c     0.2-deg grid 3 times gives a resolution of 0.025-deg (2.7 km),
 c     or a max error in the position estimate of 2.7/2 = 1.35 km.
 
@@ -20289,9 +20288,9 @@ c     loop (get_ij_bounds takes care of this).
       endif
 
 c     --------------------------------------------------------------
-c     Now do the actual searching for the max/min value 
+c     Now do the actual searching for the max/min value
 
-      
+
       if ( verb .ge. 3 ) then
         print *,' '
       endif
@@ -20371,9 +20370,9 @@ c     Now do the actual searching for the max/min value
               endif
             endif
 
-            if (rlatt > (grid_maxlat - grid_buffer) .or. 
+            if (rlatt > (grid_maxlat - grid_buffer) .or.
      &          rlatt < (grid_minlat + grid_buffer) .or.
-     &          rlont >= (grid_maxlon + dx - grid_buffer) .or. 
+     &          rlont >= (grid_maxlon + dx - grid_buffer) .or.
      &          rlont < (grid_minlon + grid_buffer)) then
               cycle iloop2
             endif
@@ -20443,7 +20442,7 @@ c           up in this subroutine inside iloop).
      &       ,f8.3,' fmax = ',e16.3,' fmin = ',e16.3)
 
  161  format (' guesslon= ',f8.3,'E  (',f8.3,'W)   guesslat= ',f8.3)
- 
+
       if ( verb .ge. 3 ) then
         print *,' '
         print *,'ppp after 2nd findmax loop, # calls to barnes =  '
@@ -20451,7 +20450,7 @@ c           up in this subroutine inside iloop).
         print *,'ppp Total # of barnes loop iterations = '
      &         ,ibarnes_loopct
       endif
- 
+
       if (maxmin == 'max') then
         xval = fmax
       else
@@ -20474,10 +20473,10 @@ c     and influence radius (km) are re and ri, respectively.
 c
 c     NOTE:  The input grid that is searched in this subroutine is most
 c     likely NOT the model's full, original grid.  Instead, a smaller
-c     subgrid of the original grid is searched.  The upper left and 
-c     lower right grid point indices are passed into this subroutine 
+c     subgrid of the original grid is searched.  The upper left and
+c     lower right grid point indices are passed into this subroutine
 c     (iibeg, jjbeg, iiend, jjend) for this subgrid.  These indices are
-c     determined in the subroutine  get_ij_bounds, and the purpose of 
+c     determined in the subroutine  get_ij_bounds, and the purpose of
 c     doing it this way is to limit the number of points for which the
 c     subroutine has to calculate distances (for a global 1 deg grid,
 c     the number of loop iterations is reduced from 65160 to somewhere
@@ -20591,7 +20590,7 @@ c     --------------------------
               ! point, its zeta value has been set to -999 because a
               ! neighboring point in subroutine  rvcal was found
               ! to be out of the grid boundaries.  This also prevents
-              ! -999 values for MSLP at grid edges in HWRF from 
+              ! -999 values for MSLP at grid edges in HWRF from
               ! getting included in the mean calculation, a problem
               ! diagnosed in October, 2020.
               cycle
@@ -20604,7 +20603,7 @@ c              if (verb >= 1) then
 c                print *,'rhbarnes, ctype= ',ctype,' i= ',i,' j= ',j
 c     &                 ,' fxy(i,j)= ',fxy(i,j)
 c              endif
-c            endif 
+c            endif
           else
             if (ctype == 'vitals') then
               continue
@@ -20621,10 +20620,10 @@ carw           iret = 95
 carw           return
             endif
           endif
- 
+
         enddo
       enddo
- 
+
       if (wts > 1.0E-5) then
          favg = favg/wts
       else
@@ -20643,11 +20642,11 @@ c----------------------------------------------------------------------
      &        ,trkrinfo,iret)
 c
 c     ABSTRACT: This routine performs a single-pass barnes anaylsis
-c     of fxy at the point (flon,flat)...  Just like the original 
-c     subroutine  barnes.  The only difference is that this routine 
-c     is meant for SST and will contain an additional check for the 
+c     of fxy at the point (flon,flat)...  Just like the original
+c     subroutine  barnes.  The only difference is that this routine
+c     is meant for SST and will contain an additional check for the
 c     land-sea mask.  While it would have been easy to code that into
-c     the original barnes subroutine, I didn't want to check 
+c     the original barnes subroutine, I didn't want to check
 c     for land/sea since that routine is the core of the  tracker
 c     program, it gets called zillions of times for other purposes,
 c     and I don't want to slow it down at all with extra code.
@@ -20756,7 +20755,7 @@ c     --------------------------
                 ! point, its zeta value has been set to -999 because a
                 ! neighboring point in subroutine  rvcal was found
                 ! to be out of the grid boundaries.  This also prevents
-                ! -999 values for MSLP at grid edges in HWRF from 
+                ! -999 values for MSLP at grid edges in HWRF from
                 ! getting included in the mean calculation, a problem
                 ! diagnosed in October, 2020.
                 cycle
@@ -20783,7 +20782,7 @@ carw             return
               endif
             endif
           endif
- 
+
         enddo
       enddo
 
@@ -20823,15 +20822,15 @@ c     -----------------------------------------------------------
 c     ABSTRACT: This subroutine figures out, based on ri, dx and dy and
 c     the guess latitude and longitude positions, the farthest reaching
 c     grid points that are searchable by an analysis subroutine.  The
-c     purpose is to return indices for a subgrid that is much smaller 
-c     than the original, full grid.  This smaller subgrid can then be 
-c     passed to a subsequent analysis or interpolation subroutine, and 
-c     work can be done on this smaller array.  This can help save time, 
-c     especially in the  barnes analysis subroutine, as work will only 
-c     be done on, say, a 20 x 20 array (400 pts) instead of on a 
-c     360 x 181 array (65160 pts).  It's crucial, however, to make sure 
-c     that the ibeg, jbeg, iend and jend are extended far enough out to 
-c     fully encompass any search that would be done.  Below is a 
+c     purpose is to return indices for a subgrid that is much smaller
+c     than the original, full grid.  This smaller subgrid can then be
+c     passed to a subsequent analysis or interpolation subroutine, and
+c     work can be done on this smaller array.  This can help save time,
+c     especially in the  barnes analysis subroutine, as work will only
+c     be done on, say, a 20 x 20 array (400 pts) instead of on a
+c     360 x 181 array (65160 pts).  It's crucial, however, to make sure
+c     that the ibeg, jbeg, iend and jend are extended far enough out to
+c     fully encompass any search that would be done.  Below is a
 c     diagram showing the different grids....
 c
 c Full Global or Regional Model Grid  (Grid F) ----------->
@@ -20855,8 +20854,8 @@ c     | points within our ibeg-jbeg-iend-jend bounds.                |
 c     |                                                              |
 c     ----------------------------------------------------------------
 c
-c     Remember that the grids we deal with start north and increase 
-c     south, so the northernmost latitude on the input grid will have 
+c     Remember that the grids we deal with start north and increase
+c     south, so the northernmost latitude on the input grid will have
 c     a j index of 1.
 c
 c     INPUT:
@@ -20896,10 +20895,10 @@ c
 c     --------------------------------------
 c     GET BEGINNING AND ENDING J POINTS....
 c
-c     (1) Calculate number of searchable, max/min pts, that is, the pts 
+c     (1) Calculate number of searchable, max/min pts, that is, the pts
 c         from x to the edge of Grid B.
-c     (2) Calculate number of pts beyond the last search point in Grid 
-c         B, but are within the bounds of Grid R and thus can be 
+c     (2) Calculate number of pts beyond the last search point in Grid
+c         B, but are within the bounds of Grid R and thus can be
 c         included in the  barnes analysis.
 c     (3) Add (1) and (2) to get the max number of pts to subtract/add
 c         to x to get jbeg and jend.
@@ -20922,7 +20921,7 @@ c       jripts   = # of searchable grid points within radius ri of last
 c                  possible search pt (num pts between edge of Grid B
 c                  and edge of Grid R in above diagram), plus a cushion
 c       jbmaxlatpts = # of pts (in j direction) from x to the edge of
-c                     Grid R to include in this subgrid. 
+c                     Grid R to include in this subgrid.
 c
 c     If nhalf = 0: In this case, the grid spacing will not be reduced,
 c     so the number of pts in j direction from x to the edge of Grid
@@ -20930,8 +20929,8 @@ c     B will be the input parameter npts, and just multiply it by 2,
 c     and add 2 for a cushion to get jmaxlatpts.  Typically, this sub
 c     is called from find_maxmin, and in that sub, the first time that
 c     this sub is called, nhalf will = 0.  Then, after a first-shot
-c     center is found, the grid spacing will be cut in order to rerun 
-c     barnes on a smaller grid, and that's when nhalf will be sent 
+c     center is found, the grid spacing will be cut in order to rerun
+c     barnes on a smaller grid, and that's when nhalf will be sent
 c     here as 3.
 c
       if (nhalf > 0) then
@@ -21107,7 +21106,7 @@ c     Roughly fix geslon to the grid point just EASTward of geslon.
       endif
       if (ibeg < 1) then
         if (trkrinfo%gridtype == 'global') then
-          
+
           if ( verb .ge. 3 ) then
             print *,'+++ NOTE: in get_ij_bounds, ibeg < 1'
             print *,'+++ for a global grid; GM wrapping expected from'
@@ -21154,9 +21153,9 @@ c     ABSTRACT:  This subroutine checks to make sure that the requested
 c                storm is in fact within the model's grid boundaries;
 c                this is only a concern for the regional models.
 c
-      USE def_vitals; USE grid_bounds; USE set_max_parms 
+      USE def_vitals; USE grid_bounds; USE set_max_parms
       USE trkrparms
-      USE verbose_output 
+      USE verbose_output
 
       type (trackstuff) trkrinfo
 
@@ -21181,11 +21180,11 @@ c
         endif
       endif
 
-      ! We have encountered problems with global grids where we 
+      ! We have encountered problems with global grids where we
       ! continue tracking almost the whole way to the pole.  While
-      ! that's nice to do that, it creates problems for array 
+      ! that's nice to do that, it creates problems for array
       ! indices, especially in subroutine  getradii.  So we will cut
-      ! our losses and eliminate tracking of storms within 
+      ! our losses and eliminate tracking of storms within
       ! 5 degrees of the pole for global grids.
 
       if ((trkrinfo%type == 'midlat' .or.
@@ -21221,39 +21220,39 @@ c
 c-----------------------------------------------------------------------
       subroutine calcdist(rlonb,rlatb,rlonc,rlatc,xdist,degrees)
 c
-c     ABSTRACT: This subroutine computes the distance between two 
-c               lat/lon points by using spherical coordinates to 
+c     ABSTRACT: This subroutine computes the distance between two
+c               lat/lon points by using spherical coordinates to
 c               calculate the great circle distance between the points.
 c                       Figure out the angle (a) between pt.B and pt.C,
-c             N. Pole   then figure out how much of a % of a great 
+c             N. Pole   then figure out how much of a % of a great
 c               x       circle distance that angle represents.
 c              / \
 c            b/   \     cos(a) = (cos b)(cos c) + (sin b)(sin c)(cos A)
-c            /     \                                             
+c            /     \
 c        pt./<--A-->\c     NOTE: The latitude arguments passed to the
 c        B /         \           subr are the actual lat vals, but in
 c                     \          the calculation we use 90-lat.
-c               a      \                                      
+c               a      \
 c                       \pt.  NOTE: You may get strange results if you:
 c                         C    (1) use positive values for SH lats AND
-c                              you try computing distances across the 
+c                              you try computing distances across the
 c                              equator, or (2) use lon values of 0 to
 c                              -180 for WH lons AND you try computing
 c                              distances across the 180E meridian.
-c    
+c
 c     NOTE: In the diagram above, (a) is the angle between pt. B and
 c     pt. C (with pt. x as the vertex), and (A) is the difference in
 c     longitude (in degrees, absolute value) between pt. B and pt. C.
 c
-c     !!! NOTE !!! -- THE PARAMETER ecircum IS DEFINED (AS OF THE 
+c     !!! NOTE !!! -- THE PARAMETER ecircum IS DEFINED (AS OF THE
 c     ORIGINAL WRITING OF THIS SYSTEM) IN KM, NOT M, SO BE AWARE THAT
 c     THE DISTANCE RETURNED FROM THIS SUBROUTINE IS ALSO IN KM.
 c
 c     20 May 2022: After all these years with the tracker, I uncovered
-c     a bug in this distance calculation.  For points that are 
-c     extremely close to each other, inverse cosine function would 
+c     a bug in this distance calculation.  For points that are
+c     extremely close to each other, inverse cosine function would
 c     return a value of zero because of truncation due to using single
-c     precision.  I had to switch to using double precision and also 
+c     precision.  I had to switch to using double precision and also
 c     using the double-precision versions of sin & cos (dsin & dcos).
 c
       USE trig_vals
@@ -21280,9 +21279,9 @@ c
       distlatc8 = (pole8 - rlatc8) * dtr
       difflon8  = abs( (rlonb8 - rlonc8)*dtr )
 c
-      cosanga = ( dcos(distlatb8) * dcos(distlatc8) + 
+      cosanga = ( dcos(distlatb8) * dcos(distlatc8) +
      &            dsin(distlatb8) * dsin(distlatc8) * dcos(difflon8))
- 
+
 c     This next check of cosanga is needed since I have had ACOS crash
 c     when calculating the distance between 2 identical points (should
 c     = 0), but the input for ACOS was just slightly over 1
@@ -21300,7 +21299,7 @@ c     (e.g., 1.00000000007), due to (I'm guessing) rounding errors.
       degrees = degrees8
 c
 c     NOTE: whether this subroutine returns the value of the distance
-c           in km or m depends on the scale of the parameter ecircum. 
+c           in km or m depends on the scale of the parameter ecircum.
 c           At the original writing of this subroutine (7/97), ecircum
 c           was given in km.
 c
@@ -21326,7 +21325,7 @@ c
 c
       do j=1,jmax
         rlat = glatmax - ((j-1) * dy)
-        coriolis = 2. * omega * sin(rlat*dtr) 
+        coriolis = 2. * omega * sin(rlat*dtr)
         do i=1,imax
           zeta(i,j,level) = zeta(i,j,level) - coriolis
         enddo
@@ -21454,7 +21453,7 @@ c     14.  300-500 mb mean temperature (I jerry-rigged this by storing
 c               the data as being at the 401 mb level.)
 c     15.  500 mb geopotential height
 c     16.  200 mb geopotential height
-c     17.  Land-Sea mask -- This is for tcgen applications only, and 
+c     17.  Land-Sea mask -- This is for tcgen applications only, and
 c               even there, it's optional.
 c     18.  200 mb u-component
 c     19.  200 mb u-component
@@ -21583,7 +21582,7 @@ c              there being too few initial values in the list when I
 c              only had 11 values there -- even though the real
 c              initialization for these variables is done just about
 c              10 lines below.
-c    
+c
 c     ** NOTE: The new ECMWF hi-res data uses the ECMWF GRIB parameter
 c              ID table, which has different values than the NCEP
 c              table.  Therefore, we needed to add the variables and
@@ -21666,20 +21665,20 @@ c                (23) FNMOC Ensemble
 c                (24) HWRF Basin-scale
 
       readgenflag = .false.
-      
+
       if (trkrinfo%gribver == 2) then
 
 c       For GRIB2, we will check to see if the MSLP being searched for
-c       is the standard MSLP (MSLP parm ID = 1) or if it is the 
-c       so-called "Eta" or "Membrane" MSLP reduction that is included 
+c       is the standard MSLP (MSLP parm ID = 1) or if it is the
+c       so-called "Eta" or "Membrane" MSLP reduction that is included
 c       in the output for some models (like GFS and GDAS).  Note that
 c       for 10m winds, with GRIB2, so far with all of the GRIB2 model
-c       data we've seen to this point, they all have the same IDs for 
-c       10m winds for all models, so no need to break out by model 
+c       data we've seen to this point, they all have the same IDs for
+c       10m winds for all models, so no need to break out by model
 c       like we do for GRIB v1 in the else portion of this if statement.
- 
+
         ig2_parm_num(9) = trkrinfo%g2_mslp_parm_id ! 1 = standard MSLP
-                             ! reduction, 192 = "Eta" or "Membrane" 
+                             ! reduction, 192 = "Eta" or "Membrane"
                              ! reduction used in GFS, GDAS and others.
 
         if ( verb .ge. 3 ) then
@@ -21691,16 +21690,16 @@ c       like we do for GRIB v1 in the else portion of this if statement.
       else
 
 c       For GRIB1, do the same check as done just above in the IF part
-c       of this IF statement, but note that we need to also check to 
-c       see what the GRIB1 parm IDs are for the sfc wind level type 
+c       of this IF statement, but note that we need to also check to
+c       see what the GRIB1 parm IDs are for the sfc wind level type
 c       and value.  Most models list the level type as 105 (which means
-c       height above the ground) and then a level value of 10.  But 
-c       ECMWF and UKMET use a level type of 1 (which means ground or 
+c       height above the ground) and then a level value of 10.  But
+c       ECMWF and UKMET use a level type of 1 (which means ground or
 c       water surface) and a level value of 0.
 
         igparm(9) = trkrinfo%g1_mslp_parm_id ! 2 = standard MSLP
-                             ! reduction, 130 = "Eta" or "Membrane" 
-                             ! reduction used in GFS, GDAS and others. 
+                             ! reduction, 130 = "Eta" or "Membrane"
+                             ! reduction used in GFS, GDAS and others.
 
         iglevtyp(10) = trkrinfo%g1_sfcwind_lev_typ ! 105 for most
         iglevtyp(11) = trkrinfo%g1_sfcwind_lev_typ ! 105 for most
@@ -21713,7 +21712,7 @@ c       water surface) and a level value of 0.
         ec_iglev(11)    = trkrinfo%g1_sfcwind_lev_val ! = 0 for ECMWF
 
         if ( verb .ge. 3 ) then
-          print *,' ' 
+          print *,' '
           print *,'Before GRIB1 read, MSLP ID = igparm(9) = '
      &           ,igparm(9)
           print *,'Before GRIB1 read, non-ECMWF sfcwind lev type = '
@@ -21768,10 +21767,10 @@ c     &          trkrinfo%use_land_mask == 'Y') then
 c              continue
 c            else
 c              if (verb .ge. 3) then
-c                print *,' '             
+c                print *,' '
 c                print *,'The use_land_mask flag has not been set to  '
 c                print *,'y or Y, so we will not try to read it in... '
-c                print *,' '             
+c                print *,' '
 c                cycle grib2_standard_parm_read_loop
 c              endif
 c            endif
@@ -21792,7 +21791,7 @@ c          endif
           gfld%fld => NULL()
 
           if (ip == 17) then
-            jdisc=1 ! hydrological products.  At this point, used only 
+            jdisc=1 ! hydrological products.  At this point, used only
                     ! for the land-sea mask.
           elseif (ip == 20) then
             jdisc = 10 ! discipline = 10 (oceanographic products)
@@ -21801,7 +21800,7 @@ c          endif
             jdisc=0 ! meteorological products
           endif
           jids=-9999
-          jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
+          jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast;
                                   ! 1 = ens fcst
           jgdtn=0 ! lat/lon grid
           jgdt=-9999
@@ -22020,7 +22019,7 @@ c             Get parameter abbrev for record that was retrieved
      &                 ,gfld%ipdtmpl(j)
               enddo
             endif
-   
+
             pdt_4p0_vtime      = gfld%ipdtmpl(9)
             pdt_4p0_vert_level = gfld%ipdtmpl(12)
 
@@ -22159,7 +22158,7 @@ c       *------------------------------------------------------------*
               !
               ! ---  Initialize Variables ---
               !
-      
+
               gfld%idsect => NULL()
               gfld%local => NULL()
               gfld%list_opt => NULL()
@@ -22172,7 +22171,7 @@ c       *------------------------------------------------------------*
 
               jdisc=0
               jids=-9999
-              jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
+              jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast;
                                       ! 1 = ens fcst
               jgdtn=0
               jgdt=-9999
@@ -22205,7 +22204,7 @@ c       *------------------------------------------------------------*
 
               JPDT(10) = cpsig2_lev_typ(ip)
               if (JPDT(10) == 100) then   ! isobaric surface
-                JPDT(12) = cpsig2_lev_val(ip) * 100  ! GRIB2 levels 
+                JPDT(12) = cpsig2_lev_val(ip) * 100  ! GRIB2 levels
                                                      ! are in Pa
               else
                 if (verb .ge. 3) then
@@ -22278,7 +22277,7 @@ c               The default packing is 40  JPEG 2000
                 elseif ( gfld%idrtnum.eq.3 ) then  ! Complex & spatial
      &                                             ! packing
                   ipack = 31
-                elseif ( gfld%idrtnum.eq.40.or.gfld%idrtnum.eq.15 ) 
+                elseif ( gfld%idrtnum.eq.40.or.gfld%idrtnum.eq.15 )
      &          then
                   ! JPEG 2000 packing
                   ipack = 40
@@ -22293,9 +22292,9 @@ c               The default packing is 40  JPEG 2000
                   print *,'Number of elements= gfld%igdtlen= '
      &                   ,gfld%igdtlen
                   print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
-                endif 
+                endif
 
-                kf = gfld%ngrdpts  ! Number of gridpoints returned 
+                kf = gfld%ngrdpts  ! Number of gridpoints returned
                                  ! from read
 
                 do np = 1,kf
@@ -22309,7 +22308,7 @@ c               The default packing is 40  JPEG 2000
 
                 call bitmapchk(kf,lb,f,dmin,dmax)
 
-c               Convert logical bitmap to 2-d array (only need to do 
+c               Convert logical bitmap to 2-d array (only need to do
 c               this once since using same model for all variables).
 
                 if (lbrdflag .eq. 'n') then
@@ -22410,15 +22409,15 @@ c               Convert data to 2-d array
 c       *------------------------------------------------------------*
 c        GRIB2 Read for genesis diagnostics
 c
-c        If we are attempting to perform genesis diagnostics, then 
+c        If we are attempting to perform genesis diagnostics, then
 c        read in data now that will allow us to do that.
 c
-c        The order of the variables in the reads is set up so that, 
-c        ideally, we will read in the first 8 fields and not need 
-c        anything else, e.g., q850, and then RH at these 
-c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c        The order of the variables in the reads is set up so that,
+c        ideally, we will read in the first 8 fields and not need
+c        anything else, e.g., q850, and then RH at these
+c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However,
 c        some models, like SHiELD & T-SHiELD, do not have RH at these
-c        levels, but they do have T & q, so in those cases we would 
+c        levels, but they do have T & q, so in those cases we would
 c        have to compute RH, and therefore need to read in T & q at
 c        those levels.
 c
@@ -22439,7 +22438,7 @@ c       *------------------------------------------------------------*
                 ! enough RH records were read in, then we have to assume
                 ! that RH was not included in the user data, so we will
                 ! instead stay in this Genesis GRIB2 read loop to read
-                ! in q and T to compute RH later on.  If enough RH 
+                ! in q and T to compute RH later on.  If enough RH
                 ! records were read in, then exit this read loop.
 
                 igrhct = 0
@@ -22457,7 +22456,7 @@ c       *------------------------------------------------------------*
                     print *,'GRIB2 read loop without reading specific'
                     print *,'humidity or temperature records.'
                   endif
-                  need_to_compute_rh_from_q = 'n' 
+                  need_to_compute_rh_from_q = 'n'
                   ! call gf_free (gfld)
                   exit grib2_gen_parm_loop
                 else
@@ -22468,7 +22467,7 @@ c       *------------------------------------------------------------*
                     print *,'in the Genesis GRIB2 read loop, reading'
                     print *,'specific humidity and temperature records.'
                   endif
-                  need_to_compute_rh_from_q = 'y' 
+                  need_to_compute_rh_from_q = 'y'
                 endif
 
               endif
@@ -22476,7 +22475,7 @@ c       *------------------------------------------------------------*
             else
 
               need_to_compute_rh_from_q = 'y'
- 
+
               ! If the ip index is between 2 and 8 (which is for RH
               ! records) and the user has specified that RH will NOT be
               ! read in, then skip over the read section for these by
@@ -22512,7 +22511,7 @@ c       *------------------------------------------------------------*
                     ! currently using in the  tracker
 
             jids=-9999
-            jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
+            jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast;
                                     ! 1 = ens fcst
             jgdtn=0
             jgdt=-9999
@@ -22626,7 +22625,7 @@ c             The default packing is 40  JPEG 2000
                 print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
               endif
 
-              kf = gfld%ngrdpts  ! Number of gridpoints returned 
+              kf = gfld%ngrdpts  ! Number of gridpoints returned
                                  ! from read
 
               do np = 1,kf
@@ -22641,9 +22640,9 @@ c             The default packing is 40  JPEG 2000
               readgenflag(ip) = .TRUE.
               call bitmapchk(kf,lb,f,dmin,dmax)
 
-c             Convert logical bitmap to 2-d array (only need to do 
+c             Convert logical bitmap to 2-d array (only need to do
 c             this once since using same model for all variables).
-c             This should have already been done above in reading 
+c             This should have already been done above in reading
 c             either the general tracking variables or, if they were
 c             requested, the cyclone phase space variables.
 
@@ -22805,7 +22804,7 @@ c             Convert data to 2-d array
                 case ('omega500')
                   call conv1d2d_real (imax,jmax,f,omega500(1,1)
      &                                           ,need_to_flip_lats)
-                case default 
+                case default
                   if ( verb .ge. 1 ) then
                     print *,'!!! ERROR: BAD CH_GENPARM IN GETDATA = '
      &                     ,ch_genparm(ip)
@@ -22830,36 +22829,36 @@ c        This is the GRIB1 reading section.
 c       *------------------------------------------------------------*
 
         grib1_read_loop: do ip = 1,nreadparms
-              
+
           jpds = -1
           jgds = -1
-          j=0     
-              
+          j=0
+
           if (inp%model == 4) then  ! ECMWF hi-res data uses ECMWF table
             print *,' '
             print *,'WARNING: From the namelist, inp%model is set to a'
             print *,'   value of 4, which is for ECMWF, so in routine'
-            print *,'   getdata_grib, the input jpds(5,6,7) parms are' 
+            print *,'   getdata_grib, the input jpds(5,6,7) parms are'
             print *,'   going to have values that are specific for'
             print *,'   ECMWF GRIB1 data.'
             print *,' '
-            jpds(5)  = ec_igparm(ip) 
+            jpds(5)  = ec_igparm(ip)
             jpds(6)  = ec_iglevtyp(ip)
             jpds(7)  = ec_iglev(ip)
           else   ! All other models use NCEP-standard GRIB table
             jpds(5)  = igparm(ip)
-            jpds(6)  = iglevtyp(ip) 
+            jpds(6)  = iglevtyp(ip)
             jpds(7)  = iglev(ip)
-          endif 
+          endif
 
           print *,' '
           print *,' --- Before getgb, jpds(5)= ',jpds(5)
           print *,' ---             , jpds(6)= ',jpds(6)
           print *,' ---             , jpds(7)= ',jpds(7)
-                
+
           if (jpds(5) == 999) then
-            cycle 
-          endif   
+            cycle
+          endif
 
           if (inp%lt_units == 'minutes') then
             jpds(14) = iftotalmins(ifh)
@@ -22872,7 +22871,7 @@ c       *------------------------------------------------------------*
      &            ,date_time)
              write (6,831) date_time(5),date_time(6),date_time(7)
  831         format (1x,'TIMING: before getgb-1',i2.2,':',i2.2,':',i2.2)
-          endif 
+          endif
 
           call getgb (lugb,lugi,jf,j,jpds,jgds,
      &                          kf,k,kpds,kgds,lb,f,iret)
@@ -22882,7 +22881,7 @@ c       *------------------------------------------------------------*
      &           ,date_time)
             write (6,832) date_time(5),date_time(6),date_time(7)
  832        format (1x,'TIMING: after getgb-1',i2.2,':',i2.2,':',i2.2)
-          endif     
+          endif
 
           if ( verb .ge. 3 ) then
             print *,' '
@@ -22909,20 +22908,20 @@ c       *------------------------------------------------------------*
      &                 ,' hours'
               endif
             endif
-          
+
             readflag(ip) = .TRUE.
             call bitmapchk(kf,lb,f,dmin,dmax)
 
             if ( verb .ge. 3 ) then
               if (inp%lt_units == 'minutes') then
-                write (6,29) 
+                write (6,29)
               else
-                write (6,31) 
+                write (6,31)
               endif
  29           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fmin'
-     &             ,'  npts  minval       maxval') 
+     &             ,'  npts  minval       maxval')
  31           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fhr '
-     &             ,'  npts  minval       maxval') 
+     &             ,'  npts  minval       maxval')
               print '(i4,2x,8i5,i8,2g12.4)',
      &             k,(kpds(i),i=5,11),kpds(14),kf,dmin,dmax
             endif
@@ -23065,7 +23064,7 @@ c       *------------------------------------------------------------*
 
               if (inp%lt_units == 'minutes') then
                 jpds(14) = iftotalmins(ifh)
-              else    
+              else
                 jpds(14) = ifhours(ifh)
               endif
 
@@ -23104,9 +23103,9 @@ c       *------------------------------------------------------------*
                 call bitmapchk(kf,lb,f,dmin,dmax)
 
                 if ( verb .ge. 3 ) then
-                  if (inp%lt_units == 'minutes') then    
+                  if (inp%lt_units == 'minutes') then
                     write (6,39)
-                  else  
+                  else
                     write (6,41)
                   endif
  39               format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  '
@@ -23116,7 +23115,7 @@ c       *------------------------------------------------------------*
                   print '(i4,2x,8i5,i8,2g12.4)',
      &                 k,(kpds(i),i=5,11),kpds(14),kf,dmin,dmax
                 endif
-                
+
 c               Convert data to 2-d array
 
                 call conv1d2d_real (imax,jmax,f,cpshgt(1,1,ip)
@@ -23133,15 +23132,15 @@ c               Convert data to 2-d array
 c       *------------------------------------------------------------*
 c        GRIB1 Read for genesis diagnostics
 c
-c        If we are attempting to perform genesis diagnostics, then 
+c        If we are attempting to perform genesis diagnostics, then
 c        read in data now that will allow us to do that.
 c
-c        The order of the variables in the reads is set up so that, 
-c        ideally, we will read in the first 9 fields and not need 
-c        anything else, e.g., SST, q850, and then RH at these 
-c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c        The order of the variables in the reads is set up so that,
+c        ideally, we will read in the first 9 fields and not need
+c        anything else, e.g., SST, q850, and then RH at these
+c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However,
 c        some models, like SHiELD & T-SHiELD, do not have RH at these
-c        levels, but they do have T & q, so in those cases we would 
+c        levels, but they do have T & q, so in those cases we would
 c        have to compute RH, and therefore need to read in T & q at
 c        those levels.
 c
@@ -23162,7 +23161,7 @@ c       *------------------------------------------------------------*
                 ! enough RH records were read in, then we have to assume
                 ! that RH was not included in the user data, so we will
                 ! instead stay in this Genesis GRIB1 read loop to read
-                ! in q and T to compute RH later on.  If enough RH 
+                ! in q and T to compute RH later on.  If enough RH
                 ! records were read in, then exit this read loop.
 
                 igrhct = 0
@@ -23382,12 +23381,12 @@ c             Convert data to 2-d array
                   call conv1d2d_real (imax,jmax,f,omega500(1,1)
      &                                           ,need_to_flip_lats)
                 case default
-  
+
                   if ( verb .ge. 1 ) then
                     print *,'!!! ERROR: BAD CH_GENPARM IN GETDATA = '
      &                     ,ch_genparm(ip)
                   endif
-  
+
                 end select
 
             else
@@ -23408,7 +23407,7 @@ c             Convert data to 2-d array
             endif
 
           enddo grib1_gen_parm_loop
-  
+
         endif
 
       endif
@@ -23426,7 +23425,7 @@ c-----------------------------------------------------------------------
      &                  ,imax,jmax,ifh,need_to_flip_lats
      &                  ,need_to_flip_lons,ncfile_tmax,netcdfinfo)
 c
-c     ABSTRACT: This subroutine reads the input NetCDF file for the 
+c     ABSTRACT: This subroutine reads the input NetCDF file for the
 c     tracked parameters for one lead time.
 c
 c     There are up to 9 fields that are read in that will be used to
@@ -23456,7 +23455,7 @@ c     13.  500 mb v-component
 c     14.  300-500 mb mean temperature
 c     15.  500 mb geopotential height
 c     16.  200 mb geopotential height
-c     17.  Land-Sea mask -- This is for tcgen applications only, and 
+c     17.  Land-Sea mask -- This is for tcgen applications only, and
 c               even there, it's optional.
 c     18.  200 mb u-component
 c     19.  200 mb u-component
@@ -23490,7 +23489,7 @@ c     22.  600 mb temperature
 c     23.  500 mb omega
 c
 c     If the user has requested to check the cyclone phase space for
-c     this run (phaseflag set to 'y' and phasescheme set to 'cps'), 
+c     this run (phaseflag set to 'y' and phasescheme set to 'cps'),
 c     then we need to have gp height data for 900-300 mb at every 50
 c     mb.  Some of those levels for gp height data were already read
 c     in with the read of the initial 17 parameters, but we will be
@@ -23549,7 +23548,7 @@ c     &              ,'u850','v850','u700','v700'
 c     &              ,'h850','h700','slp','u_ref','v_ref'
 c     &              ,'u500','v500','tm'/
 
-c     Load the names of the NetCDF variables for the standard 
+c     Load the names of the NetCDF variables for the standard
 c     variables into the chparm array...
 
       chparm(1)  = netcdfinfo%rv850name
@@ -23571,8 +23570,8 @@ c     variables into the chparm array...
       chparm(17) = netcdfinfo%lmaskname
       chparm(18) = netcdfinfo%u200name
       chparm(19) = netcdfinfo%v200name
-      chparm(20) = netcdfinfo%sstname 
-      
+      chparm(20) = netcdfinfo%sstname
+
       if (verb .ge. 3) then
         print *,' '
         print *,'NOTE: Program is now in subroutine  getdata_netcdf.'
@@ -23589,9 +23588,9 @@ c     variables into the chparm array...
       endif
 
       !---------------------------------------------------------------
-      ! First go through the list of user-requested lead times that 
+      ! First go through the list of user-requested lead times that
       ! were read in from subroutine  read_fhours and try to match up
-      ! the lead times that were read in with the lead times that 
+      ! the lead times that were read in with the lead times that
       ! we read in directly from the NetCDF file.  Get the index from
       ! the NetCDF file for that lead time and use that in the call to
       ! the read routine (get_var3_tlev_double).
@@ -23654,10 +23653,10 @@ c     variables into the chparm array...
         endif
 
         ! Note that I am sending a 1-d array, "f", to the netcdf read
-        ! routine.   While that routine returns a 2-d array (which we 
+        ! routine.   While that routine returns a 2-d array (which we
         ! want), depending on the model & grid, we may need to flip the
         ! grid in the north-south direction.  I already have a routine
-        ! for converting data from a 1-d to a 2-d array, and it has 
+        ! for converting data from a 1-d to a 2-d array, and it has
         ! the functionality for flipping a grid, so I programmed it as
         ! getting a 1-d array from the netcdf read routine and send that
         ! 1-d array to conv1d2d_real.
@@ -23682,8 +23681,8 @@ c          call bitmapchk(kf,lb,f,dmin,dmax)
 
           ! Need to get the value of the "missing_value" attribute for
           ! this variable from the list of attributes in the NetCDF
-          ! file.  Only do this for the first lead time, since the 
-          ! value of the "missing_value" obviously will not change 
+          ! file.  Only do this for the first lead time, since the
+          ! value of the "missing_value" obviously will not change
           ! with lead time.
 
 c          nf_status = nf_inq_attlen (ncfile_id,varid,"missing_value"
@@ -23692,14 +23691,14 @@ c          nf_status = nf_inq_attlen (ncfile_id,varid,"_FillValue"
 c     &               ,ifvlen)
 
           ! These next two nf function calls retrieve the value of the
-          ! "missing_value" attribute from the list of attributes for 
+          ! "missing_value" attribute from the list of attributes for
           ! the given variable being read in.  This is needed in order
-          ! to know if a non-valid point is being accessed, as for a 
+          ! to know if a non-valid point is being accessed, as for a
           ! regional grid, like the nested fvGFS.  In GRIB1/GRIB2 files,
           ! such regions would be bitmapped out, but in a NetCDF file,
-          ! no such bitmap exists, so we have to check for missing 
-          ! values.  In case it's a moving grid, we need to do this 
-          ! for every lead time, since the "map of missing values" 
+          ! no such bitmap exists, so we have to check for missing
+          ! values.  In case it's a moving grid, we need to do this
+          ! for every lead time, since the "map of missing values"
           ! will shift with lead time.  Once we have those missing
           ! values, we can loop through them and fill the valid_pt
           ! logical array so that, in the end, we will have the same
@@ -23740,9 +23739,9 @@ c     &               ,"_FillValue",xfill_value)
           endif
 
           ! This call to conv1d2d_logic_netcdf creates
-          ! a logical bitmap, so that in case we have 
-          ! regional (non-global) data and an irregular grid (e.g., 
-          ! the FV3 nested grid), we can mask out grid points that 
+          ! a logical bitmap, so that in case we have
+          ! regional (non-global) data and an irregular grid (e.g.,
+          ! the FV3 nested grid), we can mask out grid points that
           ! have missing values as their data values.  There is not
           ! actually a native logical bitmap in NetCDF, so we will
           ! create one by examining the real data values and masking
@@ -23830,14 +23829,14 @@ c     *--------------------------------------------------------------*
 c      NetCDF read for Cyclone Phase Space diagnostics
 c
 c      If we are attempting to determine the cyclone structure using
-c      Hart's cyclone phase space, then read in data now that will 
-c      allow us to do that.  If we are instead just using the 
-c      mid-level (300-500 mb) mean temperature to do that with a 
+c      Hart's cyclone phase space, then read in data now that will
+c      allow us to do that.  If we are instead just using the
+c      mid-level (300-500 mb) mean temperature to do that with a
 c      simple warm-core check, then that mean temperature field was
-c      already read in above in the read loop for the standard 
-c      variables.  The variables needed here for CPS are pretty 
+c      already read in above in the read loop for the standard
+c      variables.  The variables needed here for CPS are pretty
 c      straightforward:  gp height every 50 mb from 300 to 900 mb.
-c      keep in mind that we have already read in a few of these 
+c      keep in mind that we have already read in a few of these
 c      gp height records for selected levels above.
 c     *--------------------------------------------------------------*
 
@@ -23896,11 +23895,11 @@ c     *--------------------------------------------------------------*
             endif
 
             ! As above, we send a 1-d array, "f", to the netcdf read
-            ! routine.   While that routine returns a 2-d array (which 
-            ! we want), depending on the model & grid, we may need to 
-            ! flip the grid in the north-south direction.  I already 
-            ! have a routine for converting data from a 1-d to a 2-d 
-            ! array, and it has the functionality for flipping a grid, 
+            ! routine.   While that routine returns a 2-d array (which
+            ! we want), depending on the model & grid, we may need to
+            ! flip the grid in the north-south direction.  I already
+            ! have a routine for converting data from a 1-d to a 2-d
+            ! array, and it has the functionality for flipping a grid,
             ! so I programmed it as getting a 1-d array from the netcdf
             ! read routine and send that 1-d array to conv1d2d_real.
 
@@ -23944,27 +23943,27 @@ c     &                   ,"_FillValue",xfill_value)
 
               call conv1d2d_real (imax,jmax,f,cpshgt(1,1,ip)
      &                           ,need_to_flip_lats)
- 
+
             endif
-                 
+
           enddo netcdf_cps_parm_read_loop
-      
+
         endif
-      
+
       endif
 
 c     *------------------------------------------------------------*
 c      NetCDF Read for genesis diagnostics
 c
-c      If we are attempting to perform genesis diagnostics, then 
+c      If we are attempting to perform genesis diagnostics, then
 c      read in data now that will allow us to do that.
 c
-c      The order of the variables in the reads is set up so that, 
-c      ideally, we will read in the first 9 fields and not need 
-c      anything else, e.g., SST, q850, and then RH at these 
-c      levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
+c      The order of the variables in the reads is set up so that,
+c      ideally, we will read in the first 9 fields and not need
+c      anything else, e.g., SST, q850, and then RH at these
+c      levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However,
 c      some models, like SHiELD & T-SHiELD, do not have RH at these
-c      levels, but they do have T & q, so in those cases we would 
+c      levels, but they do have T & q, so in those cases we would
 c      have to compute RH, and therefore need to read in T & q at
 c      those levels.
 c     *------------------------------------------------------------*
@@ -24007,7 +24006,7 @@ c     *------------------------------------------------------------*
               ! enough RH records were read in, then we have to assume
               ! that RH was not included in the user data, so we will
               ! instead stay in this Genesis NetCDF read loop to read
-              ! in q and T to compute RH later on.  If enough RH 
+              ! in q and T to compute RH later on.  If enough RH
               ! records were read in, then exit this read loop.
 
               igrhct = 0
@@ -24077,11 +24076,11 @@ c     *------------------------------------------------------------*
           endif
 
           ! As above, we send a 1-d array, "f", to the netcdf read
-          ! routine.   While that routine returns a 2-d array (which 
-          ! we want), depending on the model & grid, we may need to 
-          ! flip the grid in the north-south direction.  I already 
-          ! have a routine for converting data from a 1-d to a 2-d 
-          ! array, and it has the functionality for flipping a grid, 
+          ! routine.   While that routine returns a 2-d array (which
+          ! we want), depending on the model & grid, we may need to
+          ! flip the grid in the north-south direction.  I already
+          ! have a routine for converting data from a 1-d to a 2-d
+          ! array, and it has the functionality for flipping a grid,
           ! so I programmed it as getting a 1-d array from the netcdf
           ! read routine and send that 1-d array to conv1d2d_real.
 
@@ -24120,28 +24119,28 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
  335          format ('   --- ',a38,' missing value = ',g12.4)
             endif
 
-            if (ip == 1) then   ! 850 mb specific humidity 
+            if (ip == 1) then   ! 850 mb specific humidity
               call conv1d2d_real (imax,jmax,f,q850(1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 2) then   ! 1000 mb relative humidity 
+            else if (ip == 2) then   ! 1000 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 3) then   ! 925 mb relative humidity 
+            else if (ip == 3) then   ! 925 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,2)
      &                                   ,need_to_flip_lats)
-            else if (ip == 4) then   ! 800 mb relative humidity 
+            else if (ip == 4) then   ! 800 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,3)
      &                                   ,need_to_flip_lats)
-            else if (ip == 5) then   ! 750 mb relative humidity 
+            else if (ip == 5) then   ! 750 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,4)
      &                                   ,need_to_flip_lats)
-            else if (ip == 6) then   ! 700 mb relative humidity 
+            else if (ip == 6) then   ! 700 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,5)
      &                                   ,need_to_flip_lats)
-            else if (ip == 7) then   ! 650 mb relative humidity 
+            else if (ip == 7) then   ! 650 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,6)
      &                                   ,need_to_flip_lats)
-            else if (ip == 8) then   ! 600 mb relative humidity 
+            else if (ip == 8) then   ! 600 mb relative humidity
               call conv1d2d_real (imax,jmax,f,rh(1,1,7)
      &                                   ,need_to_flip_lats)
             else if (ip == 9) then   ! 1000 mb specific humidity
@@ -24241,7 +24240,7 @@ c
       end subroutine get_ncdim1
 c
 c------------------------------------------------------------------
-c       
+c
 c------------------------------------------------------------------
       subroutine get_var1_double (ncid,var1_name,nmax,var1)
 c
@@ -24269,15 +24268,15 @@ c     a 1-dimensional array of data.
       end subroutine get_var1_double
 c
 c---------------------------------------------------------
-c         
+c
 c---------------------------------------------------------
       subroutine get_var3_tlev_double (ncid,var3_name,imax,jmax,ncix
      &                         ,var3,igvret)
 c
-c     ABSTRACT: This routine reads a netcdf file and returns a 
+c     ABSTRACT: This routine reads a netcdf file and returns a
 c     2-dimensional synoptic variable at a particular lead time.
-c     The lead time is specified by the ltix array, which is 
-c     included in module tracked_parms and defined in subroutine 
+c     The lead time is specified by the ltix array, which is
+c     included in module tracked_parms and defined in subroutine
 c     read_fhours.
 c
 c     PARAMETERS
@@ -24287,15 +24286,15 @@ c     ncid   integer that contains the NetCDF file ID
 c     var3_name  character name of NetCDF input file
 c     imax   integer x-dimension of input data
 c     jmax   integer y-dimension of input data
-c     ncix   integer index of time level for where this time level 
-c            actually is inside the NetCDF data.  Do NOT confuse this 
-c            with the index of where this forecast hour is in the 
+c     ncix   integer index of time level for where this time level
+c            actually is inside the NetCDF data.  Do NOT confuse this
+c            with the index of where this forecast hour is in the
 c            user's list of input forecast hours, as they may be
 c            different.  For example, the user may request times that
 c            are every 6 hours, but the NetCDF file might have times
 c            that are every hour, so the indices for those two arrays
-c            will be different.  Be sure to use the one (ncix) that 
-c            indicates where the data actually starts in the 
+c            will be different.  Be sure to use the one (ncix) that
+c            indicates where the data actually starts in the
 c            NetCDF file.
 c
 c     OUTPUT:
@@ -24372,7 +24371,7 @@ c
       end subroutine handle_netcdf_err
 c
 c-------------------------------------------------------------------
-c                                                   
+c
 c-------------------------------------------------------------------
       subroutine bitmapchk (n,ld,d,dmin,dmax)
 c
@@ -24380,11 +24379,11 @@ c     This subroutine checks the bitmap for non-existent data values.
 c     Since the data from the regional models have been interpolated
 c     from either a polar stereographic or lambert conformal grid
 c     onto a lat/lon grid, there will be some gridpoints around the
-c     edges of this lat/lon grid that have no data; these grid 
+c     edges of this lat/lon grid that have no data; these grid
 c     points have been bitmapped out by Mark Iredell's interpolater.
 c     To provide another means of checking for invalid data points
-c     later in the program, set these bitmapped data values to a 
-c     value of -999.0.  The min and max of this array are also 
+c     later in the program, set these bitmapped data values to a
+c     value of -999.0.  The min and max of this array are also
 c     returned if a user wants to check for reasonable values.
 c
       logical(1) ld
@@ -24415,7 +24414,7 @@ c
 c------------------------------------------------------------------
       subroutine conv1d2d_logic (imax,jmax,lb1d,lb2d,need_to_flip_lats)
 c
-c     ABSTRACT: This subroutine converts a 1-dimensional input 
+c     ABSTRACT: This subroutine converts a 1-dimensional input
 c     array of logical data (lb1d) into a 2-dimensional output
 c     array (dimension imax,jmax) of logical data (lb2d).
 c
@@ -24490,21 +24489,21 @@ c------------------------------------------------------------------
      &                               ,xmissing_val,need_to_flip_lats)
 c
 c     ABSTRACT: The purpose of this routine is to create a 2-d logical
-c     bitmap to be used for masking out regions with missing data, 
-c     such as for a regional grid with irregular boundaries (such as 
-c     we've seen for the regional / nested FV3).  This bitmap will 
+c     bitmap to be used for masking out regions with missing data,
+c     such as for a regional grid with irregular boundaries (such as
+c     we've seen for the regional / nested FV3).  This bitmap will
 c     have the same functionality as a GRIB1/GRIB2 bitmap.  The trick
-c     is that NetCDF does not have a logical bitmap within its 
-c     definition, so we need to make one.  We do this by reading in 
-c     the "missing_value" attribute for any variable, then here we 
+c     is that NetCDF does not have a logical bitmap within its
+c     definition, so we need to make one.  We do this by reading in
+c     the "missing_value" attribute for any variable, then here we
 c     scan through all the data values retrieved from the NetCDF read,
-c     and then for all grid points with missing values we set the 
+c     and then for all grid points with missing values we set the
 c     valid_pt flag to .false.
 c
-c     Note the use of the need_to_flip_lats flag.  This is in order to 
+c     Note the use of the need_to_flip_lats flag.  This is in order to
 c     handle grids that are flipped.  Most grids -- NCEP, UKMET, ECMWF
 c     -- have point (1,1) as the uppermost left point on the grid, and
-c     the data goes from north to south.  Some grids -- GFDL and the 
+c     the data goes from north to south.  Some grids -- GFDL and the
 c     new NAVGEM grid -- are flipped; their point (1,1) is the lowermost
 c     left point, and their data goes from south to north.  So if
 c     the need_to_flip_lats flag was set to TRUE in getgridinfo, meaning
@@ -24599,7 +24598,7 @@ c
 c-----------------------------------------------------------------------
       subroutine conv1d2d_real (imax,jmax,dat1d,dat2d,need_to_flip_lats)
 c
-c     ABSTRACT: This subroutine converts a 1-dimensional input 
+c     ABSTRACT: This subroutine converts a 1-dimensional input
 c     array of real data (dat1d) into a 2-dimensional output
 c     array (dimension imax,jmax) of real data (dat2d).
 c
@@ -24670,7 +24669,7 @@ c---------------------------------------------------------------------
       subroutine read_nlists (inp,trkrinfo,netcdfinfo)
 c
 c     ABSTRACT: This subroutine simply reads in the namelists that are
-c     created in the shell script.  Namelist datein contains the 
+c     created in the shell script.  Namelist datein contains the
 c     starting date information, plus the model identifier.  Namelist
 c     stswitch contains the flags for processing for each storm.
 c
@@ -24772,7 +24771,7 @@ c     Set namelist default values:
         print *,'Forecast model data sequencing setup= file_seq= '
      &       ,inp%file_seq
         print *,'Forecast model nest type = ',inp%nesttyp
-c         
+c
         print *,' '
         print *,'Values read in from atcfinfo namelist: '
         write (6,89) atcfnum,atcfname
@@ -24855,13 +24854,13 @@ c
         print *,' '
         print *,'Values read in from netcdflist namelist: '
         print *,' '
-        write (6,300) netcdfinfo%num_netcdf_vars  ! Total *possible* 
+        write (6,300) netcdfinfo%num_netcdf_vars  ! Total *possible*
                                   ! number of input NetCDF variables,
                                   ! including those that are included
                                   ! in the input file and those that
                                   ! are not.
         write (6,370) netcdfinfo%netcdf_filename ! full path filename
-        write (6,301) 
+        write (6,301)
         write (6,302) netcdfinfo%rv850name  ! 850 mb rel vort
         write (6,304) netcdfinfo%rv700name  ! 700 mb rel vort
         write (6,306) netcdfinfo%u850name   ! 850 mb u-comp
@@ -24896,13 +24895,13 @@ c
         write (6,356) netcdfinfo%lon_name   ! longitudes
         write (6,358) netcdfinfo%lat_name   ! latitudes
         write (6,359) netcdfinfo%time_units ! This will be either "days"
-                                      ! or "hours".  If it's "hours", 
-                                      ! then all the time data values 
-                                      ! are for hours since the initial 
+                                      ! or "hours".  If it's "hours",
+                                      ! then all the time data values
+                                      ! are for hours since the initial
                                       ! time.  Same thing for "days",
                                       ! however if it is "days", then
                                       ! know that a value of 0.25 will
-                                      ! be the same as a 6-hour lead 
+                                      ! be the same as a 6-hour lead
                                       ! time.
         write (6,531) netcdfinfo%sstname   ! SST
         write (6,533) netcdfinfo%q850name   ! 850 mb spec humidity
@@ -25026,14 +25025,14 @@ c
  420    format ('user_wants_to_track_thick500850= ',a2)
  422    format ('user_wants_to_track_thick200500= ',a2)
  424    format ('user_wants_to_track_thick200850= ',a2)
-        
+
         print *,' '
         print *,'Values read in from phaseinfo namelist: '
         write (6,211) phaseflag,phasescheme
         write (6,212) wcore_depth
  211    format ('Storm phase flag = ',a1,'  Phase scheme = ',a4)
  212    format ('Storm phase, warm core depth (wcore_depth) = ',f7.2)
-        
+
         print *,' '
         print *,'Values read in from structinfo namelist: '
         write (6,93) structflag
@@ -25043,7 +25042,7 @@ c
  95     format ('IKE flag = ',a1)
  96     format ('Percentile used for wind radii in each band = '
      &         ,'radii_pctile= ',f5.1)
-        
+
         print *,' '
         print *,'Values read in for grib file name from fnameinfo'
      &       ,' namelist: '
@@ -25110,17 +25109,17 @@ c
           endif
         endif
 
-        print *,' ' 
+        print *,' '
         print *,'Values read in from sheardiaginfo namelist: '
         write (6,161) shearflag
  161    format ('Shear flag = shearflag = ',a1)
-        print *,' ' 
+        print *,' '
 
-        print *,' ' 
+        print *,' '
         print *,'Values read in from sstdiaginfo namelist: '
         write (6,162) sstflag
  162    format ('SST flag = sstflag = ',a1)
-        print *,' ' 
+        print *,' '
 c
         print *,' '
         print *,'Values read in from gendiaginfo namelist: '
@@ -25313,19 +25312,19 @@ c---------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine reads in the updated TC Vitals file
 c               for the current time and prints out those cards (storms)
-c               that have been selected to be processed.  It also 
+c               that have been selected to be processed.  It also
 c               takes the initial positions from the tcv card for each
 c               storm and puts them into the slonfg & slatfg arrays.
-c               Note that this routine is reading in vitals in the 
+c               Note that this routine is reading in vitals in the
 c               standard format for TCs only.  Any genesis vitals are
 c               read in in subroutine  read_gen_vitals.
 c
-c     INPUT:    
+c     INPUT:
 c     lucard    integer unit number for tcvitals card
-c     trkrinfo  derived type that contains info on the type of 
+c     trkrinfo  derived type that contains info on the type of
 c               tracker run that we are performing.
 c
-c     OUTPUT:   
+c     OUTPUT:
 c     maxstorm  max # of storms to be handled for this case
 c     numtcv    number of storms read off of the input tcvitals file
 c     iret      return code from this subroutine
@@ -25335,7 +25334,7 @@ c     stormswitch 1,2 or 3 (see more description under Main pgm section)
 c     slonfg     first guess array for longitude
 c     slatfg     first guess array for latitude
 c     storm      contains the tcvitals info
-c     (storm, stormswitch, slonfg and slatfg are allocatable and are 
+c     (storm, stormswitch, slonfg and slatfg are allocatable and are
 c      defined in module def_vitals)
 
       USE def_vitals; USE set_max_parms; USE trkrparms
@@ -25361,7 +25360,7 @@ c------
           print *,' '
           print *,'+++ TC Vitals file for existing, RSMC-numbered'
      &           ,'    storms exists and will be opened with '
-     &           ,'    unit= lucard= ',lucard 
+     &           ,'    unit= lucard= ',lucard
         endif
 
         open (unit=lucard,file="tcvit_rsmc_storms.txt",status='old'
@@ -25470,7 +25469,7 @@ c------
             print *,' '
             print *,'Following are the already-existing storms that'
             print *,'were read in from the tc vitals file: '
-            print *,' '       
+            print *,' '
           endif
 
           ict = 0
@@ -25482,7 +25481,7 @@ c------
             if ( verb .ge. 3 ) then
               write (*,31) storm(i)
             endif
-          
+
             if (storm(i)%tcv_lonew == 'W') then
               slonfg(i,1) =  360. - float(storm(i)%tcv_lon)/10.0
             else
@@ -25508,8 +25507,8 @@ c            write (storm(i)%tcv_storm_name,'(i4.4)') i
         iret=0
         return
       else
-        ! For the  tracker cases, the max number of storms (maxstorm) 
-        ! allowed to be tracked throughout a forecast is defined by 
+        ! For the  tracker cases, the max number of storms (maxstorm)
+        ! allowed to be tracked throughout a forecast is defined by
         ! the number of vitals read in above.
 
         maxstorm = numtcv
@@ -25549,7 +25548,7 @@ c            write (storm(i)%tcv_storm_name,'(i4.4)') i
           endif
 
           iret = 97
-          return   
+          return
         endif
 
         if ( verb .ge. 3 ) then
@@ -25581,7 +25580,7 @@ c            write (storm(i)%tcv_storm_name,'(i4.4)') i
             slatfg(i,1) = float(storm(i)%tcv_lat)/10.0
           endif
         enddo
- 
+
         if (ict.gt.0) then
           iret = 0
           return
@@ -25641,51 +25640,51 @@ c-----------------------------------------------------------------------
 c
 c     ABSTRACT: This subroutine reads in a modified TC Vitals file
 c     for the current time and prints out those cards (storms) that
-c     have been selected to be processed.  It also takes the initial 
-c     positions from the tcv card for each storm and puts them into 
+c     have been selected to be processed.  It also takes the initial
+c     positions from the tcv card for each storm and puts them into
 c     the slonfg & slatfg arrays.
 c
 c     The reason that these are referred to as modified tcvitals is
 c     that the format is different from standard TC vitals format.
-c     These vitals are created by a previous run of this tracker 
-c     executable, and the storm identifier is different than that 
+c     These vitals are created by a previous run of this tracker
+c     executable, and the storm identifier is different than that
 c     for a standard tcvitals.  The storm
-c     identifier contains the date/time that the storm was first 
+c     identifier contains the date/time that the storm was first
 c     identified, and the lat/lon position at which it was first
 c     identified.
 c
 c     EXAMPLE:  The following is a standard TC Vitals record, split
 c               up over 3 lines:
 c
-c       NHC  01L ALBERTO   20060614 1200 343N 0807W 035 093 1004 1012 
-c            0278 15 222 -999 -999 -999 -999 M -999 -999 -999 -999 72 
+c       NHC  01L ALBERTO   20060614 1200 343N 0807W 035 093 1004 1012
+c            0278 15 222 -999 -999 -999 -999 M -999 -999 -999 -999 72
 c            520N  410W  -999 -999 -999 -999
 c
 c     EXAMPLE:  The following is the format for the "genesis" vitals,
 c               split over 3 lines, for the same system:
 c
 c       2006061000_F000_210N_0853W_01L 20060614 1200 343N 0807W 035 093
-c            1004 1012 0278 15 222 -999 -999 -999 -999 M -999 -999 
+c            1004 1012 0278 15 222 -999 -999 -999 -999 M -999 -999
 c            -999 -999 72 520N  410W  -999 -999 -999 -999
 c
 c     EXAMPLE:  If the vitals record is for a non-officially numbered
 c               system (i.e., any system that's not a TC being tracked
-c               by NHC or JTWC), then the storm number is replaced 
-c               by the characters "FOF", for "Found On the Fly" by 
+c               by NHC or JTWC), then the storm number is replaced
+c               by the characters "FOF", for "Found On the Fly" by
 c               the  tracker.
 c
 c       2006071500_F000_150N_0681W_FOF 20060718 1200 185N 0792W 035 093
-c            1004 1012 0278 15 222 -999 -999 -999 -999 M -999 -999 
+c            1004 1012 0278 15 222 -999 -999 -999 -999 M -999 -999
 c            -999 -999 72 520N  410W  -999 -999 -999 -999
 c
-c       NOTE: The "F000" in there at character positions 12-15 are to 
-c             indicate the forecast hour within that forecast cycle 
+c       NOTE: The "F000" in there at character positions 12-15 are to
+c             indicate the forecast hour within that forecast cycle
 c             that the storm was first detected.  For a vitals record,
 c             this is always going to be 000 for fhr=0h, and really,
 c             it's not even needed.  However, I'm keeping it in there
-c             in order to keep the storm ID format exactly the same 
-c             as the  output_atcf_sink forecast track record, which 
-c             does have a use for that "FXXX" identifier in the 
+c             in order to keep the storm ID format exactly the same
+c             as the  output_atcf_sink forecast track record, which
+c             does have a use for that "FXXX" identifier in the
 c             output.
 c
 c     INPUT:
@@ -25695,14 +25694,14 @@ c     OUTPUT:
 c     maxstorm  max # of storms to be handled for this case
 c     iret      return code from this subroutine
 c
-c     INPUT/OUTPUT: 
-c     numtcv    As an input, this variable contains the number of 
+c     INPUT/OUTPUT:
+c     numtcv    As an input, this variable contains the number of
 c               *tropical* cyclone vitals (i.e., regular tcvitals) that
 c               were read off of the input tcvitals file in subroutine
-c               read_tcv_card.  This variable will be incremented for 
-c               each "modified" vitals record that is read in this 
-c               subroutine, and so as output, this variable will 
-c               contain the combined total of tcvitals and modified 
+c               read_tcv_card.  This variable will be incremented for
+c               each "modified" vitals record that is read in this
+c               subroutine, and so as output, this variable will
+c               contain the combined total of tcvitals and modified
 c               vitals records.
 c
 c     OTHER:
@@ -25712,7 +25711,7 @@ c     slatfg     first guess array for latitude
 c     storm      contains the tcvitals info
 c     (storm, stormswitch, slonfg and slatfg are allocatable and are
 c      defined in module def_vitals)
-c               
+c
       USE def_vitals; USE set_max_parms; USE trkrparms; USE gen_vitals
       USE verbose_output
 
@@ -25750,8 +25749,8 @@ c------
 
       endif
 
-      ! Read in all of the "genesis vitals" into a temp array.  The 
-      ! index for the first array member is one past the number of 
+      ! Read in all of the "genesis vitals" into a temp array.  The
+      ! index for the first array member is one past the number of
       ! tc vitals that were read in in subroutine  read_tcv_card.
 
       ii = numtcv + 1
@@ -25783,13 +25782,13 @@ c------
         endif
 
         iret = 97
-        return   
-      endif   
+        return
+      endif
 
-      ! Initialize all "genesis dates" to 99999.  Any new genesis 
-      ! vitals that are read in below will bring in real dates, and 
+      ! Initialize all "genesis dates" to 99999.  Any new genesis
+      ! vitals that are read in below will bring in real dates, and
       ! then we can test the date in output_gen_vitals to know if a
-      ! storm was already defined or not at the beginning of this 
+      ! storm was already defined or not at the beginning of this
       ! executable or if it was a new storm that was found.
 
       do i = 1,maxstorm_mg
@@ -25799,12 +25798,12 @@ c------
       ! If there are any TC vitals (i.e., officially named TCs
       ! that are being numbered/tracked by either NHC or JTWC), then
       ! we want to take the important information from those vitals
-      ! and put that into genesis vitals.  This will enable us to 
-      ! output *all* of these systems in the "gen_vitals" or 
+      ! and put that into genesis vitals.  This will enable us to
+      ! output *all* of these systems in the "gen_vitals" or
       ! "gstorm" format.  The one difference here is that for the
       ! genesis date, we use the starting date of this forecast, not
       ! the time that the storm first formed.  Also, set the genesis
-      ! forecast hour (gv_gen_fhr) to be 0 for TCs that have a 
+      ! forecast hour (gv_gen_fhr) to be 0 for TCs that have a
       ! TC vitals record.
 
       if (numtcv > 0) then
@@ -25841,7 +25840,7 @@ c------
         do i=1,num_mod_vit
           vitix = i + numtcv
           stormswitch(vitix) = 1
-          ! On the following line we are filling the array gstorm, 
+          ! On the following line we are filling the array gstorm,
           ! which is new in this subroutine.  Note, however, that we
           ! are not necessarily starting it at 1, but at the point in
           ! the array after any TC Vitals may have been read in.
@@ -25852,7 +25851,7 @@ c------
           endif
 
           ! For the sake of consistency (and sanity!!), we need to also
-          ! use the same "storm" array as was used in read_tcv_card, 
+          ! use the same "storm" array as was used in read_tcv_card,
           ! since this "storm" array is used often throughout the rest
           ! of this executable.
 
@@ -25872,7 +25871,7 @@ c------
           else if (trkrinfo%type == 'tcgen') then
             storm(vitix)%tcv_center = 'TCG '
           endif
-      
+
           if (gstorm(vitix)%gv_obs_lonew == 'W') then
             slonfg(vitix,1) =  360. - float(gstorm(vitix)%gv_obs_lon)
      &                         / 10.0
@@ -25885,7 +25884,7 @@ c------
             slatfg(vitix,1) = float(gstorm(vitix)%gv_obs_lat)/10.0
           endif
           stcvtype(vitix) = 'FOF' ! Storm "Found On the Fly" by tracker
-        
+
         enddo
       endif
 
@@ -25898,21 +25897,21 @@ c     Update the total number of vitals that have been read in
       numtcv = numtcv + num_mod_vit
 
       goto 895
-c     
+c
 
  887  continue
 
-      if ( verb .ge. 1 ) then 
+      if ( verb .ge. 1 ) then
         print *,'!!! ERROR in read_gen_vitals opening genesis vitals'
         print *,'!!! file named tcvit_genesis_storms.txt'
       endif
-   
+
       iret = 97
       return
 
 
  891  continue
-      
+
       if ( verb .ge. 1 ) then
         print *,'!!! ERROR in read_gen_vitals reading unit ',lgvcard
       endif
@@ -25933,10 +25932,10 @@ c---------------------------------------------------------------------
 c
 c     ABSTRACT: The purpose of this subroutine is just to get the max
 c     values of i and j and the dx and dy grid spacing intervals for the
-c     grid to be used in the rest of the program.  So just read the 
-c     grib file to get the lon and lat data.  Also, get the info for 
-c     the data grid's boundaries.  This boundary information will be 
-c     used later in the tracking algorithm, and is accessed via Module 
+c     grid to be used in the rest of the program.  So just read the
+c     grib file to get the lon and lat data.  Also, get the info for
+c     the data grid's boundaries.  This boundary information will be
+c     used later in the tracking algorithm, and is accessed via Module
 c     grid_bounds.
 c
       USE grid_bounds; USE trkrparms; USE tracked_parms; USE inparms
@@ -26360,19 +26359,19 @@ c  690   format('    kgds(20) = ',i7,'  kgds(22) = ',i7)
 
 c       ----------------------------------------------------------------
 c       Get boundaries of the data grid.  NOTE: gds(4) is referred to in
-c       GRIB documenatation as the "Latitude of origin", which might 
+c       GRIB documenatation as the "Latitude of origin", which might
 c       imply "minimum Latitude".  However, for the grids that we'll be
-c       using in this program, the "Latitude of origin" will be listed 
-c       under gds(4) as the northernmost point (eg., in MRF, 
-c       gds(4) = 90), so for this program, use gds(4) as your max lat, 
-c       and gds(7) as your min lat. However, in case NCEP, UKMET or 
+c       using in this program, the "Latitude of origin" will be listed
+c       under gds(4) as the northernmost point (eg., in MRF,
+c       gds(4) = 90), so for this program, use gds(4) as your max lat,
+c       and gds(7) as your min lat. However, in case NCEP, UKMET or
 c       ECMWF change their convention and begin flipping their grids, a
 c       check is made to make sure that the max lat is not less than the
 c       min lat.
 c
-c       BUGFIX (August, 2001): It is possible to have an input grid 
+c       BUGFIX (August, 2001): It is possible to have an input grid
 c       which goes from south to north (such as NAVGEM).  In this case,
-c       we flip the data in subroutine conv1d2d_real.  However, the max 
+c       we flip the data in subroutine conv1d2d_real.  However, the max
 c       and min latitudes listed in the GRIB GDS will be confused, so we
 c       need to check the value of the GRIB scanning mode flag here.
 
@@ -26397,7 +26396,7 @@ c       need to check the value of the GRIB scanning mode flag here.
       endif
 
 c     After this point in this subroutine, nothing is GRIB1 / GRIB2
-c     specific, so it does not need to be within the if/then 
+c     specific, so it does not need to be within the if/then
 c     statement above that differentiated between GRIB / GRIB2.
 
 c17Jul2014      if (glonmin < 0.0) glonmin = 360. - abs(glonmin)
@@ -26414,13 +26413,13 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
             print *,'       This means that the grid is spanning '
             print *,'       across the GM.'
             print *,'       We will adjust glonmax by adding 360 to it'
-            print *,'       so that, in the end, glonmax > glonmin.' 
+            print *,'       so that, in the end, glonmax > glonmin.'
             print *,'       '
             print *,'       GRID MIN & MAX LON (ORIGINAL):'
             print *,'         original glonmin= ',glonmin
             print *,'         original glonmax= ',glonmax
             print *,'       '
-            glonmax = glonmax + 360. 
+            glonmax = glonmax + 360.
             print *,'       '
             print *,'       GRID MIN & MAX LON '
             print *,'         (MODIFIED FOR GM WRAPPING):'
@@ -26432,7 +26431,7 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
       elseif (glonmin < 0.0 .and. glonmax >= 0.0) then
         ! An example of this is the MPAS data, which starts and ends
         ! at the dateline and is specified as glonmin=-179.875,
-        ! glonmax=179.875.  Convert to be positive and go from 
+        ! glonmax=179.875.  Convert to be positive and go from
         ! 180.125 to 539.875.
         if (verb .ge. 3) then
           print *,' '
@@ -26469,7 +26468,7 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
           print *,'         glonmax= ',glonmax
         endif
       elseif (glonmin >= 0.0 .and. glonmax < 0.0) then
-        ! An example of this is the GFS data, which goes from 
+        ! An example of this is the GFS data, which goes from
         ! glonmin=0.0 to glonmax=-0.5.  Convert it here to go
         ! from glonmin=0.0 to glonmax=359.5
         if (verb .ge. 3) then
@@ -26580,21 +26579,21 @@ c     info will be used in subroutine  barnes
 
 c     --------------------------------------------------------------
 c     Finally, check to see if the requested boundary limits that
-c     the user input are contained within this grid (for example, 
-c     someone running this tracker on a regional grid may have 
-c     forgotten to change the input grid bounds from a global grid 
-c     run).  Modify the user-input bounds as needed.  
+c     the user input are contained within this grid (for example,
+c     someone running this tracker on a regional grid may have
+c     forgotten to change the input grid bounds from a global grid
+c     run).  Modify the user-input bounds as needed.
 c
 c     NOTE: Only check these bounds for a genesis run on a regional
 c     grid, whether that be a 'midlat' or a 'tcgen' run.
 
-      if (trkrinfo%gridtype == 'regional' .and. 
+      if (trkrinfo%gridtype == 'regional' .and.
      &    trkrinfo%type /= 'tracker') then
 
         if (trkrinfo%eastbd > glonmax) then
           xhold = trkrinfo%eastbd
           trkrinfo%eastbd = glonmax - 5.0
-          
+
           if ( verb .ge. 3 ) then
             write (6,90)
             write (6,91)
@@ -26635,7 +26634,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
           xhold = trkrinfo%northbd
           trkrinfo%northbd = glatmax - 5.0
           if ( verb .ge. 3 ) then
-            write (6,90)            
+            write (6,90)
             write (6,91)
             write (6,92)
             write (6,93)
@@ -26643,7 +26642,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
             write (6,95)
             write (6,96)
             write (6,97) 'NORTHERN LATITUDE'
-            write (6,98) xhold            
+            write (6,98) xhold
             write (6,99) trkrinfo%northbd
             write (6,91)
           endif
@@ -26655,7 +26654,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
           trkrinfo%southbd = glatmin + 5.0
 
           if ( verb .ge. 3 ) then
-            write (6,90)            
+            write (6,90)
             write (6,91)
             write (6,92)
             write (6,93)
@@ -26663,7 +26662,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
             write (6,95)
             write (6,96)
             write (6,97) 'SOUTHERN LATITUDE'
-            write (6,98) xhold            
+            write (6,98) xhold
             write (6,99) trkrinfo%southbd
             write (6,91)
           endif
@@ -26696,10 +26695,10 @@ c---------------------------------------------------------------------
 c
 c     ABSTRACT: The purpose of this subroutine is just to get the max
 c     values of i and j and the dx and dy grid spacing intervals for the
-c     grid to be used in the rest of the program.  So just query the 
-c     netcdf file to get the lon and lat data.  Also, get the info for 
-c     the data grid's boundaries.  This boundary information will be 
-c     used later in the tracking algorithm, and is accessed via Module 
+c     grid to be used in the rest of the program.  So just query the
+c     netcdf file to get the lon and lat data.  Also, get the info for
+c     the data grid's boundaries.  This boundary information will be
+c     used later in the tracking algorithm, and is accessed via Module
 c     grid_bounds.
 c
       USE grid_bounds; USE trkrparms; USE inparms
@@ -26745,7 +26744,7 @@ c
       call get_var1_double (ncfile_id,netcdfinfo%lon_name,imax,tmplon)
       call get_var1_double (ncfile_id,netcdfinfo%lat_name,jmax,tmplat)
 
-c     Compute the dx and dy by picking values out of the middle of 
+c     Compute the dx and dy by picking values out of the middle of
 c     the lat and lon arrays....
 
       midi = imax/2
@@ -26773,10 +26772,10 @@ c     Get boundaries of the data grid.  Note that it is possible to have
 c     an input grid which goes from south to north (in fact, it appears
 c     that many NetCDF files are constructed this way).  Keep in mind,
 c     however, that the  tracker has been written such that point (1,1)
-c     should be the upper-leftmost point on the grid, while point 
+c     should be the upper-leftmost point on the grid, while point
 c     (imax,jmax) should be the lower-rightmost point.  If we check and
-c     find that we're dealing with data that instead starts from the 
-c     south and increases northward, we flip the data in subroutine 
+c     find that we're dealing with data that instead starts from the
+c     south and increases northward, we flip the data in subroutine
 c     conv1d2d_real.  Similarly here, we make sure to test so that when
 c     we are done in this routine, glatmax refers to the northernmost
 c     latitude and glatmin the southernmost latitude.
@@ -26811,7 +26810,7 @@ c     info will be used in subroutine  barnes
       if (allocated(glon)) deallocate (glon)
       if (allocated(glat)) deallocate (glat)
 
-      allocate (glat(jmax),stat=ija) 
+      allocate (glat(jmax),stat=ija)
       allocate (glon(imax),stat=iia)
       if (ija /= 0 .or. iia /= 0) then
         print *,' '
@@ -26821,8 +26820,8 @@ c     info will be used in subroutine  barnes
         return
       endif
 
-      ! If the lat or lon grids are flipped (i.e., the lats increase 
-      ! from south to north, or the lons increase westward), then we 
+      ! If the lat or lon grids are flipped (i.e., the lats increase
+      ! from south to north, or the lons increase westward), then we
       ! will need to flip both the data arrays as well as the arrays
       ! that are holding the values of the lats and lons....
 
@@ -26862,9 +26861,9 @@ c      enddo
 
 c     ---------------------------------------------------------------
 c     Finally, check to see if the requested boundary limits that
-c     the user input are contained within this grid (for example, 
+c     the user input are contained within this grid (for example,
 c     someone running this tracker on a regional grid may have forgotten
-c     to change the input grid bounds from a global grid run).  Modify 
+c     to change the input grid bounds from a global grid run).  Modify
 c     the user-input bounds as needed.
 c
 c     NOTE: Only check these bounds for a genesis run on a regional
@@ -26908,7 +26907,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
         if (trkrinfo%northbd > glatmax) then
           xhold = trkrinfo%northbd
           trkrinfo%northbd = glatmax - 5.0
-          write (6,90)            
+          write (6,90)
           write (6,91)
           write (6,92)
           write (6,93)
@@ -26916,7 +26915,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
           write (6,95)
           write (6,96)
           write (6,97) 'NORTHERN LATITUDE'
-          write (6,98) xhold            
+          write (6,98) xhold
           write (6,99) trkrinfo%northbd
           write (6,91)
         endif
@@ -26924,7 +26923,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
         if (trkrinfo%southbd < glatmin) then
           xhold = trkrinfo%southbd
           trkrinfo%southbd = glatmin + 5.0
-          write (6,90)            
+          write (6,90)
           write (6,91)
           write (6,92)
           write (6,93)
@@ -26932,7 +26931,7 @@ c     grid, whether that be a 'midlat' or a 'tcgen' run.
           write (6,95)
           write (6,96)
           write (6,97) 'SOUTHERN LATITUDE'
-          write (6,98) xhold            
+          write (6,98) xhold
           write (6,99) trkrinfo%southbd
           write (6,91)
         endif
@@ -26965,28 +26964,28 @@ c     dimension and "time data" from the NetCDF file so that we know
 c     how many time levels there are and what those time levels are.
 c     One reason for doing this is that some models, like the GFDL
 c     FV3, do not output hour 0 data, so we need to check this first
-c     before running through the tracking processing for the various 
+c     before running through the tracking processing for the various
 c     hours.  We will take the list of hours read in here directly from
-c     the NetCDF file and compare that against the *requested* list of 
-c     forecast hours that the user has entered.  The user might not be 
+c     the NetCDF file and compare that against the *requested* list of
+c     forecast hours that the user has entered.  The user might not be
 c     aware that there is no hour 0 data for a given model.  We compare
-c     these two lists of forecast hours and then write a message if 
+c     these two lists of forecast hours and then write a message if
 c     there is a lead time that is not in the NetCDF file.
-c   
+c
 c     INPUT:
 c     ncfile     character name of NetCDF file
 c     ncfile_id  integer id associated with NetCDF file after open
-c     ifhmax     integer max number of lead times that the user has 
+c     ifhmax     integer max number of lead times that the user has
 c                requested on the input lead times data file.  This
 c                value was set in subroutine read_fhours.
-c     netcdfinfo variable of user-defined type netcdfstuff (from 
+c     netcdfinfo variable of user-defined type netcdfstuff (from
 c                module netcdf_parms).
 c
 c     OUTPUT:
-c     ncfile_tmax integer max number of lead times that are in the 
+c     ncfile_tmax integer max number of lead times that are in the
 c                 NetCDF file, as read in from this subroutine
-c     ncfile_has_hour0 character flag (y|n) that tells whether or not 
-c                 the input NetCDF data file actually has an hour0 
+c     ncfile_has_hour0 character flag (y|n) that tells whether or not
+c                 the input NetCDF data file actually has an hour0
 c                 record in it or not.
 c
       USE netcdf_parms; USE tracked_parms; USE verbose_output
@@ -27037,7 +27036,7 @@ c
 
 
       !-----------------------------------------------------------
-      ! Now read in the actual time values that are stored in the 
+      ! Now read in the actual time values that are stored in the
       ! NetCDF file....
       !-----------------------------------------------------------
 
@@ -27052,19 +27051,19 @@ c
       endif
 
       !------------------------------------------------------------
-      ! Now convert the NetCDF time values into minutes in order to 
-      ! be able to compare with the user-requested list of lead 
+      ! Now convert the NetCDF time values into minutes in order to
+      ! be able to compare with the user-requested list of lead
       ! times.  Remember that the NetCDF lead times will be listed
       ! either as hours or as fractions of days.
       !------------------------------------------------------------
 
       if (allocated(nctotalmins)) then
         deallocate (nctotalmins)
-      endif 
+      endif
 
       allocate (nctotalmins(ncfile_tmax),stat=infta)
       if (infta /= 0) then
-        print *,' ' 
+        print *,' '
         print *,'!!! ERROR in sub read_netcdf_hours allocating '
         print *,'!!! nctotalmins array.  infta = ',infta
         irnhret = 94
@@ -27086,7 +27085,7 @@ c
           print *,' '
           stop 99
         endif
- 
+
         if (verb .ge. 1) then
           write (6,71) k,netcdf_file_time_values(k),nctotalmins(k)
         endif
@@ -27097,14 +27096,14 @@ c
      &             ,'  nctotalmins(k)= ',i10)
 
       !------------------------------------------------------------
-      ! Now go through the list of user-requested lead times that 
+      ! Now go through the list of user-requested lead times that
       ! were read in from subroutine read_fhours and try to match
       ! the two lists up.  The big one to watch out for is whether
       ! or not the NetCDF file actually has an hour 0 lead time.
       !------------------------------------------------------------
 
       userloop: do n = 1,ifhmax
-  
+
         usertime = iftotalmins(n)
 
         match_check = 'n'
@@ -27117,8 +27116,8 @@ c
             endif
             match_check = 'y'
           endif
-        
-        enddo netcdfloop 
+
+        enddo netcdfloop
 
         if (match_check == 'n') then
 
@@ -27149,7 +27148,7 @@ c
 
           if (usertime == 0) then
             if (verb .ge. 1) then
-              print *,' ' 
+              print *,' '
               print *,'+++ For the input NetCDF file, an hour0 data '
               print *,'    record exists in the data file.'
             endif
@@ -27158,7 +27157,7 @@ c
 
         endif
 
-      enddo userloop 
+      enddo userloop
 c
       return
       end
@@ -27283,28 +27282,28 @@ c              for the mean storm center fix (check calling routine)
 c     parmlat  lat at which input parameter center was found, or the lat
 c              for the mean storm center fix (check calling routine)
 c     xdataval barnes-obtained value of parameter at (parmlon,parmlat)
-c     ccall    character that tells if this call is part of a tracker 
-c              fix routine or just from the check_valid_point routine 
+c     ccall    character that tells if this call is part of a tracker
+c              fix routine or just from the check_valid_point routine
 c              ('tracker' or 'checker')
 c     grid_maxlat northernmost latitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
-c              full grid from the original dataset, or it may be the 
+c              full grid from the original dataset, or it may be the
 c              original grid itself.
 c     grid_minlat southernmost latitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
-c              full grid from the original dataset, or it may be the 
+c              full grid from the original dataset, or it may be the
 c              original grid itself.
 c     grid_maxlon easternmost longitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
-c              full grid from the original dataset, or it may be the 
+c              full grid from the original dataset, or it may be the
 c              original grid itself.
 c     grid_minlon westernmost longitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
-c              full grid from the original dataset, or it may be the 
+c              full grid from the original dataset, or it may be the
 c              original grid itself.
 c     trkrinfo derived type containing grid info on user boundaries
 c     stopcheck character, if set to gptmslp, then there is a check that
-c              will ignore MSLP values that are erroneously reporting 
+c              will ignore MSLP values that are erroneously reporting
 c              values < 0, which is due to a grid transformation issue
 c              that very occasionally occurs in HWRF.
 c
@@ -27350,30 +27349,30 @@ c     Fix parmlat to the *nearest* j-point (i.e., round it....)
       endif
 
 c     Fix parmlon to the *nearest* i-point (i.e., round it....)
-      
+
       ipfix = int((parmlon - grid_minlon)/dx + 1.0 + 0.5)
-      
+
 c     Calculate the longitude and latitude of these ipfix and
 c     jpfix points....
-      
+
       xplon = grid_minlon + (ipfix-1)*dx
       yplat = grid_maxlat - (jpfix-1)*dy
-      
+
 c     We want to do a simple search in the very few points around
 c     this (ipfix,jpfix) point to find the raw max or min data
 c     value.  First we need to set up a 4x4 box to search:
-c     
+c
 c               o     o     o     o
-c     
-c     
+c
+c
 c               o     a     b     o
 c                      +
-c     
+c
 c               o     c     d     o
-c     
-c     
+c
+c
 c               o     o     o     o
-c     
+c
 c     In the above diagram, if "+" is the lat/lon location of our
 c     barnes-found point (i.e., the input (parmlon,parmlat)), and
 c     a-b-c-d is the square of points surrounding "+", we only want
@@ -27384,10 +27383,10 @@ c     on a gridpoint in either the i or j direction, we will only
 c     look at the 2 gridpoints on either side of that point, as
 c     opposed to having 4 points set up as in the box above.
 c
-c     UPDATE (4-Feb-2011): For fine resolution grids, it is 
+c     UPDATE (4-Feb-2011): For fine resolution grids, it is
 c     possible to have the gridpoint max/min be more than 1 or 2 grid
 c     points away from the  barnes-averaged max.  So allow for this
-c     here, with a check of grdspc ((dx+dy)/2) below and the 
+c     here, with a check of grdspc ((dx+dy)/2) below and the
 c     addition of the "grfact" multiplier for fine resolution grids.
 
 c      print *,'ipfix= ',ipfix,' xplon= ',xplon
@@ -27407,7 +27406,7 @@ c      print *,'jpfix= ',jpfix,' yplat= ',yplat
        else
          grfact = 1
        endif
-      
+
       if (xplon < parmlon) then         !(ipfix is at either a or c)
         istart = ipfix - (1*grfact)
         iend   = ipfix + (2*grfact)
@@ -27532,7 +27531,7 @@ c      print *,'FLI: b4 loop, imax= ',imax,' jmax= ',jmax
 
           if (valid_pt(i,j)) then
             continue
-          else      
+          else
 
 c            if (stopcheck == 'gptmslp') then
 c              if ( verb .ge. 1 ) then
@@ -27550,7 +27549,7 @@ c            endif
             return
 
           endif
-            
+
           if (cmaxmin == 'min') then
             if (fxy(i,j) < 0.0) then
               if (stopcheck == 'gptmslp') then
@@ -27579,19 +27578,19 @@ c            endif
 
         enddo jloop
       enddo iloop
-            
+
       if (cmaxmin == 'min') then
         gridpoint_maxmin = dmin
-      else  
+      else
         gridpoint_maxmin = dmax
-      endif 
+      endif
 
 c      print *,'  End of fix_latlon_to_ij, gridpoint_maxmin = '
 c     &       ,gridpoint_maxmin
 
 c
       return
-      end  
+      end
 c
 c---------------------------------------------------------------------
 c
@@ -27599,19 +27598,19 @@ c---------------------------------------------------------------------
       subroutine rvcal (imax,jmax,dlon,dlat,z,vp)
 c
 c     ABSTRACT: This routine calculates the relative vorticity (zeta)
-c     from u,v on a lat/lon grid. Centered finite 
-c     differences are used on the interior points and one-sided 
+c     from u,v on a lat/lon grid. Centered finite
+c     differences are used on the interior points and one-sided
 c     differences are used on the boundaries.
 c
 c     NOTE: There are 3 critical arrays in this subroutine, the first
-c     being zeta and the 2nd and 3rd being u and v.  There is a 
+c     being zeta and the 2nd and 3rd being u and v.  There is a
 c     critical difference in the array indexing for the levels.  For
-c     zeta, the array is dimensioned with levels from 1 to 3, with 
-c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels 
-c     for the winds, such that the level dimension goes 1 = 850, 
+c     zeta, the array is dimensioned with levels from 1 to 3, with
+c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels
+c     for the winds, such that the level dimension goes 1 = 850,
 c     2 = 700, 3 = 500, 4 = 200, 5 = sfc, and this is annotated now
 c     by the use of the "nlev850", "nlev700" and "levsfc" variables
-c     from module level_parms.  So we need to be sure to properly 
+c     from module level_parms.  So we need to be sure to properly
 c     annotate that in this routine.
 c
 c     LOCAL VARIABLES:
@@ -27632,21 +27631,21 @@ c
 
 c     --------------------------
 
-c     Figure out what level of data we have and what the array 
+c     Figure out what level of data we have and what the array
 c     indices should be.
 
       if (z == 1) then
         ! z = 1 for 850 mb zeta, w = 1 for 850 mb winds
-c        w = 1  
+c        w = 1
         w = nlev850  ! part of 1/2022 bugfix for levsfc winds
       else if (z == 2) then
         ! z = 2 for 700 mb zeta, w = 2 for 700 mb winds
-c        w = 2  
+c        w = 2
         w = nlev700  ! part of 1/2022 bugfix for levsfc winds
       else if (z == 3) then
         ! z = 3 for sfc zeta, w = 5 for sfc (10m) winds
 c        w = 4
-        w = levsfc  ! 1/2022 bugfix for levsfc winds, needed because 
+        w = levsfc  ! 1/2022 bugfix for levsfc winds, needed because
                     ! 200 mb winds were added which are now in the #4
                     ! slot of the u & v arrays.  So, to future-proof
                     ! this, use the level IDs from module level_parms
@@ -27657,7 +27656,7 @@ c     Calculate grid increments for interior and edge points.
 
 c     IMPORTANT: If dtk is defined in module trig_vals in km, then
 c     we need to multiply by 1000 here to get meters.  If it's defined
-c     as meters, just let it be.  Since the wind values are given in 
+c     as meters, just let it be.  Since the wind values are given in
 c     meters, that's why we need the dlon values to be in meters.
 
       if (dtk < 750.) then     ! chances are, dtk was defined as km
@@ -27672,9 +27671,9 @@ c     meters, that's why we need the dlon values to be in meters.
       dlat_inter = dtk * dfix * 2.0 * dlat   ! Dj dist over 2 grid pts
 
 
-c     Calculate required trig functions.  These are functions of 
+c     Calculate required trig functions.  These are functions of
 c     latitude.  Remember that the grid must go from north to south.
-c     This north-to-south requirement has 
+c     This north-to-south requirement has
 c     already been checked in subroutine  getgridinfo.  If necessary,
 c     any flipping of the latitudes was done there, and flipping of
 c     the data, again if necessary, was done in subroutine  getdata.
@@ -27694,25 +27693,25 @@ c     which it will for the global grids (MRF, GDAS, GFS, UKMET,NCE)
       cosfac(jmax) = cosfac(jmax-1)
       tanfac(jmax) = tanfac(jmax-1)
 
-c     NOTE: These next bits of vorticity calculation code assume that 
+c     NOTE: These next bits of vorticity calculation code assume that
 c           the input grid is oriented so that point (1,1) is the upper
 c           left-most (NW) and point (imax,jmax) is the lower right-
-c           most point.  Any other grids will probably crash the 
+c           most point.  Any other grids will probably crash the
 c           program due to array out of bounds errors.
-c     NOTE: Before each calculation is done, the logical array is 
-c           checked to make sure that all the data points in this 
+c     NOTE: Before each calculation is done, the logical array is
+c           checked to make sure that all the data points in this
 c           calculation have valid data (ie., that the points are not
 c           outside a regional model's boundaries).
 c
 c !!! IMPORTANT NOTE: While testing this, I uncovered a bug, which was
-c     that I had the "j+1" and "j-1" reversed.  Just from a physical 
-c     understanding, the du/dy term at a point is calculated by taking 
-c     the u value north of the point minus the u value south of the 
-c     point. Intuitively, this is u(j+1) - u(j-1).  However, we have 
+c     that I had the "j+1" and "j-1" reversed.  Just from a physical
+c     understanding, the du/dy term at a point is calculated by taking
+c     the u value north of the point minus the u value south of the
+c     point. Intuitively, this is u(j+1) - u(j-1).  However, we have
 c     designed this program to have the northernmost point as
 c     the beginning of the grid (i.e., for the global grids, j=1 at 90N,
 c     and j increases southward).  Thus, if you would do u(j+1) -
-c     u(j-1), you would actually be taking the u value south of the 
+c     u(j-1), you would actually be taking the u value south of the
 c     point minus the u value north of the point, EXACTLY THE OPPOSITE
 c     OF WHAT YOU WANT.  Therefore, the vorticity calculations have
 c     been changed so that we now have u(j-1) - u(j+1).
@@ -27731,7 +27730,7 @@ c
 c     ---------------
 c     Interior points
 c     ---------------
-    
+
       if ( verb .ge. 3 ) then
         print *,'Just before inter rvcalc, dlon_inter = ',dlon_inter
      &       ,' dlat_inter = ',dlat_inter
@@ -27740,9 +27739,9 @@ c     ---------------
       do j=2,jmax-1
        do i=2,imax-1
 c
-        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
+        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &      vp(i,j+1) .and. vp(i,j-1)) then
-c 
+c
          zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
      &               - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
      &               + tanfac(j)*u(i,j,w)
@@ -27762,11 +27761,11 @@ c
       j=jmax
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &     vp(i,j-1)) then
 c
          zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
-     &              - (u(i,j-1,w) - u(i,j,w))/(dlat_edge) 
+     &              - (u(i,j-1,w) - u(i,j,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
        else
 c         zeta(i,j,z)= -999.
@@ -27782,7 +27781,7 @@ c
       j=1
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.  
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &     vp(i,j+1)) then
 c
          zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
@@ -27802,7 +27801,7 @@ c
       i=1
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.  
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.
      &     vp(i,j-1)) then
 c
          zeta(i,j,z) = (v(i+1,j,w) - v(i,j,w))/(dlon_edge * cosfac(j))
@@ -27822,13 +27821,13 @@ c
       i=imax
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.  
+       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.
      &     vp(i,j-1)) then
 c
          zeta(i,j,z) = (v(i,j,w) - v(i-1,j,w))/(dlon_edge * cosfac(j))
      &               - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
      &               + tanfac(j)*u(i,j,w)
-       else 
+       else
 c         zeta(i,j,z)= -999.
          zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
        endif
@@ -27840,7 +27839,7 @@ c     SW corner
 c     ---------
       i=1
       j=jmax
-      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then 
+      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then
 c
         zeta(i,j,z) = (v(i+1,j,w)-v(i,j,w))/(dlon_edge * cosfac(j))
      &              - (u(i,j-1,w)-u(i,j,w))/(dlat_edge)
@@ -27909,20 +27908,20 @@ c
 c---------------------------------------------------------------------
       subroutine divcal (imax,jmax,dlon,dlat,divx4,vp,w,idvcret)
 c
-c     ABSTRACT: This routine calculates the divergence 
-c     from u,v on a lat/lon grid. Centered finite 
-c     differences are used on the interior points and one-sided 
+c     ABSTRACT: This routine calculates the divergence
+c     from u,v on a lat/lon grid. Centered finite
+c     differences are used on the interior points and one-sided
 c     differences are used on the boundaries.
 c
 c     NOTE: There are 3 critical arrays in this subroutine, the first
-c     being divergence and the 2nd and 3rd being u and v.  There is a 
+c     being divergence and the 2nd and 3rd being u and v.  There is a
 c     critical difference in the array indexing for the levels.  For
 c     divergence, the array is dimensioned with levels from 1 to 3, with
-c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels 
-c     for the winds, such that the level dimension goes 1 = 850, 
+c     1 = 850, 2 = 700, 3 = sfc.  However, there are extra levels
+c     for the winds, such that the level dimension goes 1 = 850,
 c     2 = 700, 3 = 500, 4 = 200, 5 = sfc, and this is annotated now
 c     by the use of the "nlev850", "nlev700" and "levsfc" variables
-c     from module level_parms.  So we need to be sure to properly 
+c     from module level_parms.  So we need to be sure to properly
 c     annotate that in this routine.
 c
 c     INPUT:
@@ -27977,7 +27976,7 @@ c     Calculate grid increments for interior and edge points.
 
 c     IMPORTANT: If dtk is defined in module trig_vals in km, then
 c     we need to multiply by 1000 here to get meters.  If it's defined
-c     as meters, just let it be.  Since the wind values are given in 
+c     as meters, just let it be.  Since the wind values are given in
 c     meters, that's why we need the dlon values to be in meters.
 
       if (dtk < 750.) then     ! chances are, dtk was defined as km
@@ -27992,9 +27991,9 @@ c     meters, that's why we need the dlon values to be in meters.
       dlat_inter = dtk * dfix * 2.0 * dlat   ! Dj dist over 2 grid pts
 
 
-c     Calculate required trig functions.  These are functions of 
+c     Calculate required trig functions.  These are functions of
 c     latitude.  Remember that the grid must go from north to south.
-c     This north-to-south requirement has 
+c     This north-to-south requirement has
 c     already been checked in subroutine  getgridinfo.  If necessary,
 c     any flipping of the latitudes was done there, and flipping of
 c     the data, again if necessary, was done in subroutine  getdata.
@@ -28014,25 +28013,25 @@ c     which it will for the global grids (MRF, GDAS, GFS, UKMET,NCE)
       cosfac(jmax) = cosfac(jmax-1)
       tanfac(jmax) = tanfac(jmax-1)
 
-c     NOTE: These next bits of divergence calculation code assume that 
+c     NOTE: These next bits of divergence calculation code assume that
 c           the input grid is oriented so that point (1,1) is the upper
 c           left-most (NW) and point (imax,jmax) is the lower right-
-c           most point.  Any other grids will probably crash the 
+c           most point.  Any other grids will probably crash the
 c           program due to array out of bounds errors.
-c     NOTE: Before each calculation is done, the logical array is 
-c           checked to make sure that all the data points in this 
+c     NOTE: Before each calculation is done, the logical array is
+c           checked to make sure that all the data points in this
 c           calculation have valid data (ie., that the points are not
 c           outside a regional model's boundaries).
 c
 c !!! IMPORTANT NOTE: While testing this, I uncovered a bug, which was
-c     that I had the "j+1" and "j-1" reversed.  Just from a physical 
-c     understanding, the du/dy term at a point is calculated by taking 
-c     the u value north of the point minus the u value south of the 
-c     point. Intuitively, this is u(j+1) - u(j-1).  However, we have 
+c     that I had the "j+1" and "j-1" reversed.  Just from a physical
+c     understanding, the du/dy term at a point is calculated by taking
+c     the u value north of the point minus the u value south of the
+c     point. Intuitively, this is u(j+1) - u(j-1).  However, we have
 c     designed this program to have the northernmost point as
 c     the beginning of the grid (i.e., for the global grids, j=1 at 90N,
 c     and j increases southward).  Thus, if you would do u(j+1) -
-c     u(j-1), you would actually be taking the u value south of the 
+c     u(j-1), you would actually be taking the u value south of the
 c     point minus the u value north of the point, EXACTLY THE OPPOSITE
 c     OF WHAT YOU WANT.  Therefore, the divergence calculations have
 c     been changed so that we now have u(j-1) - u(j+1).
@@ -28043,13 +28042,13 @@ c     converted from a non-lat/lon grid to a lat/lon grid), we were
 c     running into problems below with the setting of div values to
 c     a missing value of -999.  In place of this, the easiest thing to
 c     do is to simply assign a value of zero to the divergence.
-c     No, this is not correct, but it is the easiest workaround for 
+c     No, this is not correct, but it is the easiest workaround for
 c     this right now.
 c
 c     ---------------
 c     Interior points
 c     ---------------
-    
+
       if ( verb .ge. 3 ) then
         print *,'Just before inter divcal, dlon_inter = ',dlon_inter
      &       ,' dlat_inter = ',dlat_inter
@@ -28058,9 +28057,9 @@ c     ---------------
       do j=2,jmax-1
        do i=2,imax-1
 c
-        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
+        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &      vp(i,j+1) .and. vp(i,j-1)) then
-c 
+c
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
      &               + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
      &               - tanfac(j)*v(i,j,w)
@@ -28081,11 +28080,11 @@ c
       j=jmax
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &     vp(i,j-1)) then
 c
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
-     &              + (v(i,j-1,w) - v(i,j,w))/(dlat_edge) 
+     &              + (v(i,j-1,w) - v(i,j,w))/(dlat_edge)
      &              - tanfac(j)*v(i,j,w)
        else
 c         div(i,j)= -999.
@@ -28102,7 +28101,7 @@ c
       j=1
       do i=2,imax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.  
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.
      &     vp(i,j+1)) then
 c
           div(i,j)= (u(i+1,j,w) - u(i-1,j,w))/(dlon_inter * cosfac(j))
@@ -28123,7 +28122,7 @@ c
       i=1
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.  
+       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.
      &     vp(i,j-1)) then
 c
          div(i,j)= (u(i+1,j,w) - u(i,j,w))/(dlon_edge * cosfac(j))
@@ -28144,13 +28143,13 @@ c
       i=imax
       do j=2,jmax-1
 c
-       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.  
+       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.
      &     vp(i,j-1)) then
 c
           div(i,j) = (u(i,j,w) - u(i-1,j,w))/(dlon_edge * cosfac(j))
      &               + (v(i,j-1,w) - v(i,j+1,w))/(dlat_inter)
      &               - tanfac(j)*v(i,j,w)
-       else 
+       else
 c         div(i,j)= -999.
          div(i,j) = xsmalldiff / (dlon_inter * cosfac(j))
      &               + xsmalldiff / (dlat_inter)
@@ -28163,7 +28162,7 @@ c     SW corner
 c     ---------
       i=1
       j=jmax
-      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then 
+      if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then
 c
         div(i,j) = (u(i+1,j,w)-u(i,j,w))/(dlon_edge * cosfac(j))
      &              + (v(i,j-1,w)-v(i,j,w))/(dlat_edge)
@@ -28286,11 +28285,11 @@ c     LOCAL:
 
       xsmoothval = -9999.0
 
-c     We will do a barnes analysis on the data from the input array to 
-c     this subroutine near the current fix location in order to get one 
+c     We will do a barnes analysis on the data from the input array to
+c     this subroutine near the current fix location in order to get one
 c     average value that will be returned to the calling routine.  The
 c     call to get_ij_bounds is needed in order to restrict the number of
-c     grid points that are searched in the  barnes subroutine.  See 
+c     grid points that are searched in the  barnes subroutine.  See
 c     Abstract of subroutine  get_next_ges for further details.
 
       if (verb >= 3) then
@@ -28360,7 +28359,7 @@ c     Abstract of subroutine  get_next_ges for further details.
       endif
 
       ! Since we are only doing the  barnes analysis centered at one
-      ! point, there is no need to do a speedup in the  barnes 
+      ! point, there is no need to do a speedup in the  barnes
       ! analysis, so just set bskip=1.
 
       bskip = 1
@@ -28472,7 +28471,7 @@ c     trkrinfo derived type detailing user-specified grid info
 c     readgenflag logical array, indicates if a genesis parm was read in
 c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
-c             forecast hour (this keeps us from re-computing it for 
+c             forecast hour (this keeps us from re-computing it for
 c             every storm at each lead time).
 c
 c     OUTPUT:
@@ -28515,7 +28514,7 @@ c
       ! vertical layers we are working on....
       !----------------------------------------------------------------
 
-      if (verb >= 1) then 
+      if (verb >= 1) then
         print *,'rq1, need_to_compute_rh_from_q= '
      &         ,need_to_compute_rh_from_q
         print *,'     already_computed_domain_wide_rh= '
@@ -28555,7 +28554,7 @@ c
 
         if (igsvret == 0) then
           rh_1000_925_smooth = xsmoothval
-        else  
+        else
           rh_1000_925_smooth = -9999.0
         endif
 
@@ -28590,7 +28589,7 @@ c
 
       else
         rh_800_600_smooth = -9999.0
-      endif      
+      endif
 c
       return
       end
@@ -28604,10 +28603,10 @@ c----------------------------------------------------------------------
 c
 c     ABSTRACT: This routine computes relative humidity across a full
 c     model domain, using T and q.  This will only be called, obviously,
-c     if RH was not available to be read in for this model.  For 
+c     if RH was not available to be read in for this model.  For
 c     computing saturation vapor pressure (qs), I'm using Tetens
-c     formula, because it includes the variation of latent heat with 
-c     temperature and because it is what HWRF uses.  The form of 
+c     formula, because it includes the variation of latent heat with
+c     temperature and because it is what HWRF uses.  The form of
 c     Tetens formula I'm using is from the 2nd edition of the Ronald
 c     Stull book, Meterology for Scientists and Engineers, p. 98.
 c
@@ -28680,12 +28679,12 @@ c
             if (valid_pt(i,j)) then
 
 c             Teten's formula:
-              es = eo * exp((b * (temperature(i,j,z) - t1)) 
+              es = eo * exp((b * (temperature(i,j,z) - t1))
      &                         / (temperature(i,j,z) - t2))
 
-c              ! Teten's formula, temperature dependent 
+c              ! Teten's formula, temperature dependent
 c              if (temperature(i,j,z) < 273.0) then
-c                es = eo * exp((21.875 * (temperature(i,j,z)-273.0)) 
+c                es = eo * exp((21.875 * (temperature(i,j,z)-273.0))
 c     &                  / ((temperature(i,j,z)-273.0) + 265.5))
 c              else
 c                es = eo * exp((17.27 * (temperature(i,j,z)-273.0))
@@ -28758,7 +28757,7 @@ c                endif
         print *,' '
         print *,'xxrhstat: xminval= ',xminrh,' xmaxval= ',xmaxrh
         print *,'x999ct = ',x999ct,'  rhgt100ct= ',rhgt100ct
-      
+
       endif
 c
       return
@@ -28783,7 +28782,7 @@ c     ifh     Forecast hour currently being processed
 c     imax    Max number of pts in x-direction for this grid
 c     jmax    Max number of pts in y-direction for this grid
 c     cvar    character string that contains variable being searched
-c     clevstr character string that indicates vertical levels being 
+c     clevstr character string that indicates vertical levels being
 c             included in the vertical layer mean
 c     dx      grid-spacing of the model in the i-direction
 c     dy      grid-spacing of the model in the j-direction
@@ -28847,7 +28846,7 @@ c      print *,'  -- zstart= ',zstart,' zend= ',zend
       zloop: do z = zstart,zend
 
         jloop: do j= 1,jmax
-        
+
           iloop: do i= 1,imax
 
             if (valid_pt(i,j) .and. rh(i,j,z) > -998.0) then
@@ -28863,10 +28862,10 @@ c     &               ,point_ct(i,j)
         enddo jloop
 
       enddo zloop
- 
+
       !----------------------------------------------------------------
       ! Now compute the multi-layer mean.  This code should be able to
-      ! be used no matter what variables & levels were being 
+      ! be used no matter what variables & levels were being
       ! processed above.
       !----------------------------------------------------------------
 
@@ -28910,7 +28909,7 @@ c
 c---------------------------------------------------------------------
       subroutine thickness_calc (imax,jmax,vp)
 c
-c     ABSTRACT: This routine calculates the  thicknesses for three 
+c     ABSTRACT: This routine calculates the  thicknesses for three
 c     different layers: 200-500, 500-850 and 200-850 mb.
 c
 c     LOCAL VARIABLES:
@@ -28930,7 +28929,7 @@ c       1: 500-850
 c       2: 200-500
 c       3: 200-850
 c
-c     The array indices for the levels for the 4 different GP height 
+c     The array indices for the levels for the 4 different GP height
 c     arrays (as assigned in subroutine  getdata) are as follows:
 c       1: 850 mb
 c       2: 700 mb
@@ -28970,9 +28969,9 @@ c---------------------------------------------------------------------
      &            ,cmaxmin,trkrinfo,ifh,valid_pt,maxstorm,masked_out
      &            ,stormct,contour_info,maxmini,maxminj,ifgcret)
 c
-c     ABSTRACT: This subroutine scans an array and picks out areas of 
+c     ABSTRACT: This subroutine scans an array and picks out areas of
 c     max or min, then loads those center positions into the first-
-c     guess lat & lon arrays to be used by subroutine  tracker for 
+c     guess lat & lon arrays to be used by subroutine  tracker for
 c     locating the very specific low center positions.
 c
 c     INPUT:
@@ -28995,13 +28994,13 @@ c     maxstorm max # of storms that can be handled in this run
 c
 c     INPUT/OUTPUT:
 c     masked_out Logical. T = data point is already accounted for, under
-c                the influence of another nearby max or min center, 
-c                F = data point is available to be scanned by this 
+c                the influence of another nearby max or min center,
+c                F = data point is available to be scanned by this
 c                subroutine for max or min centers.
 c     stormct  Integer: keeps and increments a running tab of the number
 c              of storms that have been tracked at any time across all
 c              forecast hours
-c     contour_info Type cint_stuff from module contours.  Contains 
+c     contour_info Type cint_stuff from module contours.  Contains
 c                  contour information
 c
 c     OUTPUT:
@@ -29033,14 +29032,14 @@ c     storm    Contains the tcvitals for the storms (module def_vitals)
       if ( verb .ge. 3 ) then
         print *,' '
         print *,'*-------------------------------------------------*'
-        print *,'* At top of first_ges_center                      *' 
+        print *,'* At top of first_ges_center                      *'
         write (6,102) ifhours(ifh),ifclockmins(ifh)
  102    format (1x,'* Searching for new lows at hour ',i4,':',i2.2)
         print *,'*-------------------------------------------------*'
       endif
 
 
-c     First check the user-supplied grid boundaries to see if we will 
+c     First check the user-supplied grid boundaries to see if we will
 c     scan the entire array or just a portion of it.
 
       if (trkrinfo%northbd < -998.0 .or. trkrinfo%southbd < -998.0 .or.
@@ -29055,7 +29054,7 @@ c     scan the entire array or just a portion of it.
 c        if (trkrinfo%westbd > 360.0 .or. trkrinfo%eastbd < 0.0 .or.
 c     &      trkrinfo%westbd <   0.0 .or.
 
-        if (trkrinfo%westbd > 360.0 .or. 
+        if (trkrinfo%westbd > 360.0 .or.
      &      trkrinfo%northbd > 90.0 .or. trkrinfo%northbd <-90.0 .or.
      &      trkrinfo%southbd > 90.0 .or. trkrinfo%southbd <-90.0 .or.
      &      trkrinfo%westbd  >= trkrinfo%eastbd .or.
@@ -29066,8 +29065,8 @@ c     &      trkrinfo%westbd <   0.0 .or.
             if (trkrinfo%westbd < 360.0 .and.
      &          trkrinfo%eastbd >= 0.0)then
 
-              ! In this special case, the user has specified that the 
-              ! western boundary be to the west of the Greenwich 
+              ! In this special case, the user has specified that the
+              ! western boundary be to the west of the Greenwich
               ! meridian and the eastern boundary be to the east of it.
 
               if ( verb .ge. 3 ) then
@@ -29083,22 +29082,22 @@ c     &      trkrinfo%westbd <   0.0 .or.
               endif
 
               ! Calculate the beginning and ending i and j points for
-              ! this case of spanning the Greenwich meridian.  The 
+              ! this case of spanning the Greenwich meridian.  The
               ! beginning and ending j points are, obviously, the same
-              ! as for the regular case below in the else.  The 
-              ! i-beginning point will also be the same as for the 
-              ! regular case.  However, the i-ending point will be 
+              ! as for the regular case below in the else.  The
+              ! i-beginning point will also be the same as for the
+              ! regular case.  However, the i-ending point will be
               ! modified for the meridian wrap; it will be > imax.
 
-              jbeg = int(((glatmax + dy - trkrinfo%northbd) 
+              jbeg = int(((glatmax + dy - trkrinfo%northbd)
      &               / dy) + 0.5)
-              jend = int(((glatmax + dy - trkrinfo%southbd) 
+              jend = int(((glatmax + dy - trkrinfo%southbd)
      &               / dy) + 0.5)
-              ibeg = int(((trkrinfo%westbd - glonmin + dx)  
+              ibeg = int(((trkrinfo%westbd - glonmin + dx)
      &               / dx) + 0.5)
-c              iend = int(((trkrinfo%eastbd - glonmin + dx)  
+c              iend = int(((trkrinfo%eastbd - glonmin + dx)
 c     &               / dx) + 0.5)
-              iend = int(((trkrinfo%eastbd - glonmin + dx)  
+              iend = int(((trkrinfo%eastbd - glonmin + dx)
      &               / dx) + 0.5) + imax
 
               goto 377
@@ -29140,7 +29139,7 @@ c     &               / dx) + 0.5)
 
 c     Scan the requested portion of the grid and pick out the max and
 c     min data values, figure out what the max and min contour levels
-c     will be, and fill an array with the values of the various 
+c     will be, and fill an array with the values of the various
 c     intermediate, incremental contour levels.
 
       if (trkrinfo%contint <= 0) then
@@ -29172,8 +29171,8 @@ c     intermediate, incremental contour levels.
             itemp = i
           endif
           if (valid_pt(itemp,j)) then
-            if (fxy(itemp,j) < dmin) dmin = fxy(itemp,j)    
-            if (fxy(itemp,j) > dmax) dmax = fxy(itemp,j)    
+            if (fxy(itemp,j) < dmin) dmin = fxy(itemp,j)
+            if (fxy(itemp,j) > dmax) dmax = fxy(itemp,j)
           endif
         enddo
       enddo
@@ -29186,8 +29185,8 @@ c     intermediate, incremental contour levels.
 
 
 c     We want to allow for storms moving out of the sub-region,
-c     in which case we might hit slightly lower or higher 
-c     contours than were found in the sub-region, so allow for 
+c     in which case we might hit slightly lower or higher
+c     contours than were found in the sub-region, so allow for
 c     an extra buffer and modify dmin and dmax....
 
       dbuffer = (dmax - dmin) / 2.0
@@ -29216,10 +29215,10 @@ c      contour_info%xmincont = dmin - amod(dmin,trkrinfo%contint)
         contour_info%xmincont = contour_info%xmaxcont
       endif
 
-c      if (dmin > contour_info%xmincont) then 
+c      if (dmin > contour_info%xmincont) then
 c        contour_info%xmincont=contour_info%xmincont + trkrinfo%contint
 c      endif
-c      if (dmax < contour_info%xmaxcont) then 
+c      if (dmax < contour_info%xmaxcont) then
 c        contour_info%xmaxcont=contour_info%xmaxcont - trkrinfo%contint
 c      endif
 
@@ -29231,21 +29230,21 @@ c      endif
 
 c     NOTE: In the loop below, the contour_info%contvals array is now
 c     (5/2003) no longer used in subsequent subroutines.  But we still
-c     need to figure out the value of the contvals as we iterate the 
-c     loop so we can know when we've surpassed dmax and can stop 
+c     need to figure out the value of the contvals as we iterate the
+c     loop so we can know when we've surpassed dmax and can stop
 c     incrementing contour_info%numcont, which we do need in subsequent
 c     subroutines.
 
       contour_info%numcont = 0
       do n = 1,maxconts
         contour_info%numcont = contour_info%numcont + 1
-        contour_info%contvals(n) = contour_info%xmincont + 
+        contour_info%contvals(n) = contour_info%xmincont +
      &                             float(n-1)*trkrinfo%contint
 c        print *,'n= ',n,' contour_info%contvals(n)= '
 c     &                 ,contour_info%contvals(n)
         if (contour_info%contvals(n) >= dmax) exit
       enddo
-    
+
       oldstormct = stormct
       call find_all_maxmins (imax,jmax,ibeg,iend,jbeg,jend,fxy
      &        ,valid_pt,masked_out,contour_info,dx,dy
@@ -29254,7 +29253,7 @@ c     &                 ,contour_info%contvals(n)
 
       if (stormct > 0) then
         continue
-      else 
+      else
 
         if ( verb .ge. 3 ) then
           print *,' '
@@ -29341,8 +29340,8 @@ c---------------------------------------------------------------------
      &          ,trkrinfo,cmaxmin,maxstorm,stormct,maxmini
      &          ,maxminj,ifh,ifamret)
 c
-c     ABSTRACT: This subroutine will search an area delineated by  
-c     input i and j indeces in order to find all local maxes or mins 
+c     ABSTRACT: This subroutine will search an area delineated by
+c     input i and j indeces in order to find all local maxes or mins
 c     in that area.  The (i,j) locations of the maxes/mins are returned
 c     in the maxmini and maxminj arrays.  The input 3-character string
 c     cmaxmin will tell the subroutine to look for a "max" or a "min".
@@ -29378,7 +29377,7 @@ c     ifh      Integer index for forecast hour array
 c
 c     INPUT/OUTPUT:
 c     stormct  Integer: keeps and increments a running tab of the number
-c              of storms that have been tracked at any time across all 
+c              of storms that have been tracked at any time across all
 c              forecast hours
 c
 c     OUTPUT:
@@ -29417,7 +29416,7 @@ c     field to be searched.  We can use the standard deviation info as
 c     part of our guideline for when to stop searching for maxes & mins.
 c     We will set the search cut-off threshold at 1/2 standard deviation
 c     above the mean for min searches.  So, for the example of mslp, if
-c     the mean pressure over the whole domain is 1010 mb and the 
+c     the mean pressure over the whole domain is 1010 mb and the
 c     standard deviation is 12 mb, then when we are searching, if the
 c     lowest available (i.e., hasn't been found in a previous iteration
 c     of this loop) pressure is 1016, then it's time to stop searching.
@@ -29453,11 +29452,11 @@ c     of this loop) pressure is 1016, then it's time to stop searching.
 c     Now begin to search the domain.  We do a simple gridpoint scan,
 c     and once we find the max/min value, we pass the (i,j) coordinates
 c     at that point to a routine to check for a closed contour.  Then
-c     we mask out those points in the contour (or, if there is not a 
+c     we mask out those points in the contour (or, if there is not a
 c     closed contour, just the 8 points immediately surrounding the low
-c     center) and we do another iteration of search_loop to look for 
+c     center) and we do another iteration of search_loop to look for
 c     more lows.  We mask out points we've found so that on subsequent
-c     iterations of search_loop, we don't find the same old center 
+c     iterations of search_loop, we don't find the same old center
 c     again and again and again.....
 
       search_loop: do while (still_finding_valid_maxmins)
@@ -29471,7 +29470,7 @@ c     again and again and again.....
             ip = i
             jp = j
 
-            if (ip > imax) then 
+            if (ip > imax) then
               if (trkrinfo%gridtype == 'global') then
                 ip = i - imax   ! If wrapping past GM
               else
@@ -29512,7 +29511,7 @@ c     again and again and again.....
 
           enddo iloop
         enddo jloop
- 
+
         if (cmaxmin == 'min') then
           if (dmin < search_cutoff) then
             continue
@@ -29531,7 +29530,7 @@ c     again and again and again.....
 
 c       As a rough first check, see if the neighboring points on all
 c       4 sides have a gradient sloping down into the found min point,
-c       or at least that there is a flat field not having a gradient 
+c       or at least that there is a flat field not having a gradient
 c       sloping away from the center point.
 
         call get_ijplus1_check_wrap (imax,jmax,ix,jx,ixp1,jxp1,ixm1
@@ -29543,17 +29542,17 @@ c       sloping away from the center point.
             print *,'!!! NOTE: In find_all_maxmins, the center we found'
             print *,'!!!     is too close to the grid boundary and will'
             print *,'!!!     NOT be checked for a closed contour.'
-            print *,'!!!  ix= ',ix,' jx= ',jx,'  fxy= ',fxy(ix,jx) 
+            print *,'!!!  ix= ',ix,' jx= ',jx,'  fxy= ',fxy(ix,jx)
             print *,'!!! '
             print *,' '
           endif
 
-          masked_out(ix,jx) = .true. 
+          masked_out(ix,jx) = .true.
           cycle search_loop
         endif
 
         if (cmaxmin == 'min') then
-          if (fxy(ix,jx) <= fxy(ixp1,jx) .and. 
+          if (fxy(ix,jx) <= fxy(ixp1,jx) .and.
      &        fxy(ix,jx) <= fxy(ix,jxm1) .and.
      &        fxy(ix,jx) <= fxy(ixm1,jx) .and.
      &        fxy(ix,jx) <= fxy(ix,jxp1)) then
@@ -29571,7 +29570,7 @@ c       sloping away from the center point.
             rough_gradient_check_okay = .false.
           endif
         endif
- 
+
         if (rough_gradient_check_okay) then
 
           if ( verb .ge. 3 ) then
@@ -29580,7 +29579,7 @@ c       sloping away from the center point.
 
 
 c         From this rough check, we appear to have a gradient sloping
-c         in towards the center point.  Now call the subroutine to 
+c         in towards the center point.  Now call the subroutine to
 c         check whether or not there is in fact a closed contour
 c         surrounding this local maximum or minimum.
 
@@ -29602,7 +29601,7 @@ c         surrounding this local maximum or minimum.
               ! For a tcgen case, we will add in one additional check,
               ! and that is to ensure the point is (mostly) over water.
               ! Only do this check if the user has requested it (some
-              ! of the global models do not have a land-sea mask 
+              ! of the global models do not have a land-sea mask
               ! included in the grib data files).
 
               point_is_over_water = 'u'
@@ -29618,7 +29617,7 @@ c         surrounding this local maximum or minimum.
                   stop 95
                 endif
               endif
- 
+
               if (point_is_over_water /= 'n') then
                 maxmini(stormct) = ix
                 maxminj(stormct) = jx
@@ -29650,7 +29649,7 @@ c         surrounding this local maximum or minimum.
 
 c       Regardless of whether or not the found point turns out to have
 c       a closed contour, we don't want to find this local minimum or
-c       its 8 surrounding points again in a search on a subsequent 
+c       its 8 surrounding points again in a search on a subsequent
 c       iteration of this loop.
 
         masked_out(ix,jx)     = .true.
@@ -29676,14 +29675,14 @@ c---------------------------------------------------------------------
      &                     ,ctlon,ctlat,cmodel_type,ifh,imbowret)
 c
 c     ABSTRACT: This subroutine masks out grid points for a storm that
-c     is currently being tracked.  It is called after a fix has been 
+c     is currently being tracked.  It is called after a fix has been
 c     made at the current forecast hour.  It is only used as a backup,
 c     that is, if the mslp data were not there and/or a fix position
-c     for mslp could not be made, then that means that the mask would 
-c     not be able to get updated using the routine in subroutine  
+c     for mslp could not be made, then that means that the mask would
+c     not be able to get updated using the routine in subroutine
 c     check_closed_contour.  But we still do need to update that mask,
 c     so we will instead do it based on wind circulation.  We will go
-c     out radially from the center, starting at 40 km, then every 
+c     out radially from the center, starting at 40 km, then every
 c     40 km from there on out.  When the mean cyclonic Vt drops below
 c     3 m/s, stop searching, and then mask out all grid points within
 c     that last-searched radius.
@@ -29695,16 +29694,16 @@ c     ix       i index for location of local max or min
 c     jx       j index for location of local max or min
 c     fxy      input data array
 c     valid_pt Logical; bitmap indicating if valid data at that pt
-c     masked_outc Logical. T = data point is already accounted for, 
-c                under the influence of another nearby max or min 
-c                center; F = data point is available to be scanned by 
+c     masked_outc Logical. T = data point is already accounted for,
+c                under the influence of another nearby max or min
+c                center; F = data point is available to be scanned by
 c                this subroutine for max or min centers.
 c     ctlon    Fix longitude for the input parameter to this routine
 c     ctlon    Fix latitude for the input parameter to this routine
 c     cmodel_type  character, 'global' or 'regional'
 c     ifh      integer index for forecast hour array
 
-      USE set_max_parms; USE trkrparms; USE grid_bounds 
+      USE set_max_parms; USE trkrparms; USE grid_bounds
       USE verbose_output; USE level_parms
 
       implicit none
@@ -29761,7 +29760,7 @@ c     ifh      integer index for forecast hour array
 
           if (targlon >= glonmax) then
             if (trkrinfo%gridtype == 'global') then
-              targlon = targlon - 360.  ! We just GM-wrapped for the 
+              targlon = targlon - 360.  ! We just GM-wrapped for the
                                         ! full, regular, global grid.
             else
               xmax_rdist_reached = rdist
@@ -29796,16 +29795,16 @@ c     ifh      integer index for forecast hour array
           call bilin_int_uneven (targlat,targlon
      &        ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
      &            ,valid_pt,bimct,-99,ibiret2)
-    
+
           if (ibiret1 == 0 .and. ibiret2 == 0) then
             call getvrvt (ctlon,ctlat,targlon,targlat
      &                   ,xintrp_u,xintrp_v,vr(iazim)
      &                   ,vt(iazim),-99,igvtret)
             azimuth_ct = azimuth_ct + 1
             vt_azim_sum = vt_azim_sum + vt(iazim)
-          else 
+          else
             ! If ibiret /= 0, then we have reached out too far (likely
-            ! a regional grid).  So, pull the plug and just set the 
+            ! a regional grid).  So, pull the plug and just set the
             ! xmax_rdist_reached to the last diagnosed value of rdist.
             xmax_rdist_reached = rdist
             exit radial_loop
@@ -29828,7 +29827,7 @@ c     ifh      integer index for forecast hour array
         if (ctlat >= 0.0) then
           if (vt_mean >= 3.0) then
             ! For a NH storm, if the cyclonic mean Vt >= 3.0, increment
-            ! rdist and cycle through to the next iteration of 
+            ! rdist and cycle through to the next iteration of
             ! radial_loop.
             rdist = rdist + 40.0
           else
@@ -29869,12 +29868,12 @@ c     ifh      integer index for forecast hour array
 c     -----------------------------------------------------------------
 c     At this point, we are done searching radially outwards away from
 c     the storm center.  The max radial distance we reached is called
-c     xmax_rdist_reached.  By getting to this spot in the subroutine, 
-c     that means that we bumped out of radial_loop above because the 
+c     xmax_rdist_reached.  By getting to this spot in the subroutine,
+c     that means that we bumped out of radial_loop above because the
 c     rdist being used in that loop got to a radius at which the mean
 c     cyclonic Vt no longer was strong enough to continue the search
 c     outward, so we need to reduce it by 40 km here (back to the value
-c     for the last successful search).  At a minimum, we will mask to a 
+c     for the last successful search).  At a minimum, we will mask to a
 c     radius of 80 km.
 
       if (xmax_rdist_reached > 80.0) then
@@ -29892,9 +29891,9 @@ c     radius of 80 km.
 
         ! Now find the values of the longitude for the farthest west
         ! and east points and find the values of the latitude for the
-        ! farthest north and south points.  The i and j indices 
+        ! farthest north and south points.  The i and j indices
         ! associated with these lons and lats will be used to define
-        ! the bounds of the grid over which we scan to find points 
+        ! the bounds of the grid over which we scan to find points
         ! that will update the mask.
 
         select case (i)
@@ -29954,7 +29953,7 @@ c     radius of 80 km.
           cycle bearloop
         endif
 
-        ! Get the i & j starting and ending points for our loop where 
+        ! Get the i & j starting and ending points for our loop where
         ! we will update the mask....
 
         if (i == 1) then
@@ -30026,78 +30025,78 @@ c---------------------------------------------------------------------
      &           ,get_last_isobar_flag,plastbar,rlastbar,icccret)
 c
 c     ABSTRACT: This subroutine checks a field of data around an input
-c     (ix,jx) data point to see if a closed contour exists around 
-c     that data point.  It can check for a closed contour on a max or a 
+c     (ix,jx) data point to see if a closed contour exists around
+c     that data point.  It can check for a closed contour on a max or a
 c     min field, depending on the value of the input variable 'cmaxmin'.
-c     The algorithm works by examining rings of the 8 data points 
+c     The algorithm works by examining rings of the 8 data points
 c     surrounding a data point that is in the contour interval.  For
 c     example, in the diagram below, the X represents the location of
 c     the local minimum value which was passed into this routine with
 c     the coordinates (ix,jx), let's say it's 985 mb.  And let's assume
-c     that the data values at points A-I are all in the 4 mb contour 
+c     that the data values at points A-I are all in the 4 mb contour
 c     interval of 985-989 mb, and that all the surrounding points have
 c     data values >= 989.  To test for a closed contour, we first check
 c     the ring of 8 points immediately around point X to see what their
-c     data values are.  If a data value is found that is below the 
+c     data values are.  If a data value is found that is below the
 c     lower limit of this contour interval (985 mb) or lower than the
-c     local minimum value at the X point that we initially targeted 
+c     local minimum value at the X point that we initially targeted
 c     (985 mb), then we do NOT have a closed contour, and we exit this
 c     subroutine.  But in our example, that's not the case, and we have
-c     5 points (B,D,E,F,G) that are in the interval.  So in our next 
-c     iteration of the loop, we set up 5 rings, each one set up around 
-c     the points found in the first iteration (B,D,E,F,G), and we check 
-c     the 8 points around each of those points.  A logical array is 
-c     used so that as soon as a point is found, it is flagged as being 
+c     5 points (B,D,E,F,G) that are in the interval.  So in our next
+c     iteration of the loop, we set up 5 rings, each one set up around
+c     the points found in the first iteration (B,D,E,F,G), and we check
+c     the 8 points around each of those points.  A logical array is
+c     used so that as soon as a point is found, it is flagged as being
 c     found.  In this way, when we look at the ring around point D, for
-c     example, we won't pick point X again and set up another ring 
-c     around it in the next ring iteration and end up in an infinite 
-c     loop, going back and forth between point X and point D.  While 
-c     checking the 8 points in a ring, if a found data value is above 
-c     our contour interval (i.e., >= 989 mb), we just ignore the 
-c     point; we only mark points that are in our contour interval, 
-c     and again, if we find a point below our contour interval, we 
+c     example, we won't pick point X again and set up another ring
+c     around it in the next ring iteration and end up in an infinite
+c     loop, going back and forth between point X and point D.  While
+c     checking the 8 points in a ring, if a found data value is above
+c     our contour interval (i.e., >= 989 mb), we just ignore the
+c     point; we only mark points that are in our contour interval,
+c     and again, if we find a point below our contour interval, we
 c     exit the subroutine with a flag indicating a closed contour was
-c     NOT found.  So in this method, we keep spreading out from the 
-c     initial local minimum and creating and checking new rings until 
-c     we either: (a) Hit the edge of the regional grid, in which case 
-c     we consider a closed contour NOT found, (b) Run into a data 
-c     point that has been marked as being under the influence of 
-c     another nearby low, in which case we consider a closed contour 
-c     NOT found, (c) Run into a point which is below (above) our 
-c     contour interval for a min (max) check, in which case we 
-c     consider a closed contour NOT found, or (d) we run out of 
-c     points to keep searching, we have no rings left to create and 
-c     check because all of the surrounding points are above (below) 
-c     our contour interval for a min (max) check, and by default we 
-c     consider this a closed contour and return to the calling 
+c     NOT found.  So in this method, we keep spreading out from the
+c     initial local minimum and creating and checking new rings until
+c     we either: (a) Hit the edge of the regional grid, in which case
+c     we consider a closed contour NOT found, (b) Run into a data
+c     point that has been marked as being under the influence of
+c     another nearby low, in which case we consider a closed contour
+c     NOT found, (c) Run into a point which is below (above) our
+c     contour interval for a min (max) check, in which case we
+c     consider a closed contour NOT found, or (d) we run out of
+c     points to keep searching, we have no rings left to create and
+c     check because all of the surrounding points are above (below)
+c     our contour interval for a min (max) check, and by default we
+c     consider this a closed contour and return to the calling
 c     subroutine a flag indicating such.
 c
-c               + + + + + + + + + + 
-c               + + + + + + + + + + 
-c               + + A B + + + + + + 
-c               + + C D X E + + + + 
-c               + + + + F G + + + + 
-c               + + + + + H I + + + 
-c               + + + + + + + + + + 
-c               + + + + + + + + + + 
+c               + + + + + + + + + +
+c               + + + + + + + + + +
+c               + + A B + + + + + +
+c               + + C D X E + + + +
+c               + + + + F G + + + +
+c               + + + + + H I + + +
+c               + + + + + + + + + +
+c               + + + + + + + + + +
 c
-c     UPDATE: This subroutine was updated to keep searching for 
-c     multiple closed contours until it can't find anymore.  The 
-c     input parameter num_requested_contours dictates how many 
+c     UPDATE: This subroutine was updated to keep searching for
+c     multiple closed contours until it can't find anymore.  The
+c     input parameter num_requested_contours dictates how many
 c     contours to search for.  In the case of just trying to roughly
-c     locate new centers and establish that there is a closed 
+c     locate new centers and establish that there is a closed
 c     circulation, num_requested_contours will = 1, and we will exit
 c     after finding that 1 contour.  But for a check after making a
-c     full center fix, we set num_requested_contours = 999 so that 
+c     full center fix, we set num_requested_contours = 999 so that
 c     we can keep searching for all closed contours around the low.
 c     In this 999 case, you will eventually get to a point where
 c     there is no closed contour.  In that case, in the standard
 c     output you will see a message telling you that you hit a point
 c     that is not in the contour and that there is no closed contour,
 c     but you will also notice that the ccflag = y, meaning there is
-c     a closed contour (because you have found at least 1 closed 
+c     a closed contour (because you have found at least 1 closed
 c     contour along the way).  The reason to keep searching for more
-c     closed contours is that we can then return the value of the 
+c     closed contours is that we can then return the value of the
 c     outermost closed isobar.
 c
 c     INPUT:
@@ -30111,12 +30110,12 @@ c     masked_out Logical. T = data point is already accounted for, under
 c                the influence of another nearby max or min center,
 c                F = data point is available to be scanned by this
 c                subroutine for max or min centers.
-c     cmaxmin  character string ('max' or 'min') that tells this 
+c     cmaxmin  character string ('max' or 'min') that tells this
 c              routine what we're looking for.
 c     trkrinfo   derived type that holds/describes various tracker parms
 c     contour_info Type cint_stuff from module contours.  Contains
 c                  contour information
-c     num_requested_contours  For the simple  first_ges_center check, 
+c     num_requested_contours  For the simple  first_ges_center check,
 c              this will be 1 (we just want to know if there's at
 c              least 1 closed contour).  For the verifying check after
 c              we've found a center, this will be 9999 (i.e., just keep
@@ -30127,48 +30126,48 @@ c              and the radius of the last closed isobar.
 c
 c     OUTPUT:
 c     closed_contour character; A returned value of 'y' indicates that
-c              this routine was able to find a closed contour. 
+c              this routine was able to find a closed contour.
 c     plastbar Contains the value of the last closed isobar (unrounded)
-c     rlastbar Contains the mean radius of the last closed isobar 
+c     rlastbar Contains the mean radius of the last closed isobar
 c
 c     LOCAL:
-c     num_pts_in_all_contours Counter for the number of pts inside of 
+c     num_pts_in_all_contours Counter for the number of pts inside of
 c              the contour we're looking at
-c     next_ring_ct Counter for the number of points that have been 
-c              tagged to be used as center points for the next 
+c     next_ring_ct Counter for the number of points that have been
+c              tagged to be used as center points for the next
 c              iteration of multiple_ring_loop.
 c     next_contour_ct Counter for the number of points that have been
 c              tagged to be used as center points in the first iteration
-c              through single_contour_scan_loop as we begin to scan 
+c              through single_contour_scan_loop as we begin to scan
 c              points in the *next* contour interval.  This counter gets
-c              incremented when, for example, we are searching points 
+c              incremented when, for example, we are searching points
 c              around a current center point and we find one that is not
-c              in our current interval, but rather is in the next 
-c              interval.  We want to remember this point and store the 
-c              location, so we increment this counter and store the 
+c              in our current interval, but rather is in the next
+c              interval.  We want to remember this point and store the
+c              location, so we increment this counter and store the
 c              location in next_contour_i and next_contour_j arrays.
 c     beyond_contour_ct Counter for the number of points that have been
-c              tagged to be used as center points for some subsequent 
-c              iteration of successive_contours_loop.  This is 
-c              different from next_contour_ct, which is used to hold 
-c              the locations of points that are definitely in the 
-c              *next* contour interval.  Here, we have points that we 
+c              tagged to be used as center points for some subsequent
+c              iteration of successive_contours_loop.  This is
+c              different from next_contour_ct, which is used to hold
+c              the locations of points that are definitely in the
+c              *next* contour interval.  Here, we have points that we
 c              just store in a pool of potential points to be searched
-c              in future iterations.  These points can come about in 
-c              cases where there is a very intense, very compact low 
-c              with a tight pressure gradient, such that multiple 
+c              in future iterations.  These points can come about in
+c              cases where there is a very intense, very compact low
+c              with a tight pressure gradient, such that multiple
 c              contour intervals could be spanned in between 2 adjacent
 c              gridpoints (this is especially the case if the contour
-c              interval you have chosen is small).  You need to be 
-c              careful with how you handle this array.  Once you find 
-c              that you have searchable points in next_contour_i or 
-c              next_contour_j, do not just simply empty out this 
-c              beyond_contour count and its i and j arrays.  The 
+c              interval you have chosen is small).  You need to be
+c              careful with how you handle this array.  Once you find
+c              that you have searchable points in next_contour_i or
+c              next_contour_j, do not just simply empty out this
+c              beyond_contour count and its i and j arrays.  The
 c              reason being that some of these "beyond" points may end
 c              up being used and searched in subsequent iterations, but
 c              not if we just delete them now.
 
-   
+
       USE set_max_parms; USE trkrparms; USE contours; USE grid_bounds
       USE verbose_output
 
@@ -30234,7 +30233,7 @@ c
       if (isni /= 0 .or. isnj /= 0 .or. inci /= 0 .or. incj /= 0 .or.
      &    ibci /= 0 .or. ibcj /= 0 .or. ihmi /= 0 .or. ihmj /= 0 .or.
      &     itmi /= 0 .or. itmj /= 0) then
-        
+
         if ( verb .ge. 1 ) then
           print *,' '
           print *,'!!! ERROR in check_closed_contour allocating'
@@ -30277,18 +30276,18 @@ c
       endif
 
 c     First, set up the contour intervals that will be used.  In
-c     the original version of this code, we used preset 
+c     the original version of this code, we used preset
 c     standard intervals (984,988,992,996,1000,1004....).  But upon
 c     further review, it was decided that this was too arbitrary.
-c     So instead, we consider the found min (max) value to be the 
+c     So instead, we consider the found min (max) value to be the
 c     bottom (top) of the list of contour intervals.  In this way,
-c     we can clearly specify and screen storms based on the "depth" 
+c     we can clearly specify and screen storms based on the "depth"
 c     of the pressure field as compared to the surroundings.
 
       i = 1
       do while (i <= maxconts)
         if (cmaxmin == 'min') then
-          contvals(i) = xcentval + float(i-1)*trkrinfo%contint 
+          contvals(i) = xcentval + float(i-1)*trkrinfo%contint
           i = i + 1
         else
           iflip = maxconts - i + 1
@@ -30306,19 +30305,19 @@ c       Find the contour interval in which the center value resides.
 c       Note that the lower bound is included for a min check, while
 c       the upper bound is included for a max check.  Note also that
 c       this subroutine can be used to find the last closed contour,
-c       and part of that functionality shows up in the next while 
-c       statement where we reference "num_found_contours" in the 
+c       and part of that functionality shows up in the next while
+c       statement where we reference "num_found_contours" in the
 c       array indeces for the contour values.  Basically, the way we
-c       do this is, for example, if our central value is 990.4 mb and 
-c       our contour interval is 4 mb, then in the first run through 
+c       do this is, for example, if our central value is 990.4 mb and
+c       our contour interval is 4 mb, then in the first run through
 c       successive_contours_loop we see if we have a closed contour in
-c       the interval 990.4-994.4.  If yes, then the next time through 
-c       this loop, we see if we have a closed contour in the interval 
+c       the interval 990.4-994.4.  If yes, then the next time through
+c       this loop, we see if we have a closed contour in the interval
 c       994.4-998.4.  If yes, then the next loop check is for 998.4-
-c       1002.4, and so on....  We stop searching if we find a value 
+c       1002.4, and so on....  We stop searching if we find a value
 c       that is either below the xcentval input into this subroutine
 c       or below the lower value of the current contour interval (this
-c       would mean a change in the gradient and would indicate that, 
+c       would mean a change in the gradient and would indicate that,
 c       in the case of mslp, we are heading down towards another,
 c       different low).
 
@@ -30329,7 +30328,7 @@ c       different low).
         i = 1
         do while (i < maxconts)
           if (cmaxmin == 'min') then
-            if (contvals(i) <= xcentval .and. xcentval < contvals(i+1)) 
+            if (contvals(i) <= xcentval .and. xcentval < contvals(i+1))
      &      then
 
               if ( verb .ge. 3 ) then
@@ -30346,7 +30345,7 @@ c       different low).
 
             endif
           else
-            if (contvals(i) < xcentval .and. xcentval <= contvals(i+1)) 
+            if (contvals(i) < xcentval .and. xcentval <= contvals(i+1))
      &      then
               contlo = contvals(i-num_found_contours)
               conthi = contvals(i-num_found_contours+1)
@@ -30364,10 +30363,10 @@ c       different low).
         endif
 
 
-c       This single_contour_scan_loop is the main loop for searching 
+c       This single_contour_scan_loop is the main loop for searching
 c       for one individual contour.  If it is determined that a contour
 c       exists, control is returned to the successive_contours_loop,
-c       and if more contours were requested to be found, then the 
+c       and if more contours were requested to be found, then the
 c       search continues onward & outward....
 
         temp_mask_i_loc = 0
@@ -30387,12 +30386,12 @@ c          print *,'    top of single contour scan loop'
 c          print *,'+++ iter= ',iter
 c          print *,'    N1: next_contour_ct= ',next_contour_ct
 
-          if (iter == 1 .and. num_found_contours == 0) then 
-            ! For the first iteration, we have only the first ring, 
+          if (iter == 1 .and. num_found_contours == 0) then
+            ! For the first iteration, we have only the first ring,
             ! which is centered on the input minimum/maximum point.
             ringct = 1
-            search_next_i(1) = ix 
-            search_next_j(1) = jx 
+            search_next_i(1) = ix
+            search_next_j(1) = jx
 
 c            point_is_already_in_our_contour(ix,jx) = .true.
 c            num_pts_in_one_contour = num_pts_in_one_contour + 1
@@ -30402,8 +30401,8 @@ c            temp_mask_j_loc(num_pts_in_one_contour) = jx
           else if (iter == 1 .and. num_found_contours > 0) then
             ! This is the first iteration in a *new* contour.
             ! That is, we have already found 1 or more previous
-            ! contours while in previous iterations of 
-            ! successive_contours_loop and we are now beginning 
+            ! contours while in previous iterations of
+            ! successive_contours_loop and we are now beginning
             ! to look for the next contour.
 
 c            print *,'    N2: next_contour_ct= ',next_contour_ct
@@ -30411,16 +30410,16 @@ c            print *,'    N2: next_contour_ct= ',next_contour_ct
             if (next_contour_ct == 0) then
               ! This would be for the special case in which, for
               ! example, you've got a very intense, compact storm
-              ! that "skips" a contour.  That is, suppose the 
-              ! min pressure of a storm is 982 mb, and we are 
-              ! utilizing a 4-mb contour interval, but all 
-              ! surrounding data points are, say, 987 mb or 
+              ! that "skips" a contour.  That is, suppose the
+              ! min pressure of a storm is 982 mb, and we are
+              ! utilizing a 4-mb contour interval, but all
+              ! surrounding data points are, say, 987 mb or
               ! higher.  Then, next_contour_ct would be 0 since no
               ! data points were found in the next contour interval
-              ! of 982-986 mb, but we can continue searching since the 
+              ! of 982-986 mb, but we can continue searching since the
               ! gradient is still sloping the correct way.  The code in
               ! this if statement handles this special case.
-              
+
               if ( verb .ge. 3 ) then
                 print *,' '
                 print *,'ALERT: next_contour_ct = 0 '
@@ -30463,9 +30462,9 @@ c     &                     ,' fxy= ',fxy(ibx,jby)
                     next_contour_i(next_contour_ct) = ibx
                     next_contour_j(next_contour_ct) = jby
 
-                    ! This point has now been identified as being in 
+                    ! This point has now been identified as being in
                     ! the "next" contour interval, i.e., no longer in
-                    ! the "beyond" contour pool.  Therefore, set the 
+                    ! the "beyond" contour pool.  Therefore, set the
                     ! logical flag to indicate that this point is no
                     ! longer in the "beyond" contour pool.
 
@@ -30492,7 +30491,7 @@ c                  print *,'in bey_con_max_loop, nb= ',nb
                   jby = beyond_contour_j(nb)
 
                   if (.not. point_is_already_in_beyond_pool(ibx,jby))
-     &            then     
+     &            then
                     ! If this point is no longer in our pool of "beyond
                     ! contour" points, then just cycle out of this
                     ! iteration....
@@ -30539,13 +30538,13 @@ c                    print *,' ++ HIT! ibx= ',ibx,' jby= ',jby
                 endif
 
                 ! The number of rings that we have available to search
-                ! in the next contour interval is 0, so cycle all the 
+                ! in the next contour interval is 0, so cycle all the
                 ! way back to the top of the outer loop, which is
                 ! successive_contours_loop, so that we can increase the
                 ! contour bounds and search inside those new bounds.
-                ! Again, this is for the case in which we have an 
-                ! intense, compact storm and we are using a small 
-                ! contour interval, such that we are essentially 
+                ! Again, this is for the case in which we have an
+                ! intense, compact storm and we are using a small
+                ! contour interval, such that we are essentially
                 ! "skipping" over one of these intervals in one of the
                 ! loop iterations.   We need to bump up the
                 ! num_found_contours by one in order to increase the
@@ -30577,7 +30576,7 @@ c     &               ,next_contour_j(nring)
             next_contour_ct = 0
 
           else
-            ringct = next_ring_ct 
+            ringct = next_ring_ct
           endif
 
           if (allocated(ringposi)) deallocate (ringposi)
@@ -30611,11 +30610,11 @@ c     &                             ,' ringposj= ',ringposj(nring)
 
           next_ring_ct = 0
 
-          ! This next loop reviews the points that have been 
+          ! This next loop reviews the points that have been
           ! labelled for the "beyond_contour" pool.  As we get further
-          ! into successive iterations of successive_contours_loop, 
-          ! some of these previously "beyond" points are now within 
-          ! the contour interval range that we are checking, so we 
+          ! into successive iterations of successive_contours_loop,
+          ! some of these previously "beyond" points are now within
+          ! the contour interval range that we are checking, so we
           ! need to go through the list of "beyond" points and remove
           ! any that are no longer in that "beyond" category....
 
@@ -30626,7 +30625,7 @@ c     &                             ,' ringposj= ',ringposj(nring)
 
             if (.not. point_is_already_in_beyond_pool(ibx,jby))
      &      then
-              ! This point may have been removed already in a 
+              ! This point may have been removed already in a
               ! previous iteration of successive_contours_loop.
               ! If this point is no longer in our pool of "beyond
               ! contour" points, then just cycle out of this
@@ -30636,8 +30635,8 @@ c     &                             ,' ringposj= ',ringposj(nring)
 
             ! Check to see if any of the points being searched in the
             ! upcoming multiple_ring_loop are points that had previously
-            ! been saved as "beyond_contour" points.  If so, remove 
-            ! their status as "beyond_contour" points by setting the 
+            ! been saved as "beyond_contour" points.  If so, remove
+            ! their status as "beyond_contour" points by setting the
             ! logical flag to false.
 
             do nring = 1,ringct
@@ -30659,7 +30658,7 @@ c         different number of rings to analyze.  In the first
 c         iteration, we only have 1 ring, the initial ring around the
 c         local max/min that was input to this subroutine.  Subsequent
 c         iterations will have a variable number of rings, depending on
-c         how many new data points within our contour interval were 
+c         how many new data points within our contour interval were
 c         found in the previous iteration.
 
           multiple_ring_loop: do mr = 1,ringct
@@ -30696,11 +30695,11 @@ c     &             ,' jcenx= ',jcenx,' imax= ',imax,' jmax= ',jmax
               deallocate (ringposi); deallocate (ringposj)
               deallocate (search_next_i); deallocate (search_next_j)
               deallocate (next_contour_i); deallocate (next_contour_j)
-              deallocate (beyond_contour_i) 
+              deallocate (beyond_contour_i)
               deallocate (beyond_contour_j)
-              deallocate (hold_mask_i_loc) 
+              deallocate (hold_mask_i_loc)
               deallocate (hold_mask_j_loc)
-              deallocate (temp_mask_i_loc) 
+              deallocate (temp_mask_i_loc)
               deallocate (temp_mask_j_loc)
               icccret = 0
               return
@@ -30708,34 +30707,34 @@ c     &             ,' jcenx= ',jcenx,' imax= ',imax,' jmax= ',jmax
 
 c           For each individual ring, we check all 8 points surrounding
 c           the center point.  The points are numbered for each ring as
-c           shown in the diagram to the right of the "select case" 
-c           statement just below.  REMEMBER: The j in our grids 
+c           shown in the diagram to the right of the "select case"
+c           statement just below.  REMEMBER: The j in our grids
 c           increases from north to south, so that for a global grid,
 c           j=1 is at 90N and j=jmax is at 90S.
 
             individual_ring_loop: do ir = 1,9
 
               select case (ir)
-                case (1); irx=ixm1; jrx=jcenx;!     2       3       4 
-                case (2); irx=ixm1; jrx=jxm1; !                      
-                case (3); irx=icenx;jrx=jxm1; !                     
+                case (1); irx=ixm1; jrx=jcenx;!     2       3       4
+                case (2); irx=ixm1; jrx=jxm1; !
+                case (3); irx=icenx;jrx=jxm1; !
                 case (4); irx=ixp1; jrx=jxm1; !     1 (icenx,jcenx) 5
-                case (5); irx=ixp1; jrx=jcenx;!                     
-                case (6); irx=ixp1; jrx=jxp1; !                     
+                case (5); irx=ixp1; jrx=jcenx;!
+                case (6); irx=ixp1; jrx=jxp1; !
                 case (7); irx=icenx;jrx=jxp1; !     8       7       6
-                case (8); irx=ixm1; jrx=jxp1; !                     
+                case (8); irx=ixm1; jrx=jxp1; !
                 case (9); irx=icenx; jrx=jcenx; ! = center pt of ring
               end select
 
-c             Make sure the point we are looking at has valid data.  
+c             Make sure the point we are looking at has valid data.
 c             This is an issue only on regional grids, where we have a
-c             buffer of bitmapped (null) data points surrounding the 
+c             buffer of bitmapped (null) data points surrounding the
 c             real grid.
 
 c             print *,'ind ring loop: ir= ',ir,' irx= ',irx,' jrx= ',jrx
 
               if (.not. valid_pt(irx,jrx)) then
-                
+
                 if ( verb .ge. 3 ) then
                   print *,' '
                   print *,'!!! NOTE: In check_closed_contour, while '
@@ -30822,7 +30821,7 @@ c             not considered under the influence of another nearby low.
                 return
               endif
 
-c             If we have already hit this point on a previous ring 
+c             If we have already hit this point on a previous ring
 c             check, then just ignore this point and cycle past it.
 
               if (point_is_already_in_our_contour(irx,jrx)) then
@@ -30833,20 +30832,20 @@ c                print *,'irx= ',irx,' jrx= ',jrx
                 cycle individual_ring_loop
               endif
 
-c             For a MIN check, check to see if the data point is below 
-c             the contour interval or is below the local minimum value 
-c             passed into this subroutine.  In either case, exit and 
+c             For a MIN check, check to see if the data point is below
+c             the contour interval or is below the local minimum value
+c             passed into this subroutine.  In either case, exit and
 c             consider this to NOT be a closed contour.
-c             For a MAX check, check to see if the data point is above 
-c             the contour interval or is above the local maximum value 
-c             passed into this subroutine.  In either case, exit and 
+c             For a MAX check, check to see if the data point is above
+c             the contour interval or is above the local maximum value
+c             passed into this subroutine.  In either case, exit and
 c             consider this to NOT be a closed contour.
-c             
-c             For example, for mslp, this would be as we're moving 
+c
+c             For example, for mslp, this would be as we're moving
 c             outward away from lower pressures to higher pressures,
 c             and then all of a sudden we come upon a lower pressure.
 c             This probably means we're heading toward another low
-c             pressure area, so mark the point and return to the 
+c             pressure area, so mark the point and return to the
 c             calling routine.
 
               found_a_point_below_contour = 'n'
@@ -30856,7 +30855,7 @@ c             calling routine.
      &          then
                   found_a_point_below_contour = 'y'
                 endif
-              else 
+              else
                 if (fxy(irx,jrx) > xcentval .or. fxy(irx,jrx) > conthi)
      &          then
                   found_a_point_above_contour = 'y'
@@ -30892,7 +30891,7 @@ c             calling routine.
                   print *,'!!! Contour interval = ',trkrinfo%contint
                   print *,'!!!    '
                   print *,'!!! closed_contour flag = ',closed_contour
-                  print *,'!!! ' 
+                  print *,'!!! '
                 endif
 
                 do nm = 1,num_pts_in_all_contours
@@ -30912,7 +30911,7 @@ c             calling routine.
                 deallocate (temp_mask_j_loc)
                 icccret = 0
                 return
-              endif 
+              endif
 
 c             If we've made it this far, then we at least know that the
 c             gradient is still heading in the right direction.  Do the
@@ -30930,19 +30929,19 @@ c             that encompasses that correct contour interval).
                   found_a_point_in_our_contour = 'y'
                 endif
               else
-                if (fxy(irx,jrx) > contlo .and. fxy(irx,jrx) <= conthi) 
+                if (fxy(irx,jrx) > contlo .and. fxy(irx,jrx) <= conthi)
      &          then
                   found_a_point_in_our_contour = 'y'
                 endif
               endif
 
               if (found_a_point_in_our_contour == 'y') then
-                ! We've found a data point in our interval, something 
+                ! We've found a data point in our interval, something
                 ! that is inside the closed contour, and it hasn't been
-                ! marked as being found in a previous iteration of this 
-                ! loop, so mark it now and store the (i,j) location so 
-                ! that we can scan a ring around this point in a 
-                ! successive iteration of this loop for more potential 
+                ! marked as being found in a previous iteration of this
+                ! loop, so mark it now and store the (i,j) location so
+                ! that we can scan a ring around this point in a
+                ! successive iteration of this loop for more potential
                 ! points within this interval...
 
                 point_is_already_in_our_contour(irx,jrx) = .true.
@@ -30975,32 +30974,32 @@ c                print *,'num_pts_in_one_contour= '
 c     &                 ,num_pts_in_one_contour
               endif
 
-c             If we've made it this far AND the 
+c             If we've made it this far AND the
 c             found_a_point_in_our_contour flag indicates that this
 c             point is not in our contour interval, then by default that
-c             means that this point is for a contour interval beyond 
-c             what we're currently looking at.  E.g., if we're looking 
-c             at the contours around a 972 mb low and we're moving 
-c             outward and currently checking the 984-988 mb contour 
-c             interval, it means that we found, say, a gridpoint with 
-c             991 mb.  So we want to mark that point for a future 
-c             iteration of this loop that would be checking the 
+c             means that this point is for a contour interval beyond
+c             what we're currently looking at.  E.g., if we're looking
+c             at the contours around a 972 mb low and we're moving
+c             outward and currently checking the 984-988 mb contour
+c             interval, it means that we found, say, a gridpoint with
+c             991 mb.  So we want to mark that point for a future
+c             iteration of this loop that would be checking the
 c             988-992 mb contour interval.
 
-              if (found_a_point_in_our_contour /= 'y' .and. 
+              if (found_a_point_in_our_contour /= 'y' .and.
      &            .not. point_is_already_in_next_contour(irx,jrx)) then
                 ! We've found a data point that is beyond our interval,
-                ! so this is not a concern for finding the bounds of 
-                ! our current contour interval, but we want to mark 
+                ! so this is not a concern for finding the bounds of
+                ! our current contour interval, but we want to mark
                 ! these points and remember them for the next iteration
-                ! of successive_scan_loop.  (For example, suppose we 
+                ! of successive_scan_loop.  (For example, suppose we
                 ! are currently searching for points in the 984-988 mb
-                ! range, and we find a point that is 990 -- mark it 
+                ! range, and we find a point that is 990 -- mark it
                 ! here to be remembered when we scan for 988-992 mb).
                 if (cmaxmin == 'min') then
                   contlo_next = conthi
                   conthi_next = conthi + trkrinfo%contint
-                  if (fxy(irx,jrx) >= contlo_next .and. 
+                  if (fxy(irx,jrx) >= contlo_next .and.
      &                fxy(irx,jrx) <  conthi_next) then
                     ! "NEXT_CONTOUR" Comment:
                     ! We've found a point that is in the very next
@@ -31012,12 +31011,12 @@ c             988-992 mb contour interval.
                   else if (fxy(irx,jrx) >= conthi_next) then
                     ! "BEYOND_CONTOUR" Comment:
                     ! This point is at least 1 contour interval beyond
-                    ! the next contour interval.  Dump the info into 
+                    ! the next contour interval.  Dump the info into
                     ! these i and j arrays.  This info will be used if
                     ! in the next iteration of single_contour_scan_loop,
-                    ! next_contour_ct = 0.  That would mean that we 
+                    ! next_contour_ct = 0.  That would mean that we
                     ! have, e.g., an intensely deep low with a sharp
-                    ! mslp gradient that essentially "skips" over a 
+                    ! mslp gradient that essentially "skips" over a
                     ! contour interval.  E.g., if using a 4 mb interval,
                     ! we go from 947 to 953 AND there are NO
                     ! intervening gridpoints in the 948-952 interval.
@@ -31034,7 +31033,7 @@ c     &                     ,beyond_contour_j(beyond_contour_ct)
                 else
                   contlo_next = contlo - trkrinfo%contint
                   conthi_next = contlo
-                  if (fxy(irx,jrx) >  contlo_next .and. 
+                  if (fxy(irx,jrx) >  contlo_next .and.
      &                fxy(irx,jrx) <= conthi_next) then
                     ! See "NEXT_CONTOUR" comment just above....
                     next_contour_ct = next_contour_ct + 1
@@ -31061,8 +31060,8 @@ c     &                     ,beyond_contour_j(beyond_contour_ct)
 c     &                     ,' fxy= ',fxy(irx,jrx)
                   endif
                 endif
-              endif 
-               
+              endif
+
             enddo individual_ring_loop
 
           enddo multiple_ring_loop
@@ -31091,8 +31090,8 @@ c     &                     ,' fxy= ',fxy(irx,jrx)
         do insingle = 1,num_pts_in_one_contour
           num_pts_in_all_contours = num_pts_in_all_contours + 1
           inall = num_pts_in_all_contours
-          hold_mask_i_loc(inall) = temp_mask_i_loc(insingle) 
-          hold_mask_j_loc(inall) = temp_mask_j_loc(insingle) 
+          hold_mask_i_loc(inall) = temp_mask_i_loc(insingle)
+          hold_mask_j_loc(inall) = temp_mask_j_loc(insingle)
         enddo
 
         if (get_last_isobar_flag == 'y') then
@@ -31104,9 +31103,9 @@ c     &                     ,' fxy= ',fxy(irx,jrx)
           if (rlast_distct > 0) then
             rlastbar = rlast_distsum / float(rlast_distct)
             rlastbar = rlastbar * 0.539638  ! convert km to nm
-          else            
+          else
             rlastbar = -999.0
-          endif           
+          endif
         endif
 
       enddo successive_contours_loop
@@ -31144,8 +31143,8 @@ c---------------------------------------------------------------------
       subroutine check_land_mask (imax,jmax,ix,jx,fract_land,valid_pt
      &                         ,dx,dy,point_is_over_water,ifh,iclmret)
 c
-c     ABSTRACT: This subroutine looks at the values for the land-sea 
-c     mask surrounding an input (i,j) position to determine if less 
+c     ABSTRACT: This subroutine looks at the values for the land-sea
+c     mask surrounding an input (i,j) position to determine if less
 c     than 50% of the area surrounding the input (i,j) position within
 c     75 km radius is land.
 c
@@ -31184,20 +31183,20 @@ c
       iclmret = 0
 
 c     First, calculate the longitude and latitude of the input ix and
-c     jx points.  If the xplon value ends up being >360.0 (this can 
+c     jx points.  If the xplon value ends up being >360.0 (this can
 c     happen for basin-scale HWRF), don't worry about it.  Just leave
 c     it be, as the trigonometry will work out the same for lons >360.
 
       xplon = glonmin + (ix-1)*dx
       yplat = glatmax - (jx-1)*dy
 
-      rdist = 75.0  ! (We will always look only 75 km radius out for 
+      rdist = 75.0  ! (We will always look only 75 km radius out for
                     !  this particular land-sea mask application)
 
       imct = 0
 
-c     Now go around the storm via azimloop and get interpolated 
-c     values of the land-sea mask at each azimuth at a radial 
+c     Now go around the storm via azimloop and get interpolated
+c     values of the land-sea mask at each azimuth at a radial
 c     distance of 75 km from the center point....
 
       xmask_sum = 0.0
@@ -31211,9 +31210,9 @@ c     distance of 75 km from the center point....
         call distbear (yplat,xplon,rdist,bear,targlat,targlon)
 
         ! These calls to bilin_int_uneven pass a variable, level,
-        ! that is used for applications of interpolating wind 
+        ! that is used for applications of interpolating wind
         ! data.  Here, we are instead interpolating the land-sea
-        ! mask data, so we don't care about the level, so just 
+        ! mask data, so we don't care about the level, so just
         ! pass a dummy value of 850, which never gets used.
 
         call bilin_int_uneven (targlat,targlon
@@ -31242,7 +31241,7 @@ c     distance of 75 km from the center point....
         endif
       endif
 
-c     Now get the mask value directly at the point that was input to 
+c     Now get the mask value directly at the point that was input to
 c     this routine....
 
       if (valid_pt(ix,jx)) then
@@ -31277,14 +31276,14 @@ c     Now get the mean land fraction....
           print *,' '
           print *,'!!! ERROR: Land check: imct = 0, which means no'
           print *,'    valid points were found to do the check.'
-          print *,'    ix= ',ix,' jx= ',jx 
+          print *,'    ix= ',ix,' jx= ',jx
         endif
         iclmret = 95
         return
 
       endif
 c
-      return 
+      return
       end
 c
 c---------------------------------------------------------------------
@@ -31293,13 +31292,13 @@ c---------------------------------------------------------------------
       subroutine get_ijplus1_check_wrap (imax,jmax,i,j,iplus1,jplus1
      &                            ,iminus1,jminus1,trkrinfo,igicwret)
 c
-c     ABSTRACT: This subroutine takes an (i,j) position input and 
-c     returns the four neighboring (i,j) points to the east, south, 
-c     west and north.  The routine checks for wrap around the GM, so 
+c     ABSTRACT: This subroutine takes an (i,j) position input and
+c     returns the four neighboring (i,j) points to the east, south,
+c     west and north.  The routine checks for wrap around the GM, so
 c     that if, for example, you are on a global 360x181 grid and you
-c     are at point i=360, then i+1 = 361, so you need something to 
-c     adjust that back to i = 1.  Likewise, if you are at i=1 and 
-c     looking for point i-1, it will adjust it to be point 360 
+c     are at point i=360, then i+1 = 361, so you need something to
+c     adjust that back to i = 1.  Likewise, if you are at i=1 and
+c     looking for point i-1, it will adjust it to be point 360
 c     instead of the meaningless point 0 (i=0).
 
       USE trkrparms
@@ -31390,7 +31389,7 @@ c     instead of the meaningless point 0 (i=0).
         igicwret = 91
         return
       endif
-    
+
       return
       end
 

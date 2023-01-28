@@ -1,0 +1,17 @@
+# Cmake gitignore
+# From https://github.com/github/gitignore/blob/main/CMake.gitignore
+MakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+
+# Visual Studio Code settings
+/.vscode
+/build

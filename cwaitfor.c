@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
 
 void c_run_command(int *retval,char *cmd) {
   *retval=system(cmd);
