@@ -124,6 +124,10 @@ c
                                  ! move over land... it only filters 
                                  ! out for potential new candidate lows.
                                  ! Has a value of 'y' or 'n'.
+          character*1   read_separate_land_mask_file ! Flag that says 
+                                 ! whether or not a separate file will
+                                 ! be read in that contains the land-
+                                 ! sea mask.  Has a value of 'y' or 'n'.
           character*6   inp_data_type ! Has a value of 'grib' or 
                                       ! 'netcdf'
           integer       gribver  ! Indicates whether input data is 
@@ -486,6 +490,12 @@ c
                                   ! are not.
           character*180 :: netcdf_filename ! character file name for 
                                            ! the NetCDF file.
+          character*180 :: netcdf_lsmask_filename ! character file name
+                                      ! for the optional, separate 
+                                      ! NetCDF file if the user has 
+                                      ! indicated this with the
+                                      ! read_separate_land_mask_file
+                                      ! flag.
           character*30 ::  rv850name  ! 850 mb rel vort
           character*30 ::  rv700name  ! 700 mb rel vort
           character*30 ::  u850name   ! 850 mb u-comp
