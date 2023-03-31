@@ -5170,7 +5170,16 @@ c
      &                ,bear,targlat,targlon,gm_wrap_flag)
 
         if (gm_wrap_flag == 'maxplus360') then
-          targlon = targlon + 360.
+          if ((pfixlon > 330. .and. pfixlon <= 360.)
+     &        .and. targlon < 25.) then
+            ! targlon returned from distbear is just east of the
+            ! GM with a non-360-adjusted value.  Adjust it:
+            targlon = targlon + 360.
+          endif
+          if (pfixlon > 360. .and.
+     &       (targlon >= 0.0 .and. targlon < 180)) then
+            targlon = targlon + 360.
+          endif
         endif
 
         ! These first couple checks are just gross checks looking for
@@ -6767,7 +6776,16 @@ c
      &                    ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xclon > 330. .and. xclon <= 360.)
+     &             .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xclon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             call bilin_int_uneven (targlat,targlon
@@ -7067,7 +7085,16 @@ c            print *,' '
      &                    ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xsfclon > 330. .and. xsfclon <= 360.)
+     &             .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xsfclon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             if ( verb .ge. 3 ) then
@@ -7183,7 +7210,16 @@ c            endif
      &                    ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xsfclon > 330. .and. xsfclon <= 360.) 
+     &            .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xsfclon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             ! NOTE: The 1020 in the call here is just a number/code to
@@ -8397,7 +8433,16 @@ c     ------------------------------------------------------------------
      &                        ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xcenlon > 330. .and. xcenlon <= 360.)
+     &            .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xcenlon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             call bilin_int_uneven (targlat,targlon
@@ -10226,10 +10271,11 @@ c     need to mod it to get it in a 0-360 framework.
         case ('O','o');  basinid = 'SC'
         case ('T','t');  basinid = 'EC'
         case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SH'
-        case ('S','s');  basinid = 'SH'
-        case ('B','b');  basinid = 'IO'
-        case ('A','a');  basinid = 'IO'
+        case ('P','p');  basinid = 'SP'
+        case ('S','s');  basinid = 'SI'
+        case ('B','b');  basinid = 'BB'
+!zhang        case ('A','a');  basinid = 'NA'
+        case ('A','a');  basinid = 'AA'
         case ('Q','q');  basinid = 'SL'
         case default;    basinid = 'HC'
       end select
@@ -11265,6 +11311,7 @@ c     need to mod it to get it in a 0-360 framework.
           case ('S','s');  basinid(1:2) = 'SI'
           case ('B','b');  basinid(1:2) = 'BB'
           case ('A','a');  basinid(1:2) = 'NA'
+          case ('Q','q');  basinid(1:2) = 'SL'
           case default;    basinid(1:2) = '**'
         end select
         basinid(3:4) = storm(ist)%tcv_storm_id(1:2)
@@ -16113,7 +16160,16 @@ c     &         ,mean_radii_vt_4quad_sum
      &                    ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xcenlon > 330. .and. xcenlon <= 360.)
+     &            .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xcenlon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             ! NOTE: The 1020 in the ilevint variable in the 
@@ -17467,7 +17523,16 @@ c
      &                    ,bear,targlat,targlon,gm_wrap_flag)
 
             if (gm_wrap_flag == 'maxplus360') then
-              targlon = targlon + 360.
+              if ((xcenlon > 330. .and. xcenlon <= 360.)
+     &            .and. targlon < 25.) then
+                ! targlon returned from distbear is just east of the
+                ! GM with a non-360-adjusted value.  Adjust it:
+                targlon = targlon + 360.
+              endif
+              if (xcenlon > 360. .and.
+     &           (targlon >= 0.0 .and. targlon < 180)) then
+                targlon = targlon + 360.
+              endif
             endif
 
             call bilin_int_uneven (targlat,targlon
@@ -18948,7 +19013,16 @@ c         clockwise each time, all the way up through 352.5.
      &                      ,bear,targlat,targlon,gm_wrap_flag)
 
               if (gm_wrap_flag == 'maxplus360') then
-                targlon = targlon + 360.
+                if ((rlont > 330. .and. rlont <= 360.)
+     &              .and. targlon < 25.) then
+                  ! targlon returned from distbear is just east of the
+                  ! GM with a non-360-adjusted value.  Adjust it:
+                  targlon = targlon + 360.
+                endif
+                if (rlont > 360. .and. 
+     &             (targlon >= 0.0 .and. targlon < 180)) then
+                  targlon = targlon + 360.
+                endif
               endif
 
 c              if ( verb .ge. 3 ) then
@@ -19289,8 +19363,17 @@ c           clockwise each time, all the way up through 352.5.
      &                        ,bear,targlat,targlon,gm_wrap_flag)
 
                 if (gm_wrap_flag == 'maxplus360') then
-                  targlon = targlon + 360.
-                endif 
+                  if ((rlont > 330. .and. rlont <= 360.)
+     &                .and. targlon < 25.) then
+                    ! targlon returned from distbear is just east of the
+                    ! GM with a non-360-adjusted value.  Adjust it:
+                    targlon = targlon + 360.
+                  endif 
+                  if (rlont > 360. .and. 
+     &               (targlon >= 0.0 .and. targlon < 180)) then
+                    targlon = targlon + 360.
+                  endif
+                endif
 
 ctmwc                if ( verb .ge. 3 ) then
 ctmwc                  print *,' '
@@ -31382,7 +31465,16 @@ c        print *,'    ==> xxtim, iazim= ',iazim,' bear= ',bear
      &                  ,bear,targlat,targlon,gm_wrap_flag)
 
           if (gm_wrap_flag == 'maxplus360') then
-            targlon = targlon + 360.
+            if ((xmlon > 330. .and. xmlon <= 360.)
+     &          .and. targlon < 25.) then
+              ! targlon returned from distbear is just east of the
+              ! GM with a non-360-adjusted value.  Adjust it:
+              targlon = targlon + 360.
+            endif
+            if (xmlon > 360. .and. 
+     &         (targlon >= 0.0 .and. targlon < 180)) then
+              targlon = targlon + 360.
+            endif
           endif
  
           call bilin_int_uneven (targlat,targlon
@@ -31568,7 +31660,16 @@ c              which GM-wrapping setting to use.
      &                  ,gm_wrap_flag)
 
           if (gm_wrap_flag == 'maxplus360') then
-            targlon = targlon + 360.
+            if ((ctlon > 330. .and. ctlon <= 360.)
+     &          .and. targlon < 25.) then
+              ! targlon returned from distbear is just east of the
+              ! GM with a non-360-adjusted value.  Adjust it:
+              targlon = targlon + 360.
+            endif 
+            if (ctlon > 360. .and.
+     &         (targlon >= 0.0 .and. targlon < 180)) then
+              targlon = targlon + 360.
+            endif
           endif
 
           if (targlon >= glonmax) then
@@ -31720,7 +31821,16 @@ c     radius of 80 km.
      &                ,targlat,targlon,gm_wrap_flag)
 
         if (gm_wrap_flag == 'maxplus360') then
-          targlon = targlon + 360.
+          if ((ctlon > 330. .and. ctlon <= 360.)
+     &        .and. targlon < 25.) then
+            ! targlon returned from distbear is just east of the
+            ! GM with a non-360-adjusted value.  Adjust it:
+            targlon = targlon + 360.
+          endif
+          if (ctlon > 360. .and.
+     &       (targlon >= 0.0 .and. targlon < 180)) then
+            targlon = targlon + 360.
+          endif
         endif
 
         if ( verb .ge. 3 ) then
@@ -33066,7 +33176,16 @@ c     distance of 75 km from the center point....
      &                ,gm_wrap_flag)
 
         if (gm_wrap_flag == 'maxplus360') then
-          targlon = targlon + 360.
+          if ((xplon > 330. .and. xplon <= 360.)
+     &        .and. targlon < 25.) then
+            ! targlon returned from distbear is just east of the
+            ! GM with a non-360-adjusted value.  Adjust it:
+            targlon = targlon + 360.
+          endif
+          if (xplon > 360. .and.
+     &       (targlon >= 0.0 .and. targlon < 180)) then
+            targlon = targlon + 360.
+          endif
         endif
 
         ! These calls to bilin_int_uneven pass a variable, level,
