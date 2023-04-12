@@ -8828,6 +8828,7 @@ c     -----------------------------------------------------------------
       else
 
         shear_dir_from = -999.0
+        shear_dir_point_to = -999.0
 
       endif
 
@@ -10274,7 +10275,6 @@ c     need to mod it to get it in a 0-360 framework.
         case ('P','p');  basinid = 'SP'
         case ('S','s');  basinid = 'SI'
         case ('B','b');  basinid = 'BB'
-!zhang        case ('A','a');  basinid = 'NA'
         case ('A','a');  basinid = 'AA'
         case ('Q','q');  basinid = 'SL'
         case default;    basinid = 'HC'
@@ -10692,7 +10692,6 @@ c     need to mod it to get it in a 0-360 framework.
         case ('P','p');  basinid = 'SP'
         case ('S','s');  basinid = 'SI'
         case ('B','b');  basinid = 'BB'
-!zhang        case ('A','a');  basinid = 'NA'
         case ('A','a');  basinid = 'AA'
         case ('Q','q');  basinid = 'SL'
         case default;    basinid = 'HC'
@@ -11310,7 +11309,7 @@ c     need to mod it to get it in a 0-360 framework.
           case ('P','p');  basinid(1:2) = 'SP'
           case ('S','s');  basinid(1:2) = 'SI'
           case ('B','b');  basinid(1:2) = 'BB'
-          case ('A','a');  basinid(1:2) = 'NA'
+          case ('A','a');  basinid(1:2) = 'AA'
           case ('Q','q');  basinid(1:2) = 'SL'
           case default;    basinid(1:2) = '**'
         end select
