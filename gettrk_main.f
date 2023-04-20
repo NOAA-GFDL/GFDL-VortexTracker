@@ -2637,8 +2637,8 @@ c             flag will have a value of 'U', for "undetermined".
                         print *,'       xval(9) = ',xval(9) 
                         print *,'       EXITING....' 
                         print *,' ' 
-                        stop 95
                       endif
+                      stop 95
                     endif
 
                     ! In the event that we have the case where both the
@@ -2803,7 +2803,7 @@ c             flag will have a value of 'U', for "undetermined".
                         if (closed_mslp_ctr_flag2(ist,ifh) == 'n' .and.
      &                      closed_mslp_ctr_flag2(ist,ifh-1) == 'n')
      &                  then
-                          if ( verb .ge. 3 ) then
+                          if ( verb .ge. 0 ) then
                             print *,' '
                             print *,'!!! Storm ID = '
      &                             ,storm(ist)%tcv_storm_id
@@ -2821,11 +2821,11 @@ c             flag will have a value of 'U', for "undetermined".
                             print *,'!!! and  ifh-1 = ',ifh-1
                             print *,'!!! TRACKING WILL STOP FOR'
                             print *,'!!! THIS STORM'
-                            fixlon (ist,ifh) = -999.0
-                            fixlat (ist,ifh) = -999.0
-                            stormswitch(ist) = 2
-                            cycle stormloop
                           endif
+                          fixlon (ist,ifh) = -999.0
+                          fixlat (ist,ifh) = -999.0
+                          stormswitch(ist) = 2
+                          cycle stormloop
                         endif
                       endif
 
@@ -3268,7 +3268,7 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
      &                          .and.
      &                          quad_wind_circ_flag(ist,ifh-1) == 'n')
      &                      then
-                              if ( verb .ge. 3 ) then
+                              if ( verb .ge. 0 ) then
                                 print *,' '
                                 print *,'!!! Storm ID = '
      &                                 ,storm(ist)%tcv_storm_id
@@ -3288,11 +3288,11 @@ c                  print *,'At pt isi, type= ',trkrinfo%type == 'tracker'
      &                                 ,ifh-1
                                 print *,'!!! TRACKING WILL STOP FOR'
                                 print *,'!!! THIS STORM'
-                                fixlon (ist,ifh) = -999.0
-                                fixlat (ist,ifh) = -999.0
-                                stormswitch(ist) = 2
-                                cycle stormloop
                               endif
+                              fixlon (ist,ifh) = -999.0
+                              fixlat (ist,ifh) = -999.0
+                              stormswitch(ist) = 2
+                              cycle stormloop
                             endif
                           endif
                         endif
@@ -3483,7 +3483,7 @@ c                  endif
 
                   if (xknots > xmaxspeed) then
 
-                    if ( verb .ge. 3 ) then
+                    if ( verb .ge. 0 ) then
                       print *,' '
                       print *,'!!! In routine  tracker, calculated spd'
                       print *,'!!! of the storm from the last position'
@@ -3540,7 +3540,7 @@ c                  endif
 c              if (igmwret /= 0 .and. gridmove_status == 'stopped') then
               if (igmwret /= 0) then
                 
-                if ( verb .ge. 3 ) then
+                if ( verb .ge. 0 ) then
                   print *,' '
                   print *,'!!! Return code from get_max_wind is /= 0. '
                   print *,'!!! rcc= igmwret= ',igmwret
@@ -3660,7 +3660,7 @@ c     &           c          ,first_time_thru_getradii,igrct,igrret)
      &                      ,igrret)
 
                   if (igrret /= 0) then
-                    if (verb >= 3) then
+                    if (verb >= 0) then
                       print *,' '
                       print *,'!!! ERROR: Return code from getradii_2= '
      &                       ,igrret
@@ -3669,8 +3669,8 @@ c     &           c          ,first_time_thru_getradii,igrct,igrret)
                       print *,'!!! all radii values will be set to '
                       print *,'!!! missing.'
                       print *,' '
-                      exit getrad_iter_loop
                     endif
+                    exit getrad_iter_loop
                   endif
 
                   ix_radii_beg = ix_radii_end
@@ -7865,7 +7865,7 @@ c     Now compute the fractional wind coverage for all
 c     the different quadrants, bins and thresholds...
 c     -------------------------------------------------
 
-      if ( verb .ge. 3 ) then
+      if ( verb .ge. 0 ) then
         write (6,109) '                                 '
      &       ,'                                     '
      &       ,'                '
@@ -9608,9 +9608,10 @@ c          print *,'+++ NOTE: In bilin_int_uneven, pts with invalid '
 c          print *,'          data were accessed.  We are likely at'
 c          print *,'          the edge of a regional grid.'
 c          print *,'          iw= ',iw,' ie= ',ie,' jn= ',jn,' js= ',js
-          ibiret = 85          
-          return
+          continue
         endif
+        ibiret = 85
+        return
       endif 
 
       select case (level)
@@ -10210,7 +10211,7 @@ c
         ! Pressure units are in Pa...
         mslp_outp_adj = 100.0
       else
-        if (verb .ge. 3) then
+        if (verb .ge. 0) then
           print *,' '
           print *,'ERROR: Something wrong in subroutine'
           print *,'       output_atcfunix.  The mslp value'
@@ -10218,8 +10219,8 @@ c
           print *,'       xminmslp = ',xminmslp
           print *,'       EXITING....'
           print *,' '
-          stop 95
         endif
+        stop 95
       endif
 
       conv_ms_knots = 1.9427
@@ -10627,7 +10628,7 @@ c
         ! Pressure units are in Pa...
         mslp_outp_adj = 100.0
       else
-        if (verb .ge. 3) then
+        if (verb .ge. 0) then
           print *,' '
           print *,'ERROR: Something wrong in subroutine'
           print *,'       output_aext.  The mslp value'
@@ -10635,8 +10636,8 @@ c
           print *,'       xminmslp = ',xminmslp
           print *,'       EXITING....'
           print *,' '
-          stop 95
         endif
+        stop 95
       endif
 
       conv_ms_knots = 1.9427
@@ -11519,7 +11520,7 @@ c     need to mod it to get it in a 0-360 framework.
         ! Pressure units are in Pa...
         mslp_outp_adj = 100.0
       else
-        if (verb .ge. 3) then
+        if (verb .ge. 0) then
           print *,' '
           print *,'ERROR: Something wrong in subroutine'
           print *,'       output_hfip.  The mslp value'
@@ -11527,8 +11528,8 @@ c     need to mod it to get it in a 0-360 framework.
           print *,'       xminmslp = ',xminmslp
           print *,'       EXITING....'
           print *,' '
-          stop 95
         endif
+        stop 95
       endif
 
       conv_ms_knots = 1.9427
@@ -12704,7 +12705,7 @@ c
         ! Pressure units are in Pa...
         mslp_outp_adj = 100.0
       else
-        if (verb .ge. 3) then
+        if (verb .ge. 0) then
           print *,' '
           print *,'ERROR: Something wrong in subroutine'
           print *,'       output_atcf_gen.  The mslp value'
@@ -12712,8 +12713,8 @@ c
           print *,'       xminmslp = ',xminmslp
           print *,'       EXITING....'
           print *,' '
-          stop 95
         endif
+        stop 95
       endif
 
 c     First convert all of the lat/lon values from reals into integers.
@@ -13167,7 +13168,7 @@ c
         ! Pressure units are in Pa...
         mslp_outp_adj = 100.0
       else
-        if (verb .ge. 3) then
+        if (verb .ge. 0) then
           print *,' '
           print *,'ERROR: Something wrong in subroutine'
           print *,'       output_atcf_gen.  The mslp value'
@@ -13175,8 +13176,8 @@ c
           print *,'       xminmslp = ',xminmslp
           print *,'       EXITING....'
           print *,' '
-          stop 95
         endif
+        stop 95
       endif
 
 c     First convert all of the lat/lon values from reals into integers.
@@ -17020,12 +17021,12 @@ c                  if (pct_holland_good_2 >= 0.75) then
      &                       ,f9.2)
                       print *,' '
 
-                      vradius(1,iquad) = 0
-                      vradius(2,iquad) = 0
-                      vradius(3,iquad) = 0
-                      exit threshloop
-
                     endif
+
+                    vradius(1,iquad) = 0
+                    vradius(2,iquad) = 0
+                    vradius(3,iquad) = 0
+                    exit threshloop
 
                   endif
                 endif
@@ -17239,10 +17240,10 @@ c     that we are sure radmaxwind is within those points.
             print *,'modified jbeg = jbeg= ',jbeg
             print *,'jlatfix = ',jlatfix
             print *,'Value of vmax will be set to 0 for this time.'
-            vmax = 0.0
-            igmwret = 99
-            return
           endif
+          vmax = 0.0
+          igmwret = 99
+          return
         else
           if (verb .ge. 3) then
             print *,' '
@@ -17277,10 +17278,10 @@ c     that we are sure radmaxwind is within those points.
             print *,'modified jend = jend= ',jend
             print *,'jlatfix = ',jlatfix
             print *,'Value of vmax will be set to 0 for this time.'
-            vmax = 0.0
-            igmwret = 99
-            return
           endif
+          vmax = 0.0
+          igmwret = 99
+          return
         else
           if (verb .ge. 3) then
             print *,' '
@@ -25055,8 +25056,8 @@ c     *--------------------------------------------------------------*
                 print *,'!!! phase-checking with a simple warm-core'
                 print *,'!!! check, then in the namelist set phaseflag'
                 print *,'!!! to y and set phasescheme to vtt.'
-                phaseflag = 'n'
               endif
+              phaseflag = 'n'
               exit netcdf_cps_parm_read_loop
             else
               if (verb .ge. 3) then
@@ -26625,9 +26626,9 @@ c------
             print *,'!!! is named tcvit_rsmc_storms.txt'
             print *,'!!! STOPPING....'
             print *,'!!! '
-            iret=99
-            return
           endif
+          iret=99
+          return
 
         else
 
@@ -26764,9 +26765,9 @@ c            write (storm(i)%tcv_storm_name,'(i4.4)') i
             print *,'!!! named tcvit_rsmc_storms.txt'
             print *,'!!! STOPPING...'
             print *,'!!! '
-            iret=99
-            return
           endif
+          iret=99
+          return
         endif
 
         allocate (stormswitch(maxstorm),stat=isa)
@@ -27668,8 +27669,6 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
             print *,'         original glonmin= ',glonmin
             print *,'         original glonmax= ',glonmax
             print *,'       '
-            glonmax = glonmax + 360. 
-            gm_wrap_flag = 'maxplus360'
             print *,'       '
             print *,'       GRID MIN & MAX LON '
             print *,'         (MODIFIED FOR GM WRAPPING):'
@@ -27677,6 +27676,8 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
             print *,'         glonmax (modified)=         ',glonmax
             print *,'       '
           endif
+          glonmax = glonmax + 360.
+          gm_wrap_flag = 'maxplus360'
         endif
       elseif (glonmin < 0.0 .and. glonmax >= 0.0) then
         ! An example of this is the MPAS data, which starts and ends
@@ -30808,15 +30809,18 @@ c     ifamret  return code from this subroutine
 
       type (trackstuff) trkrinfo
       type (cint_stuff) contour_info
+      integer    date_time(8)
       integer    stormct,i,j,ibeg,iend,jbeg,jend,ix,jx,ixp1,ixm1
       integer    ip,jp,maxstorm,jxp1,jxm1,ifamret,isret,iaret,iclmret
       integer    isoiret,icccret,igicwret,imax,jmax,ifh,totpts
       integer    eligible_pts,isia,ipa,candidate_ct,ist,ict,iia,ija
       integer    icmrgret,cand_not_valid_ct,cand_masked_out_ct
-      integer    cand_cc_good_ct,cand_cc_bad_ct
+      integer    cand_cc_good_ct,cand_cc_bad_ct,iccwcret
       integer(kind=8)    ssct1,yyct1,yyct2,zzct1,zzct2,zzct3
+      character (len=10) big_ben(3)
       character ccflag*1,get_last_isobar_flag*1,point_is_over_water*1
-      character pass_checks*1
+      character pass_checks*1,low_level_wind_circ_flag*1
+      character try_low_level_circ*1
       character(*) cmaxmin
       character(*) gm_wrap_flag
       logical(1) still_finding_valid_maxmins,rough_gradient_check_okay
@@ -31032,8 +31036,79 @@ c            print *,'xxtim b4 call_mslp_chk, ip= ',ip,' jp= ',jp
               prstemp(candidate_ct)  = fxy(ip,jp)
               ipos(candidate_ct)     = ip
               jpos(candidate_ct)     = jp
+
+              if (verb >= 3) then
+                print *,' '
+                print *,'+++ mslp radial grad SUCCESS, candidate_ct= '
+     &                 ,candidate_ct,' ip= ',ip,' jp= ',jp
+              endif
             else
-              cycle iloop_g
+
+              ! If the  check_mslp_radial_gradient has failed, we give
+              ! a 2nd chance (it's possible that the MSLP field was too
+              ! noisy) by checking for a closed low-level wind 
+              ! circulation, approximating what is done in NHC
+              ! operations.
+
+              try_low_level_circ = 'n'
+
+              if (try_low_level_circ == 'y') then
+
+                if (verb >= 3) then
+                  print *,' '
+                  print *,'mslp radial grad FAILED, checking LL wind...'
+                endif
+
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,31) date_time(5),date_time(6),date_time(7)
+ 31             format (1x,'TIMING: b4 check_for_closed_wind_circ at '
+     &                    ,i2.2,':',i2.2,':',i2.2)
+
+                low_level_wind_circ_flag = 'n'
+                call check_for_closed_wind_circulation (imax,jmax,ip,jp
+     &                 ,dx,dy,valid_pt,trkrinfo,ifh
+     &                 ,low_level_wind_circ_flag,gm_wrap_flag,iccwcret)
+
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,33) date_time(5),date_time(6),date_time(7)
+ 33             format (1x,'TIMING: after check_for_closed_wind_circ at'
+     &                  ,' ',i2.2,':',i2.2,':',i2.2)
+
+                if (iccwcret == 0) then
+                  if (low_level_wind_circ_flag == 'y') then
+                    candidate_ct           = candidate_ct + 1
+                    prstemp(candidate_ct)  = fxy(ip,jp)
+                    ipos(candidate_ct)     = ip
+                    jpos(candidate_ct)     = jp 
+                    if (verb >= 3) then
+                      print *,' '
+                      print *,' +++ Successful check of LL wind circ, '
+     &                       ,' ip= ',ip,' jp= ',jp
+                      print *,' '
+                    endif
+                  else
+                    if (verb >= 3) then
+                      print *,' '
+                      print *,' !!! Failed check 1 of LL wind circ, '
+     &                       ,' ip= ',ip,' jp= ',jp
+                      print *,' '
+                    endif
+                    cycle iloop_g
+                  endif
+                else
+                  if (verb >= 3) then
+                    print *,' '
+                    print *,' !!! Failed check 2 of LL wind circ, '
+     &                       ,' ip= ',ip,' jp= ',jp
+                    print *,' '
+                  endif
+                  cycle iloop_g
+                endif
+
+              endif
+ 
             endif
 
           endif
@@ -31081,7 +31156,7 @@ c     -----------------------------------------------------------------
  82     format (1x,'ist= ',i6,'  sortindex(ist)= ',i6
      &         ,' prstemp= ',f8.3,' i= ',i5,' j= ',i5,'  Lon= '
      &         ,f7.2,'W   (',f7.2,'E),  Lat= ',f7.2)
-        endif
+      endif
 
 c     Now process through the candidates.  We pass the (i,j) coordinates
 c     for each candidate point to a routine to check for a closed
@@ -31559,6 +31634,206 @@ c     &          ,' iazim_good_ct= ',i3,' num_azim= ',i3)
         icmrgret = 95
       endif
 c      
+      return
+      end
+c
+c---------------------------------------------------------------------
+c
+c---------------------------------------------------------------------
+      subroutine check_for_closed_wind_circulation (imax,jmax,ip,jp
+     &                ,dx,dy,valid_pt,trkrinfo,ifh
+     &                ,low_level_wind_circ_flag,gm_wrap_flag,iccwcret)
+c
+c     ABSTRACT: This subroutine checks for a low-level (10-m) 
+c     cyclonic circulation, in a manner that is meant to emulate how
+c     NHC assesses a disturbance in order to determine whether or not
+c     TC formation has occurred.  We will do a check at three different
+c     radii (initially 75, 125 and 175 km), and if the check passes at
+c     any one of these, then the low-level wind circulation is 
+c     satisfied, the flag is set to y, and the subroutine returns to
+c     the calling routine.  At each candidate radius, we do a check of
+c     the Vt at 16 equally-spaced azimuths.  There are 4 points in each
+c     quadrant.  We average those 4 points to get a mean Vt for that
+c     azimuth.  Once we have a mean Vt for all 16 azimuths, go through 
+c     the azimuths, one at a time, in a clockwise fashion, and check to see
+c     if their mean cyclonic Vt passes a threshold.  As long as 2 in a
+c     row do not fail, the test passes (i.e., every other one can pass
+c     and that is okay).
+c     
+c     INPUT:
+c
+c     imax      max i dimension of model grid
+c     jmax      max j dimension of model grid
+c     ip        i index for candidate location of local max or min
+c     jp        j index for candidate location of local max or min
+c     dx        grid spacing in i-direction of model grid
+c     dy        grid spacing in j-direction of model grid
+c     valid_pt  logical bitmap for valid data at a grid point
+c     trkrinfo  derived type detailing user-specified grid info
+c     ifh       integer index for the current lead time being processed
+c     gm_wrap_flag character flag set in getgridinfo that determines
+c               what GM-wrapping setting to use for this grid.
+c
+c     OUTPUT:
+c
+c     low_level_wind_circ_flag  character flag that will inform the 
+c               calling routine as to whether or not a low-level 
+c               closed circulation was found.
+c     iccwcret  return code from this subroutine
+
+      USE grid_bounds; USE tracked_parms; USE trig_vals; USE trkrparms
+      USE verbose_output
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+
+      integer, parameter :: numdist=3,numazim=16,numquad=4
+      integer, intent(in) :: ip,jp
+      integer   vt_exceed_17kts_ct(numquad,numdist)
+      integer   vtct(numquad,numdist)
+      integer   date_time(8)
+      integer   imax,jmax,idist,azimuth_ct,ibiret1,ibiret2,bimct,iq,nq
+      integer   final_quad_ct,iccwcret,iazim,igvtret,ifh
+      real      xcandlon,ycandlat
+      real      rdist(numdist)
+      real      vtsum(numquad,numdist)
+      real      dx,dy,bear,targlat,targlon,xintrp_u,xintrp_v,vr,vt
+      real      hemisphere,vtavg
+      character :: low_level_wind_circ_flag*1
+      character :: quad_pass_flag(numquad)*1
+      character (*)  gm_wrap_flag
+      logical(1) valid_pt(imax,jmax)
+c
+      data rdist/75.,125.,175./  ! Distances in km
+c
+      vt_exceed_17kts_ct = 0
+      quad_pass_flag     = 'n'
+      vtsum              = 0.0
+      vtct               = 0
+      iccwcret           = 0
+      igvtret            = 0
+
+      bimct = 0
+
+      xcandlon = glonmin + ((ip - 1) * dx)
+      ycandlat = glatmax - ((jp - 1) * dy)
+
+      if (ycandlat >= 0.0) then
+        hemisphere = 1.0
+      else
+        hemisphere = -1.0
+      endif
+
+      radiusloop: do idist = 1,numdist
+
+        azimuth_ct = 0
+
+        azimloop: do iazim = 1,numazim
+
+          bear = ((iazim-1) * 22.5) + 11.25
+
+          call distbear (ycandlat,xcandlon,rdist(idist)
+     &                  ,bear,targlat,targlon,gm_wrap_flag)
+
+          if (gm_wrap_flag == 'maxplus360') then
+            if ((xcandlon > 330. .and. xcandlon <= 360.)
+     &          .and. targlon < 25.) then
+              ! targlon returned from distbear is just east of the
+              ! GM with a non-360-adjusted value.  Adjust it:
+              targlon = targlon + 360.
+            endif
+            if (xcandlon > 360. .and.
+     &         (targlon >= 0.0 .and. targlon < 180)) then
+              targlon = targlon + 360.
+            endif
+          endif
+
+          call bilin_int_uneven (targlat,targlon
+     &         ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
+     &         ,valid_pt,bimct,-99,ibiret1)
+
+          call bilin_int_uneven (targlat,targlon
+     &         ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
+     &         ,valid_pt,bimct,-99,ibiret2)
+
+          if (ibiret1 == 0 .and. ibiret2 == 0) then
+
+            call getvrvt (xcandlon,ycandlat,targlon,targlat
+     &                   ,xintrp_u,xintrp_v,vr
+     &                   ,vt,ifh,igvtret)
+
+            if (bear >= 0. .and. bear < 90.) then
+              iq = 1
+            elseif (bear >= 90. .and. bear < 180.) then
+              iq = 2
+            elseif (bear >= 180. .and. bear < 270.) then
+              iq = 3
+            elseif (bear >= 270. .and. bear <= 360.) then
+              iq = 4
+            endif
+
+            vtsum(iq,idist) = vtsum(iq,idist) + vt
+            vtct(iq,idist)  = vtct(iq,idist) + 1
+
+            if ((hemisphere*vt) >= 8.75) then
+              ! If cyclonic Vt exceeds 8.75 m/s (17 kts) at this
+              ! azimuth, then increment the counter for this quad by 1.
+              vt_exceed_17kts_ct(iq,idist) = 
+     &                     vt_exceed_17kts_ct(iq,idist) + 1
+            endif
+
+          endif
+
+        enddo azimloop
+
+        ! If the Vt at 2 out of 4 azimuths exceeds 17 kts (which is 50%
+        ! of 34 kts), then give an automatic pass for that quadrant
+        ! without checking for the mean Vt in this quadrant.
+
+        do nq = 1,numquad
+          if (vt_exceed_17kts_ct(nq,idist) >= 2) then
+            quad_pass_flag(nq) = 'y'
+          endif
+        enddo
+
+        ! Now check again, but this time check for the mean Vt averaged
+        ! over the 4 azimuths in this quadrant.  Yes, it can be
+        ! redundant and set the quad_pass_flag to 'y' again for this
+        ! quadrant, but that's okay.  What it is *not* able to do here
+        ! is take that 'y' setting away that may have just been set in
+        ! the IF statement above with passing 17 kts.
+
+        do nq = 1,numquad
+          ! We need at least 2 valid azimuths in order to get a proper
+          ! mean Vt.
+          if (vtsum(nq,idist) >= 2) then
+            vtavg = vtsum(nq,idist) / vtct(nq,idist)
+            if ((hemisphere*vtavg) >= 7.0) then
+              ! The mean Vt averaged over the 4 azimuths in this
+              ! quadrant at this distance exceeds 7 m/s, which is 13.6
+              ! kts, which is 40% of 34 kts.
+              quad_pass_flag(nq) = 'y'
+            endif
+          endif
+        enddo
+
+      enddo radiusloop
+
+      final_quad_ct = 0
+
+      do nq = 1,numquad
+        if (quad_pass_flag(nq) == 'y') then
+          final_quad_ct = final_quad_ct + 1
+        endif
+      enddo
+
+      if (final_quad_ct == 4) then
+        low_level_wind_circ_flag = 'y'
+      else
+        low_level_wind_circ_flag = 'n'
+      endif
+c
       return
       end
 c
