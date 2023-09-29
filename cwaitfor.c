@@ -4,17 +4,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
+#include <time.h>
 
-void c_run_command(int *retval,char *cmd) {
+void c_run_command(int64_t *retval,char *cmd) {
   *retval=system(cmd);
 }
 
-void cwaitfor(int *status, int *minage, int *minsize, int *maxwait,
-              int *sleeptime, char *filename) {
+void cwaitfor(int64_t *status, int64_t *minage, int64_t *minsize, int64_t *maxwait,
+              int64_t *sleeptime, char *filename) {
   struct stat s;
   time_t now=time(NULL);
-  int maxwaitv=*maxwait;
-  int size,age;
+  int64_t maxwaitv=*maxwait;
+  int64_t size,age;
   fprintf(stderr,"%s: cwaitfor with minage=%d minsize=%d maxwait=%d=%d sleeptime=%d\n",
           filename,*minage,*minsize,*maxwait,maxwaitv,*sleeptime);
   while(maxwaitv<0 || time(NULL)-now<maxwaitv) {
@@ -40,28 +42,28 @@ void cwaitfor(int *status, int *minage, int *minsize, int *maxwait,
   return;
 }
 
-void c_run_command_(int*r,char*c) { c_run_command(r,c); }
-void c_run_command__(int*r,char*c) { c_run_command(r,c); }
-void C_RUN_COMMAND(int*r,char*c) { c_run_command(r,c); }
-void C_RUN_COMMAND_(int*r,char*c) { c_run_command(r,c); }
-void C_RUN_COMMAND__(int*r,char*c) { c_run_command(r,c); }
+void c_run_command_(int64_t*r,char*c) { c_run_command(r,c); }
+void c_run_command__(int64_t*r,char*c) { c_run_command(r,c); }
+void C_RUN_COMMAND(int64_t*r,char*c) { c_run_command(r,c); }
+void C_RUN_COMMAND_(int64_t*r,char*c) { c_run_command(r,c); }
+void C_RUN_COMMAND__(int64_t*r,char*c) { c_run_command(r,c); }
 
-void cwaitfor_(int*a,int*b,int*c,int*d,int*e,char*f) {
+void cwaitfor_(int64_t*a,int64_t*b,int64_t*c,int64_t*d,int64_t*e,char*f) {
   cwaitfor(a,b,c,d,e,f);
 }
 
-void cwaitfor__(int*a,int*b,int*c,int*d,int*e,char*f) {
+void cwaitfor__(int64_t*a,int64_t*b,int64_t*c,int64_t*d,int64_t*e,char*f) {
   cwaitfor(a,b,c,d,e,f);
 }
 
-void CWAITFOR(int*a,int*b,int*c,int*d,int*e,char*f) {
+void CWAITFOR(int64_t*a,int64_t*b,int64_t*c,int64_t*d,int64_t*e,char*f) {
   cwaitfor(a,b,c,d,e,f);
 }
 
-void CWAITFOR_(int*a,int*b,int*c,int*d,int*e,char*f) {
+void CWAITFOR_(int64_t*a,int64_t*b,int64_t*c,int64_t*d,int64_t*e,char*f) {
   cwaitfor(a,b,c,d,e,f);
 }
 
-void CWAITFOR__(int*a,int*b,int*c,int*d,int*e,char*f) {
+void CWAITFOR__(int64_t*a,int64_t*b,int64_t*c,int64_t*d,int64_t*e,char*f) {
   cwaitfor(a,b,c,d,e,f);
 }
