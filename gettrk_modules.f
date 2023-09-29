@@ -290,6 +290,11 @@ c
                                                ! read in to compute RH
                                                ! if RH is not read in?
                                                ! (y/n)
+        character*1 , save ::   smoothe_mslp_for_gen_scan ! Did 
+                                               ! user request to smoothe
+                                               ! the MSLP data before
+                                               ! scanning for new storms
+                                               ! in the forecast (y/n)?
       end module genesis_diags
 c     
       module tracked_parms
@@ -308,6 +313,7 @@ c
           real, save, allocatable  ::  spfh(:,:,:)
           real, save, allocatable  ::  temperature(:,:,:)
           real, save, allocatable  ::  omega500(:,:)
+          real, save, allocatable  ::  wcirc_grid(:,:,:)
           integer, save, allocatable :: ifhours(:)  
           integer, save, allocatable :: iftotalmins(:)
           integer, save, allocatable :: ifclockmins(:)
@@ -369,6 +375,8 @@ c        real, parameter :: rads_most=300.0, rads_vmag=120.0
 c        real, parameter :: redlm=500.0, ridlm=2000.0
 c        real, parameter :: redlm=500.0, ridlm=1700.0
         real, parameter :: redlm=500.0, ridlm=1000.0
+        real, parameter :: re_genscan=50.0
+        real, parameter :: ri_genscan=100.0
       end module radii
 c
       module grid_bounds
@@ -468,12 +476,12 @@ c
 c
       module waitfor_parms
         character*1 :: use_waitfor ! y or n, for waiting for input files
-        integer :: wait_min_age    ! min age (in seconds)... time since
-                                   ! last file modification
-        integer :: wait_min_size   ! minimum file size in bytes
-        integer :: wait_max_wait   ! max total wait time in seconds 
-        integer :: wait_sleeptime  ! number of seconds to wait between 
-                                   ! checks
+        integer(kind=8) :: wait_min_age    ! min age (in seconds)... time since
+                                           ! last file modification
+        integer(kind=8) :: wait_min_size   ! minimum file size in bytes
+        integer(kind=8) :: wait_max_wait   ! max total wait time in seconds 
+        integer(kind=8) :: wait_sleeptime  ! number of seconds to wait between 
+                                           ! checks
         integer, parameter :: pfc_cmd_len = 800
         character*1 :: use_per_fcst_command ! enable per_fcst_command
         character(pfc_cmd_len) :: per_fcst_command ! command to run every forecast time
@@ -556,7 +564,7 @@ c
           character*30 ::  temp600name ! 600 mb temperature
           character*30 ::  omega500name ! 500 mb omega
         end type netcdfstuff
-        real, save, allocatable    :: netcdf_file_time_values(:)
+        real, save, allocatable :: netcdf_file_time_values(:)
         integer, save, allocatable :: nctotalmins(:)
       end module netcdf_parms
 c---------------------------------------------------------------------c
