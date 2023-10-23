@@ -5,16 +5,9 @@
 #=======================================================================
 
 set(support_srcs
-  supvit_main.f
-  supvit_modules.f
-  tave.f
-  vint.f)
+  tave.f)
 
-set(exe_name
-  supvit.x
-  tave.x
-  vint.x)
-  
+set(exe_name tave.x) 
 set(exec_dir ${CMAKE_SOURCE_DIR}/exec)
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
