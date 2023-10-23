@@ -9,6 +9,10 @@ module load modulefile.$target
 module list
 
 
+if [ $target = gaea ]; then
+  export FC=ifort
+  export F90=ifort
+  export CC=icc
 if [ $target = hera ]; then
   export FC=ifort
   export F90=ifort
