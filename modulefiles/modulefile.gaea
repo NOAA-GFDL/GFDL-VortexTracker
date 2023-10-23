@@ -10,7 +10,7 @@ module use /contrib/sutils/modulefiles
 module load sutils
 module load hpssx
 
-module load cmake/3.20.1
+module load cmake/3.23.1
 setenv CMAKE_C_COMPILER mpiicc
 setenv CMAKE_CXX_COMPILER mpiicpc
 setenv CMAKE_Fortran_COMPILER mpiifort
