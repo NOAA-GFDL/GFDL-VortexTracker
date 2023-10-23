@@ -17,7 +17,7 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
 endif()
 
-add_executable(${exe_name} ${fortran_srcs})
+add_executable(${exe_name} ${tracker_srcs})
 
 IF(DEFINED hwrf_g2_inc)
   target_include_directories(
