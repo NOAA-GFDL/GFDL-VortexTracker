@@ -10,8 +10,7 @@ module list
 
 
 if [ $target = gaea ]; then
-  export FC=ifort
-  export F90=ifort
+  export FC=ftn
   export CC=icc
 if [ $target = hera ]; then
   export FC=ifort
@@ -45,7 +44,7 @@ fi
 mkdir build
 cd build
 
-if [ $target = wcoss_cray ]; then
+if [ $target = gaea ]; then
   cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
