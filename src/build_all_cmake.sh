@@ -1,9 +1,5 @@
 #!/bin/sh
 
-set -eux
-source ./machine-setup.sh > /dev/null 2>&1
-
-
 module use ../modulefiles
 module load modulefile.$target
 module list
