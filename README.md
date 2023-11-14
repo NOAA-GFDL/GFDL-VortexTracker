@@ -29,8 +29,9 @@ The following external libraries are required for buildig the vortex tracker:
 As of right now, building & installing with cmake is only setup to work on RDHPCS systems Hera, Jet, and 
 Orion. 
 If on one of these systems :
-  1.      cd src/
-  2.      ./build_all_cmake.sh
+  1.      module load cmake
+  2.      cd src/
+  3.      ./build_all_cmake.sh
 
 :exclamation: Stay tuned for building instructions for other systems :exclamation:
 
