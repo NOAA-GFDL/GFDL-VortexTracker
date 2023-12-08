@@ -112,7 +112,6 @@ elif [[ -d /lustre && -d /ncrc ]] ; then
         source /etc/profile
     fi
     target=gaea
-    module purge
 elif [[ "$(hostname)" =~ "odin" ]]; then
     target="odin"
 else
