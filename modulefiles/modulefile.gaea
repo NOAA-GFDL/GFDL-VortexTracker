@@ -6,13 +6,14 @@ proc ModulesHelp { } {
 }
 module-whatis "tracker prerequisites"
 
+module load intel-oneapi/
 module load cray-hdf5
 module load cray-netcdf/4.9.0.3
 
-export NetCDF_ROOT=/opt/cray/pe/netcdf/4.9.0.3/
+setenv NetCDF_ROOT /opt/cray/pe/netcdf/4.9.0.3/
 
-module use /lustre/f2/dev/wpo/role.epic/contrib/spack-stack/spack-stack-1.4.1-c5/envs/ufs-pio-2.5.10/install/modulefiles/Core
-module load stack-intel/2022.2
+module use -a /lustre/f2/dev/wpo/role.epic/contrib/spack-stack/c5/spack-stack-1.5.0/envs/unified-env/install/modulefiles/Core
+module load stack-intel/2023.1.0
 
 module load libpng
 module load jasper
@@ -21,4 +22,5 @@ module load g2
 module load g2tmpl
 module load bacio
 module load w3emc
+module load w3nco
 
