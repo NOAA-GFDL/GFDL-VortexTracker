@@ -21,9 +21,8 @@ if(NOT CMAKE_C_COMPILER_ID MATCHES "^(Intel|GNU)$")
 endif()
 
 
-
-find_package(NetCDF REQUIRED C Fortran)
 find_package(HDF5 REQUIRED)
+find_package(NetCDF REQUIRED C Fortran)
 find_package(PNG REQUIRED)
 find_package(Jasper REQUIRED)
 find_package(ZLIB REQUIRED)
