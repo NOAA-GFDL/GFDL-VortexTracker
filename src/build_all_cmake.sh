@@ -3,7 +3,6 @@
 set -eux
 source ./machine-setup.sh > /dev/null 2>&1
 
-
 module use ../modulefiles
 module load modulefile.$target
 module list
@@ -29,6 +28,10 @@ elif [ $target = wcoss_dell_p3 ]; then
   export FC=ifort
   export F90=ifort
   export CC=icc
+elif [ $target = gaea ]; then
+  export FC=ftn
+  export F90=ftn
+  export CC=icc
 else
   echo "Unknown machine = $target"
   exit 1
@@ -42,6 +45,8 @@ mkdir build
 cd build
 
 if [ $target = wcoss_cray ]; then
+  cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
+elif [ $target = gaea ]; then
   cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
