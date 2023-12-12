@@ -1,4 +1,4 @@
-# :ocean: GFDL Vortex Tracker :cyclone:
+# 🌊 GFDL Vortex Tracker 🌀
 
   This program tracks the average of the max or min of several parameters in the vicinity of an input
 first guess (lat,lon) position of a vortex in order to give forecast position estimates for that vortex for
@@ -13,8 +13,10 @@ every 12 hours from forecast hour 0 to the end of the forecast. The other file i
 the particular format needed by the Tropical Prediction Center, and provides the positions at forecast hours
 12, 24, 36, 48 and 72, plus the maximum wind near the storm center at each of those forecast hours.
 
+For more documentation on how the tracker runs in genesis mode or the wind radii and axisymmetric diagnostic schemes please see genesisdoc.md and radiidoc.md, respectively.
+
 ## Dependices, Installation, Compiling, Running
-:warning: IN CONSTRUCTION :warning:
+⚠️ IN CONSTRUCTION ⚠️
 
 The following external libraries are required for buildig the vortex tracker:
   * NETCDF and Fortran (77/90)
@@ -33,8 +35,8 @@ If on one of these systems :
   2.      cd src/
   3.      ./build_all_cmake.sh
 
-:exclamation: Stay tuned for building instructions for other systems :exclamation:
+❗ Stay tuned for building instructions for other systems ❗
 
 ### Running Vortex Tracker
 
- :exclamation: COMING SOON :exclamation:
+ ❗ COMING SOON ❗
