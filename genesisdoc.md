@@ -34,7 +34,7 @@ is calculated.
 **_Algorithm details:_**
 
 **Initial scan:**
-1. The purpose here is to simply identify "candidate" points that might be
+- The purpose here is to simply identify "candidate" points that might be
 cyclone centers. In order to expedite detection, I completely rewrote this
 algorithm tomore efficiently scan over the domain. In addition, a land-sea
 mask is employed to filter out land points. This filtering of land points is
@@ -43,7 +43,7 @@ over water are allowed to continue to be tracked over land. Also, any point
 is filtered out that has an MSLP value higher than one standard deviation
 above the mean MSLP in the domain.
 
-2. At each point in the domain that is scanned, the MSLP radial gradient is
+- At each point in the domain that is scanned, the MSLP radial gradient is
 evaluated at discrete distances along eight equally-spaced (every 45 degrees)
 radial legs extending outward from 10 to 100 km. There is some fuzzy logic
 that allows both for some amount of noise and also some amount of asymmetry
@@ -54,7 +54,7 @@ the user specifies in a namelist (I usually set it at 1 mb... anything larger
 than that makes it more difficult to pass this check and therefore delays
 the tracker-diagnosed time of genesis).
 
-3. Another key thing that I added with this most recent update is the ability
+- Another key thing that I added with this most recent update is the ability
 to smoothe the MSLP data prior to this initial scan. When using smoother,
 coarser-resolution data such as 0.25-deg GFS or ECMWF data, that smoothing
 isn't needed. But I found that when using this MSLP-checking scheme for
@@ -64,7 +64,7 @@ algorithm. So I added a multi-directional, 9-point smoother, and the user
 specifies in a namelist whether or not to use that. This smoothing helped by
 a tremendous amount for hi-res data!
 
-4. If the previous MSLP gradient check passes, then an additional check is done
+- If the previous MSLP gradient check passes, then an additional check is done
 to test for a cyclonic, low-level (10-m) wind circulation. In each quadrant,
 10-m Vt is calculated at four equally-spaced azimuths (every 22.5 degrees).
 There is more fuzzy logic here to again allow for asymmetries, but in
@@ -86,7 +86,7 @@ of development in the model TC.
 
 
 **_Full scan:_**
-5. Candidate storms that were identified in the initial scan above are then put
+- Candidate storms that were identified in the initial scan above are then put
 through almost the same exact tracking procedure that is done for standard
 "forward" tracking that is performed in operations for RSMC-identified
 storms, in order to more accurately fix the center position. This is done by
@@ -110,7 +110,7 @@ occurrence of interrupted tracks, where the tracker could otherwise show a
 broken model TC track that would count for two tracks, but in model-reality
 it's just the same model TC that happened to weaken for 6 or 12 hours.
 
-6. **Tracker output for genesis-detection runs:** All of the typical tracker-related
+- **Tracker output for genesis-detection runs:** All of the typical tracker-related
 output is provided in the modified ATCF file, plus some extras. Here’s a
 rough list:
 - Time & location of cyclogenesis (not necessarily *TC* genesis... see next major bullet point for details)
@@ -132,7 +132,7 @@ including their vortex removal scheme)
 - Area-averaged values of RH in the 800-600 and 1000-925 mb layers
 - Area-averaged 500 mb omega
 
-7. It's important to note that while values are calculated for the CPS
+- It's important to note that while values are calculated for the CPS
 parameters and for the simple, 300-500 mb layer warm core flag, none of those
 parameters have any impact on whether or not tracking will continue to the
 next lead time. Rather, their values are simply printed out with all of the
