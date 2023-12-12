@@ -1,5 +1,7 @@
 Tim Marchok (timothy.marchok@noaa.gov)
+
 NOAA / GFDL
+
 12/5/2023
 
 Some details on how the GFDL Vortex Tracker runs in genesis detection mode
