@@ -43,7 +43,7 @@ hi-res, FV3-based models is that isolated, outlier wind areas were triggering
 the scheme for R34 diagnosis. That type of scenario can be seen in Figure 1
 for a T-SHiELD forecast of Hurricane Teddy from 2020.
 
-ADD FIGURE 1
+(/images/radiidoc_figure1.png)
 Figure 1. Precipitable water (shaded) and contours of wind magnitude for a
 T-SHiELD forecast of Hurricane Teddy from 2020. Black contours delineate
 areas with wind magnitude values greater than 34 kts. Yellow circles surround
@@ -70,7 +70,7 @@ at a distance that is greater than 97% of the distance to the max radius,
 then it is considered possible that the true R34 lies outside that initial
 max radius.
 
-ADD FIGURE 2
+radiidoc_figure2.png
 Figure 2. Schematic showing the framework for the updated R34 diagnosis
 scheme in the GFDL Vortex Tracker. Lines that arc in the shown northeastern
 quadrant represent the boundaries of 3-km-wide radial bins. The dots in the
