@@ -113,24 +113,24 @@ it's just the same model TC that happened to weaken for 6 or 12 hours.
 - **Tracker output for genesis-detection runs:** All of the typical tracker-related
 output is provided in the modified ATCF file, plus some extras. Here’s a
 rough list:
-- Time & location of cyclogenesis (not necessarily *TC* genesis... see next major bullet point for details)
-- Lat & Lon
-- Vmax
-- min MSLP
-- R34, R50, R64
-- RMW (point-based)
-- axisymmetric RMW
-- ROCI & the SLP at the ROCI
-- All three Cyclone Phase Space parameters
-- A flag that determines if a warm core exists in the 300-500 mb layer
-- 850-200 mb shear (performed using the same algorithm as in SHIPS,
-including their vortex removal scheme)
-- Area-averaged SST underneath the tracker-diagnosed center fix
-- Area-averaged and grid-point values of zeta850 aned zeta700
-- Area-averaged values of 850 mb divergence
-- Area-averaged values of 850 mb moisture divergence
-- Area-averaged values of RH in the 800-600 and 1000-925 mb layers
-- Area-averaged 500 mb omega
+  - Time & location of cyclogenesis (not necessarily *TC* genesis... see next major bullet point for details)
+  - Lat & Lon
+  - Vmax
+  - min MSLP
+  - R34, R50, R64
+  - RMW (point-based)
+  - axisymmetric RMW
+  - ROCI & the SLP at the ROCI
+  - All three Cyclone Phase Space parameters
+  - A flag that determines if a warm core exists in the 300-500 mb layer
+  - 850-200 mb shear (performed using the same algorithm as in SHIPS,
+    including their vortex removal scheme)
+  - Area-averaged SST underneath the tracker-diagnosed center fix
+  - Area-averaged and grid-point values of zeta850 aned zeta700
+  - Area-averaged values of 850 mb divergence
+  - Area-averaged values of 850 mb moisture divergence
+  - Area-averaged values of RH in the 800-600 and 1000-925 mb layers
+  - Area-averaged 500 mb omega
 
 - It's important to note that while values are calculated for the CPS
 parameters and for the simple, 300-500 mb layer warm core flag, none of those
