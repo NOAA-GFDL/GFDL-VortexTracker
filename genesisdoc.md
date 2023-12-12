@@ -23,7 +23,7 @@ described below.
 I'll first give a very short, high-level overview on how things work in the
 tracker when run in genesis mode, then I'll go into more detail.
 
-**_High-level overview:_** At a given lead time, the tracker first creates fix
+***High-level overview:*** At a given lead time, the tracker first creates fix
 positions for already-identified model storms that have already been tracked
 at the previous lead time. Then an initial scan is done over the entire domain
 in order to identify any new "candidate" systems at this lead time that might
@@ -33,7 +33,7 @@ cyclone does exist, then the full set of tracker output is generated and a
 guess position to begin the search for this storm at the next lead time
 is calculated.
 
-**_Algorithm details:_**
+***Algorithm details:***
 
 **Initial scan:**
 - The purpose here is to simply identify "candidate" points that might be
@@ -87,7 +87,7 @@ check. This is again to allow both for asymmetries and differences in stages
 of development in the model TC.
 
 
-**_Full scan:_**
+***Full scan:***
 - Candidate storms that were identified in the initial scan above are then put
 through almost the same exact tracking procedure that is done for standard
 "forward" tracking that is performed in operations for RSMC-identified
