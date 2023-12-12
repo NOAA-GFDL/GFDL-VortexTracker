@@ -104,7 +104,7 @@ tracker-derived Vmax and ARMW values. For the first check, we compute the
 4-quadrant mean Vt at the R34 distance (**Vt**<sub>R34</sub>), and we require that **Vt**<sub>R34</sub>
 must be greater than or equal to (0.5 * Holland_Vt) at that radius, where the
 Holland_Vt is computed using a weak value of B=2.0. The reasons I use a weak
-value of B and that I only require the VtR34 to be greater than _half_ the
+value of B and that I only require the **Vt**<sub>R34</sub> to be greater than _half_ the
 Holland value are that: (1) we are not trying to be overly stringent... we
 are just using a comparison to a Holland profile with tracker-diagnosed
 input as a sort of “guard rail” for the wind radii scheme in trying to
@@ -179,8 +179,9 @@ decreases going from this ARMW to distances further out, agreeing with
 typical TC wind profiles. In order to test this, the following conditions
 must be met:
 
-$\∫δ𝑉/δ𝑟 > 0 𝑓𝑜𝑟𝑟 < 𝐴𝑅𝑀𝑊$
-$\∫δ𝑉/δ𝑟 < 0 𝑓𝑜𝑟 𝑟 > 𝐴𝑅𝑀𝑊$
+$∫δ𝑉/δ𝑟 > 0 𝑓𝑜𝑟𝑟 < 𝐴𝑅𝑀𝑊$
+
+$∫δ𝑉/δ𝑟 < 0 𝑓𝑜𝑟 𝑟 > 𝐴𝑅𝑀𝑊$
 
 If this condition cannot be met in the current search range of distances,
 then a new search is conducted in the next overlapping distance range.
