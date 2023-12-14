@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -eux
+set -ex
 source ./machine-setup.sh > /dev/null 2>&1
 
 module use ../modulefiles
