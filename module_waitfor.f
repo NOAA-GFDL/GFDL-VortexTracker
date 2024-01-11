@@ -21,7 +21,7 @@
 
         subroutine run_cmd_helper(cmd,cmdlen,retval)
           implicit none
-          integer(kind=8), intent(in) :: cmdlen
+          integer, intent(in) :: cmdlen
           integer(kind=8), intent(out) :: retval
           character(*), intent(in) :: cmd(cmdlen)
 
@@ -74,7 +74,8 @@
         subroutine waitfor_helper(status,minage,minsize
      &        ,maxwait,sleeptime,filename,N)
           integer(kind=8), intent(in) :: minage,minsize,maxwait
-          integer(kind=8), intent(in) :: sleeptime,N
+          integer(kind=8), intent(in) :: sleeptime
+          integer, intent(in) :: N
           character(len=N),intent(in) :: filename
           integer(kind=8), intent(out) :: status
 
