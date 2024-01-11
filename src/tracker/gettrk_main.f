@@ -272,6 +272,9 @@ c                       bilin_int_uneven) with how Greenwich Meridian
 c                       wrapping was being handled.  I fixed the 
 c                       GM-wrapping in a few different areas in both
 c                       subroutines.
+c
+c   23-07-31  Marchok   Fixed an error in output_atcfunix where I had 
+c                       an extra comma in the output record.
 c 
 c
 c Input files:
@@ -9046,7 +9049,7 @@ c
       real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
-      real    dx,dy,xcenlon,xcenlat,q850conv,q850_smooth
+      real    dx,dy,xcenlon,xcenlat,q850_smooth
       real    rh_1000_925_smooth,rh_800_600_smooth,omega500_smooth
       real    divg,moist_divg,re,ri,xsmoothval
       character :: already_computed_domain_wide_rh*1
@@ -9087,7 +9090,8 @@ c
       !----------------------------------------------------------------
       ! Now get a smoothed, barnes-averaged value of q850 at the center
       ! point. Then multiply the 850 mb divg we just calculated by the 
-      ! smoothed q850 to get the 850 mb moisture convergence (q850conv).
+      ! smoothed q850 to get the 850 mb moisture convergence
+      ! (moist_divg).
       !----------------------------------------------------------------
 
       if (readgenflag(1)) then
@@ -9119,14 +9123,17 @@ c
           write (6,126) date_time(5),date_time(6),date_time(7)
  126      format (1x,'TIMING: gen_diag after smooth q850 ... ',i2.2,':'
      &              ,i2.2,':',i2.2)
+          write (6,228) igsvret,q850_smooth,igdret
+ 228      format (1x,' After get_smooth_value_at_pt for q850, igsvret= '
+     &           ,i4,' q850_smooth= ',f12.8,' igdret= ',i4)
         endif
  
       endif
 
       if (igdret == 0 .and. igsvret == 0) then
-        q850conv = divg * q850_smooth
+        moist_divg = divg * q850_smooth
       else
-        q850conv = -9999.0
+        moist_divg = -9999.0
       endif
 
       !----------------------------------------------------------------
@@ -9141,6 +9148,9 @@ c
         write (6,128) date_time(5),date_time(6),date_time(7)
  128    format (1x,'TIMING: gen_diag before get_rh ... ',i2.2,':'
      &            ,i2.2,':',i2.2)
+        write (6,230) divg,q850_smooth,moist_divg
+ 230    format (1x,' divg= ',f14.10,' q850_smooth= ',f14.10
+     &         ,' moist_divg= ',f14.10)
       endif
 
       igrhret = 0
@@ -11101,14 +11111,15 @@ c      comma_filler = comma_fill1//comma_fill2
      &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
      &       ,',       THERMO PARAMS'
      &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
-     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),', ',i8,8(', ',i5))
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),2(', ',i9)
+     &       ,7(', ',i5))
    91 format (a2,', ',a4,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
      &       ,2(', ',i4),', ',i3,a27,2(', ',i3),a44
      &       ,',       THERMO PARAMS'
      &       ,3(', ',i7),', ',a1,', ',i2,', DT, -999, SHR82, ',i4,', '
-     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),', ',i8,8(', ',i5)
-     &       ,', ',a3)
+     &       ,i3,', SST, ',i4,', ARMW',2(', ',i3),2(', ',i9)
+     &       ,7(', ',i5),', ',a3)
 
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(68)
@@ -12953,16 +12964,24 @@ c     identifier at the beginning of the modified atcfunix record.
 
       if (genflag == 'y' .or. genflag == 'Y') then
 
-        if (divg > -998.0) then
-          idivg = int ((divg * 1e6) + 0.5)
-        else
+        write (6,125) divg
+ 125    format (1x,' in output_atcf_gen, before scaling, divg= ',f16.8)
+        write (6,127) moist_divg
+ 127    format (1x,' in output_atcf_gen, before scaling, moist_divg= '
+     &         ,f16.8)
+
+        if (divg > -9999.1 .and. divg < -9998.9) then
+          ! We have the original, initialized, undefined value of -9999
           idivg = -99
+        else
+          idivg = int ((divg * 1e6) + 0.5)
         endif
 
-        if (moist_divg > -998.0) then
-          imoistdivg = int ((moist_divg * 1e6) + 0.5)
-        else
+        if (moist_divg > -9999.1 .and. moist_divg < -9998.9) then
+          ! We have the original, initialized, undefined value of -9999
           imoistdivg = -99
+        else
+          imoistdivg = int ((moist_divg * 1e6) + 0.5)
         endif
 
         if (rh_800_600_smooth > -998.0) then
@@ -12983,10 +13002,12 @@ c     identifier at the beginning of the modified atcfunix record.
           irh_1000_925 = -99
         endif
 
-        if (omega500_smooth > -998.0) then
-          iomega500 = int ((omega500_smooth * 100) + 0.5)
-        else
+        if (omega500_smooth > -9999.1 .and. omega500_smooth < -9998.9)
+     &  then
+          ! We have the original, initialized, undefined value of -9999
           iomega500 = -99
+        else
+          iomega500 = int ((omega500_smooth * 100) + 0.5)
         endif
 
         if (sst_smooth > -998.0) then
@@ -13134,8 +13155,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
      &       ,', ',3(i4,', '),3(i6,', '),a1,2(', ',i4),4(', ',i6)
-     &       ,', SHR82, ',i4,', ',i3,3(', ',i4),', ',i9
-     &       ,4(', ',i4))
+     &       ,', SHR82, ',i4,', ',i3,3(', ',i4),2(', ',i9)
+     &       ,3(', ',i4))
 
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(66)
@@ -24854,6 +24875,12 @@ c     variables into the chparm array...
      &                        ,imax,jmax,nc_zero_ix,f8,igvret)
                 f = f8
               endif
+              if (verb .ge. 3) then
+                print *,'After read of separate land_mask file, parm= '
+     &            ,chparm(ip),' ifh= ',ifh
+     &            ,' lead time index= ',ltix(ifh),' parm# (ip) = ',ip
+     &            ,' nc_zero_ix= ',nc_zero_ix,' igvret= ',igvret
+              endif 
             else
               call get_netcdf_real_type (nc_lsmask_file_id,chparm(ip)
      &                                  ,xtype,ignrret)
@@ -24866,6 +24893,12 @@ c     variables into the chparm array...
      &                        ,imax,jmax,ncix,f8,igvret)
                 f = f8
               endif
+              if (verb .ge. 3) then
+                print *,'After read of land_mask record from main file,'
+     &            ,' parm= ',chparm(ip),' ifh= ',ifh
+     &            ,' lead time index= ',ltix(ifh),' parm# (ip) = ',ip
+     &            ,' ncix= ',ncix,' igvret= ',igvret
+              endif 
             endif
           else
             print *,' '
@@ -24884,16 +24917,7 @@ c     variables into the chparm array...
      &                        ,imax,jmax,ncix,f8,igvret)
             f = f8
           endif
-        endif
-
-        if (verb .ge. 3) then
-          print *,' '
-          if (trkrinfo%read_separate_land_mask_file == 'y') then
-            print *,'After separate land-sea mask file read, parm= '
-     &             ,chparm(ip),' ifh= ',ifh
-     &             ,' lead time index= ',ltix(ifh),' parm# (ip) = ',ip
-     &             ,' nc_zero_ix= ',nc_zero_ix,' igvret= ',igvret
-          else
+          if (verb .ge. 3) then
             print *,'After read, parm= ',chparm(ip),' ifh= ',ifh
      &             ,' lead time index= ',ltix(ifh),' parm# (ip) = ',ip
      &             ,' ncix= ',ncix,' igvret= ',igvret
@@ -32949,9 +32973,19 @@ c
         hemisphere = -1.0
       endif
 
+c      print *,' '
+c      print *,' ***----------------------------------------------*** '
+c      print *,'    LLC debug follows'
+c      print *,' ***----------------------------------------------*** '
+
       radiusloop: do idist = 1,numdist
 
         azimuth_ct = 0
+
+c        print *,' '
+c        print *,'llc1  idist= ',idist,' rdist(idist)= ',rdist(idist)
+c        print *,' xcandlon= ',xcandlon,' ycandlat= ',ycandlat
+c        print *,' '
 
         azimloop: do iazim = 1,numazim
 
@@ -32981,11 +33015,21 @@ c
      &         ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
      &         ,valid_pt,bimct,-99,ibiret2)
 
+c          write (6,81) iazim,bear,targlat,targlon,xintrp_u,xintrp_v 
+c     &                ,ibiret1,ibiret2
+c   81     format (1x,'iazim= ',i2,' bear= ',f8.2,' targlat= ',f7.2
+c     &              ,' targlon= ',f7.2,' xintrp_u= ',f7.2
+c     &              ,' xintrp_v= ',f7.2,' ibiret1= ',i3
+c     &              ,' ibiret2= ',i3)
+
           if (ibiret1 == 0 .and. ibiret2 == 0) then
 
             call getvrvt (xcandlon,ycandlat,targlon,targlat
      &                   ,xintrp_u,xintrp_v,vr
      &                   ,vt,ifh,igvtret)
+
+c            write (6,83) vr,vt
+c   83       format (1x,'     vr= ',f7.2,' vt= ',f7.2)
 
             if (bear >= 0. .and. bear < 90.) then
               iq = 1
@@ -33001,6 +33045,7 @@ c
             vtct(iq,idist)  = vtct(iq,idist) + 1
 
             if ((hemisphere*vt) >= 8.75) then
+              ! For the "free pass" check, use 8.75 m/s (17 kts).
               ! If cyclonic Vt exceeds 8.75 m/s (17 kts) at this
               ! azimuth, then increment the counter for this quad by 1.
               vt_exceed_17kts_ct(iq,idist) = 
@@ -33027,12 +33072,18 @@ c
         ! quadrant, but that's okay.  What it is *not* able to do here
         ! is take that 'y' setting away that may have just been set in
         ! the IF statement above with two azimuths passing 17 kts.
+        ! For the check here, we use a slightly lower threshold of 
+        ! 7 m/s (13.6 kts) than we did above with the free-pass 
+        ! threshold of 8.75 m/s (17 kts).
 
         do nq = 1,numquad
           ! We need at least 2 valid azimuths in order to get a proper
           ! mean Vt.
           if (vtct(nq,idist) >= 2) then
             vtavg = vtsum(nq,idist) / vtct(nq,idist)
+c            print *,' +++ nq= ',nq,' vtct(nq,idist)= ',vtct(nq,idist)
+c     &             ,' vtsum(nq,idist)= ',vtsum(nq,idist)
+c     &             ,' vtavg= ',vtavg
             if ((hemisphere*vtavg) >= full_vt_thresh) then
               ! The mean Vt averaged over the number of azimuths in this
               ! quadrant (ideally, the max number of azimuths per 
@@ -33044,6 +33095,7 @@ c
               quad_pass_half_vt_flag(nq) = 'y'
             endif
           else
+c            print *,' !! BAD nq= ',nq,' vtct(nq,idist)= ',vtct(nq,idist)
             vtavg = -9999.0
           endif
 
@@ -33057,7 +33109,11 @@ c
             endif
           endif
 
+c          print *,' In nq loop, nq= ',nq
+c     &           ,' vtquadmax(nq)= ',vtquadmax(nq)
+
         enddo
+
 
       enddo radiusloop
 

@@ -28,7 +28,7 @@ LDFLAGS=
 
 FFLAGS= -pg -O2 -shared-intel -shared-libgcc -fp-stack-check -gen-interfaces -warn interfaces \
         -check all -debug all -traceback -heap-arrays 10 -init=zero -fno-omit-frame-pointer \
-        -align  -I $(INC_GRIB) -I $(INCNCDF) -I $(INCNCDC) -I $(INCHDF) -integer-size 32 -real-size 32
+        -align  -I $(INC_GRIB) -I $(INCNCDF) -I $(INCNCDC) -I $(INCHDF) -integer-size 32 -real-size 64
 
 CFLAGS= -pg -O2 -shared-intel -shared-libgcc -fno-omit-frame-pointer
 
