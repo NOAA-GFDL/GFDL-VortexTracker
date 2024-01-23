@@ -6,33 +6,17 @@ proc ModulesHelp { } {
 }
 module-whatis "tracker prerequisites"
 
-module use /contrib/sutils/modulefiles
-module load sutils
-module load hpss
-
-module load cmake/3.20.1
-setenv CMAKE_C_COMPILER mpiicc
-setenv CMAKE_CXX_COMPILER mpiicpc
-setenv CMAKE_Fortran_COMPILER mpiifort
-setenv CMAKE_Platform jet.intel
-
-module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
-module load hpc/1.1.0
-module load hpc-intel/18.0.5.274
-module load hpc-impi/2018.4.274
-
-module load jasper/2.0.22
-module load zlib/1.2.11
-module load png/1.6.35
-
-module load hdf5/1.10.6
-module load netcdf/4.7.4
-
+module load cmake/3.26.3
+module load intel-oneapi-compilers/2022.0.2
+module load hdf5/1.12.2
+module load netcdf-c/4.9.0
+module load netcdf-fortran/4.6.0
+module load zlib/1.2.13
+module load jasper/3.0.3
+module load libpng/1.6.39
+module load g2/3.4.5
+module load g2tmpl/1.10.2
 module load bacio/2.4.1
-module load g2tmpl/1.10.0
-module load w3emc/2.7.3
+module load w3emc/2.9.3
 module load w3nco/2.4.1
 
-module load g2/3.4.3
-
-module load sigio/2.3.2
