@@ -6,17 +6,19 @@ proc ModulesHelp { } {
 }
 module-whatis "tracker prerequisites"
 
-module load cmake/3.26.3
-module load intel-oneapi-compilers/2022.0.2
-module load hdf5/1.12.2
-module load netcdf-c/4.9.0
-module load netcdf-fortran/4.6.0
-module load zlib/1.2.13
-module load jasper/3.0.3
-module load libpng/1.6.39
+module use /lfs4/HFIP/hfv3gfs/nwprod/hpc-stack/libs/modulefiles/stack
+module load cmake/3.26.4
+module load hpc/1.2.0
+module load hpc-intel/2022.1.2
+module load hdf5/1.10.6
+module load netcdf/4.7.4
+module load jasper/2.0.25
+module load zlib/1.2.11
+module load libpng/1.6.37
 module load g2/3.4.5
 module load g2tmpl/1.10.2
 module load bacio/2.4.1
-module load w3emc/2.9.3
+module load w3emc/2.9.1
 module load w3nco/2.4.1
+
 
