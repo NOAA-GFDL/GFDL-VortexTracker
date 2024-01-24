@@ -13203,18 +13203,21 @@ c     ioapret   integer return code from this subroutine
       USE def_vitals; USE inparms; USE set_max_parms; USE atcf
       USE trkrparms; USE gen_vitals; USE verbose_output
 
+      implicit none
+
       type (gencard) gstm
       type (datecard) inp
       type (trackstuff) trkrinfo
 
       real, intent(in) :: xmeanlon,xmeanlat
-      real    xoutlon,vmaxwind,xminmslp
+      real    xoutlon,vmaxwind,xminmslp,mslp_outp_adj,conv_ms_knots
       real    clon(maxstorm,maxtime,maxtp),clat(maxstorm,maxtime,maxtp)
       real    xval(maxtp)
       integer ist,ifcsthour,maxstorm,ioapret,intmeanlon,intmeanlat
       integer ip,icc,output_fhr,k,intlonew,intlatns,ifh
       integer iclon(9),iclat(9),icxval(9)
       character :: icvalid(9)*1,clatns*1,clonew*1
+      character :: basinid*2
       logical(1) calcparm(maxtp,maxstorm)
 c
       if ( verb .ge. 3) then
@@ -13403,9 +13406,12 @@ c     identifier at the beginning of the modified atcfunix record.
           else if (ip == 3 .or. ip == 5 .or. ip == 10) then
             ! Scale circulation down by 1e6, then multiply by 10
             icxval(icc) = nint(xval(ip)*1e-6 * 10)
-          else
-            ! Multiply other variables -- GPH & MSLP -- by 10
+          else if (ip == 7 .or. ip == 8) then
+            ! Multiply GPH by 10
             icxval(icc) = nint(xval(ip) * 10)
+          else if (ip == 9) then
+            ! Scale MSLP to get mb, then multiply by 10
+            icxval(icc) = nint((xval(ip)/mslp_outp_adj) * 10)
           endif
 
         else
@@ -25740,7 +25746,7 @@ c     array of real, 8-byte data.
 !     write(*,*) 'Got var1id', var1id
 
       ! Read data into an 8-byte real array
-      status = nf_get_var_real (ncid,var1id,readvar8)
+      status = nf_get_var_double (ncid,var1id,readvar8)
       if (status .ne. NF_NOERR) call handle_netcdf_err(status)
 c
       end subroutine get_var1_one_dim8
@@ -25900,7 +25906,8 @@ c     ABSTRACT: This routine reads a netcdf file and returns a
 c     2-dimensional synoptic variable at a particular lead time.
 c     The lead time is specified by the ltix array, which is 
 c     included in module tracked_parms and defined in subroutine 
-c     read_fhours.
+c     read_fhours.  This routine is designed for returning an 
+c     array of double-precision reals.
 c
 c     PARAMETERS
 c
@@ -25966,7 +25973,7 @@ c
         return
       endif
 
-      status = nf_get_vara_real (ncid,var3id,istart,ilength,var3)
+      status = nf_get_vara_double (ncid,var3id,istart,ilength,var3)
       if (status .ne. NF_NOERR) call handle_netcdf_err(status)
 
       end subroutine get_var3_tlev_double
@@ -28646,7 +28653,7 @@ c     latitude and glatmin the southernmost latitude.
         glonmax = tmplon(1)
       endif
 
-      if (tmplat(1) > tmplon(jmax)) then
+      if (tmplat(1) > tmplat(jmax)) then
         glatmax = tmplat(1)
         glatmin = tmplat(jmax)
       else
@@ -28686,7 +28693,7 @@ c     info will be used in subroutine  barnes
       need_to_flip_lats = .false.
       need_to_flip_lons = .false.
 
-      if (tmplat(1) > tmplon(jmax)) then
+      if (tmplat(1) > tmplat(jmax)) then
         do j=1,jmax
           glat(j) = tmplat(j)
         enddo
