@@ -31154,10 +31154,10 @@ c     intermediate, incremental contour levels.
             ict = ict + 1
             if (fxy(itemp,j) < dmin) dmin = fxy(itemp,j)    
             if (fxy(itemp,j) > dmax) dmax = fxy(itemp,j)    
-            if (fxy(itemp,j) > 1040.0) then
-              print *,'PRESSERR: itemp= ',itemp,' j= ',j
-     &               ,' fxy(itemp,j)= ',fxy(itemp,j)
-            endif
+c            if (fxy(itemp,j) > 1040.0) then
+c              print *,'PRESSERR: itemp= ',itemp,' j= ',j
+c     &               ,' fxy(itemp,j)= ',fxy(itemp,j)
+c            endif
           else
             iinvct = iinvct + 1
           endif
