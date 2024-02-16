@@ -100,7 +100,7 @@ elif [[ -d /glade ]] ; then
     fi
     target=yellowstone
     module purge
-elif [[ -d /ncrc ]] ; then
+elif [[ -d /ncrc && -d gpfs/f5 ]] ; then
     # We are on GAEA.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         # We cannot simply load the module command.  The GAEA
