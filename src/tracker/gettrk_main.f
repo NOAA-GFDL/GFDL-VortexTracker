@@ -346,10 +346,13 @@ c
       character (len=10) big_ben(3)
       character :: ncfile*180,ncfile_has_hour0*1
       character :: nc_lsmask_file*180
+      character :: opening_mask*1
       integer itret,iggret,iicret,igcret,iret,ifhmax,maxstorm,numtcv
+      integer micret,mgcret
       integer iocret,enable_timing,ncfile_id,ncfile_tmax,irnhret
       integer nc_lsmask_file_id
       integer, parameter :: lugb=11,lugi=31,lucard=12,lgvcard=14,lout=51
+      integer, parameter :: lmgb=22,lmgi=42
       integer, parameter :: lunml=555
 c
       type (datecard) inp
@@ -427,11 +430,26 @@ c
             nc_lsmask_file_id = -999
           endif
         else
-          call open_grib_files (inp,lugb,lugi,'dummy','dummy',lout,iret)
+          opening_mask = 'n'
+          call open_grib_files (inp,lugb,lugi,'dummy','dummy',lout
+     &                          ,opening_mask,iret)
           if (iret /= 0) then
             print '(/,a50,i4,/)','!!! ERROR: in open_grib_files, rc= '
      &             ,iret
+            print '(/,a10,i4,a7,i4/)','!!! lugb= ',lugb,' lugi= ',lugi
             goto 890
+          endif
+          if (trkrinfo%read_separate_land_mask_file == 'y') then
+            opening_mask = 'y'
+            call open_grib_files (inp,lmgb,lmgi,'dummy','dummy',lout
+     &                           ,opening_mask,iret)
+            if (iret /= 0) then
+              print '(/,a29,a29,i4,/)','!!! ERROR: in open_grib_files'
+     &               ,' for land-sea mask file, rc= '
+     &               ,iret
+              print '(/,a10,i4,a7,i4/)','!!! lmgb= ',lmgb,' lmgi= ',lmgi
+              goto 890
+            endif
           endif
         endif
       endif
@@ -445,16 +463,23 @@ c
       igcret=0
       iicret=0
       iocret=0
+      mgcret=0
+      micret=0
 
       inquire (unit=lugb, opened=file_open)
       if (file_open) call baclose(lugb,igcret)
       inquire (unit=lugi, opened=file_open)
       if (file_open) call baclose(lugi,iicret)
+      inquire (unit=lmgb, opened=file_open)
+      if (file_open) call baclose(lmgb,igcret)
+      inquire (unit=lmgi, opened=file_open)
+      if (file_open) call baclose(lmgi,iicret)
       inquire (unit=lout, opened=file_open)
       if (file_open) call baclose(lout,iocret)
       if ( verb .ge. 3 ) then
         print *,'baclose: igcret= ',igcret,' iicret= ',iicret
         print *,'baclose: iocret= ',iocret
+        print *,'baclose: mgcret= ',mgcret,' micret= ',micret
       endif
 c      call w3tage('GETTRK  ')
 c
@@ -710,7 +735,7 @@ c
       character :: r34_check_okay*1,had_to_try_backup_850_vt_check*1
       character :: need_to_expand_r34(4)*1,ncfile_has_hour0*1
       character :: already_computed_domain_wide_rh*1,gm_wrap_flag*21
-      character :: low_level_wind_circ_flag*1
+      character :: low_level_wind_circ_flag*1,opening_mask*1
       character*(*), intent(in) :: ncfile
       character*(*), intent(in) :: nc_lsmask_file
       integer :: ncfile_id
@@ -747,7 +772,7 @@ c
       integer   igfwret,ioiret,igisret,iofwret,iowsret,igwsret,igscret
       integer   pdf_ct_tot,lugb,lugi,iret,icmcf,iccfh,ivt8f,icqwret
       integer   igsret,issta,iq850a,irha,ispfha,itempa,iomegaa
-      integer   ncfile_tmax,ivr,r34_good_ct,itha,ilma,inctcv
+      integer   ncfile_tmax,ivr,r34_good_ct,itha,ilma,inctcv,lmgb,lmgi
       integer(kind=8) :: waitfor_gfile_status,waitfor_ifile_status
       integer(kind=8) :: wait_max_ifile_wait
       integer   ix_radii_beg,ix_radii_end,n_r34_iter,iccwcret
@@ -902,6 +927,9 @@ c          lugi = 5200
         ! for lugb and lugi will remain static for all taus.
         lugb = 11
         lugi = 31
+        lmgb = 22 ! lmgb & lmgi are only used for the land-sea mask file
+        lmgi = 42 ! and are optional, depending on the value of the
+                  ! read_separate_land_mask_file flag in the namelist.
       endif
 
       ifh = 1
@@ -971,8 +999,9 @@ c          lugi = 5200
 
           endif
 
+          opening_mask = 'n'
           call open_grib_files (inp,lugb,lugi,gfilename,ifilename
-     &         ,lout,iret)
+     &         ,lout,opening_mask,iret)
         
           if (iret /= 0) then
             print '(/,a50,i4,/)','!!! ERROR: from open_grib_files, rc= '
@@ -1282,7 +1311,7 @@ c       then call subroutine to read data for this forecast time.
         if (trkrinfo%inp_data_type == 'grib') then
           call getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,trkrinfo)
+     &               ,lugb,lugi,lmgb,lmgi,trkrinfo)
         elseif (trkrinfo%inp_data_type == 'netcdf') then
           call getdata_netcdf (ncfile_id,nc_lsmask_file_id,readflag
      &               ,readgenflag,valid_pt,imax,jmax,ifh
@@ -4458,10 +4487,10 @@ c          User wants us to run a command per forecast time
 !     appropriate.
 
            pfc_final=per_fcst_command
-           call argreplace(pfc_final,pfc_cmd_len,'%[FHOUR]',            &
-     &                     ifhours(ifh))
-           call argreplace(pfc_final,pfc_cmd_len,'%[FMIN]',             &
-     &                     iftotalmins(ifh))
+           call argreplace(pfc_final,pfc_cmd_len,'%[FHOUR]'
+     &                     ,ifhours(ifh))
+           call argreplace(pfc_final,pfc_cmd_len,'%[FMIN]'
+     &                     ,iftotalmins(ifh))
 
            if(verb.ge.2) then
               print *,' '
@@ -4595,7 +4624,7 @@ c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
       subroutine open_grib_files (inp,lugb,lugi,gfilename,ifilename
-     &                           ,lout,iret)
+     &                           ,lout,opening_mask,iret)
 
 C     ABSTRACT: This subroutine must be called before any attempt is
 C     made to read from the input GRIB files.  The GRIB and index files
@@ -4611,15 +4640,17 @@ c     inp      Contains user-input info on the date & data
 C     lugb     The Fortran unit number for the GRIB data file
 C     lugi     The Fortran unit number for the GRIB index file
 c     ifh      integer index for lead time level
-c     gfilename If using individual files for each tau, gfilename will 
-c              contain the grib data filename for this tau.  Otherwise, 
-c              if using one big file for all taus, this contains dummy 
-c              character data.
+c     gfilename If using individual files for each tau, gfilename will
+c              contain the grib data filename for this tau.  Otherwise,
+c              if using one big file for all taus, this contains dummy
+c              character data. 
 c     ifilename If using individual files for each tau, gfilename will 
 c              contain the grib index filename for this tau.  Otherwise,
 c              if using one big file for all taus, this contains dummy 
 c              character data.
 C     lout     The Fortran unit number for the  output grib file
+c     opening_mask character flag that tells whether or not this call
+c              to open_grib_files is for opening land-sea mask data.
 C
 C     OUTPUT:
 C     iret     The return code from this subroutine
@@ -4635,23 +4666,46 @@ c
       logical(1)  file_open
       logical(4)  file_open4,file_open5
       character fnameg*7,fnamei*7,fnameo*7
+      character fname_mask_g*7,fname_mask_i*7
+      character opening_mask*1
       character(*) gfilename,ifilename
       character(120) gopen_g_file,gopen_i_file
       integer  igoret,iioret,iooret,lugb,lugi,lout,iret,nlen1,nlen2
 
       iret=0
 
+      igoret = 0
+      iioret = 0
+      iooret = 0
+
       if (inp%file_seq == 'onebig') then
         fnameg(1:5) = "fort."
         fnamei(1:5) = "fort."
-        fnameo(1:5) = "fort."
         write(fnameg(6:7),'(I2)') lugb
         write(fnamei(6:7),'(I2)') lugi
-        write(fnameo(6:7),'(I2)') lout
         call baopenr (lugb,fnameg,igoret)
         call baopenr (lugi,fnamei,iioret)
-        call baopenw (lout,fnameo,iooret)
+        if (opening_mask /= 'y') then
+          ! If this is a regular call to open_grib_files (i.e., not
+          ! for opening the land-sea mask file), then open the 
+          ! output grib file unit.
+          fnameo(1:5) = "fort."
+          write(fnameo(6:7),'(I2)') lout
+          call baopenw (lout,fnameo,iooret)
+        endif
       else
+
+        if (opening_mask /= 'y') then
+          print *,' '
+          print *,'!!! ERROR: In open_grib_files, opening_mask=y '
+          print *,'!!! which means that we are trying to open up an' 
+          print *,'!!! additional land-sea mask file, however the'
+          print *,'!!! inp%file_seq flag indicates that this is not'
+          print *,'!!! a onebig file, and as of yet, the functionality'
+          print *,'!!! for an additional land-sea mask file can only'
+          print *,'!!! be used for onebig file applications.'
+          stop 95
+        endif
 
         print *,'in open_grib_files in multi else part....'
 
@@ -4730,11 +4784,22 @@ c
 
         if ( verb .ge. 1 ) then
           print *,' '
-          print *,'!!! ERROR in sub open_grib_files opening grib file'
-          print *,'!!! or grib index file.  baopen return codes:'
-          print *,'!!! grib  file return code = igoret = ',igoret
-          print *,'!!! index file return code = iioret = ',iioret
-          print *,'!!! output file return code = iooret = ',iooret
+
+          if (opening_mask == 'y') then
+            print *,'!!! ERROR in sub open_grib_files opening grib file'
+            print *,'!!! or grib index file for LAND-SEA mask file.'
+            print *,'!!! baopen return codes:'
+            print *,'!!! grib  file return code = igoret = ',igoret
+            print *,'!!! index file return code = iioret = ',iioret
+          else
+            print *,'!!! ERROR in sub open_grib_files opening grib file'
+            print *,'!!! or grib index file for most variables (i.e.,'
+            print *,'!!! NOT the land-sea mask file)'
+            print *,'!!! baopen return codes:'
+            print *,'!!! grib  file return code = igoret = ',igoret
+            print *,'!!! index file return code = iioret = ',iioret
+            print *,'!!! output file return code = iooret = ',iooret
+          endif
         endif
 
         iret = 113
@@ -9127,7 +9192,9 @@ c
  228      format (1x,' After get_smooth_value_at_pt for q850, igsvret= '
      &           ,i4,' q850_smooth= ',f12.8,' igdret= ',i4)
         endif
- 
+
+      else
+        q850_smooth = -9999.0
       endif
 
       if (igdret == 0 .and. igsvret == 0) then
@@ -13203,18 +13270,21 @@ c     ioapret   integer return code from this subroutine
       USE def_vitals; USE inparms; USE set_max_parms; USE atcf
       USE trkrparms; USE gen_vitals; USE verbose_output
 
+      implicit none
+
       type (gencard) gstm
       type (datecard) inp
       type (trackstuff) trkrinfo
 
       real, intent(in) :: xmeanlon,xmeanlat
-      real    xoutlon,vmaxwind,xminmslp
+      real    xoutlon,vmaxwind,xminmslp,mslp_outp_adj,conv_ms_knots
       real    clon(maxstorm,maxtime,maxtp),clat(maxstorm,maxtime,maxtp)
       real    xval(maxtp)
       integer ist,ifcsthour,maxstorm,ioapret,intmeanlon,intmeanlat
       integer ip,icc,output_fhr,k,intlonew,intlatns,ifh
       integer iclon(9),iclat(9),icxval(9)
       character :: icvalid(9)*1,clatns*1,clonew*1
+      character :: basinid*2
       logical(1) calcparm(maxtp,maxstorm)
 c
       if ( verb .ge. 3) then
@@ -13403,9 +13473,12 @@ c     identifier at the beginning of the modified atcfunix record.
           else if (ip == 3 .or. ip == 5 .or. ip == 10) then
             ! Scale circulation down by 1e6, then multiply by 10
             icxval(icc) = nint(xval(ip)*1e-6 * 10)
-          else
-            ! Multiply other variables -- GPH & MSLP -- by 10
+          else if (ip == 7 .or. ip == 8) then
+            ! Multiply GPH by 10
             icxval(icc) = nint(xval(ip) * 10)
+          else if (ip == 9) then
+            ! Scale MSLP to get mb, then multiply by 10
+            icxval(icc) = nint((xval(ip)/mslp_outp_adj) * 10)
           endif
 
         else
@@ -22555,7 +22628,7 @@ c
 c-----------------------------------------------------------------------
       subroutine getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,trkrinfo)
+     &               ,lugb,lugi,lmgb,lmgi,trkrinfo)
 c
 c     ABSTRACT: This subroutine reads the input GRIB file for the
 c     tracked parameters.  It then calls subroutines to convert the
@@ -22633,6 +22706,10 @@ c                 indicates if data needs flipped east to west
 c     inp         of a derived type, contains user-input info
 c     lugb        integer unit number of input grib file
 c     lugi        integer unit number of input grib index file
+c     lmgb        integer unit number of input grib file for 
+c                 an optional land-sea mask file
+c     lmgi        integer unit number of input grib index file for
+c                 an optional land-sea mask file
 c     trkrinfo    derived type that contains info on the type of
 c                 tracker run that we are performing.
 c
@@ -22694,7 +22771,7 @@ c
       integer   ec_cpsgparm(nreadcpsparms)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
       integer   igvret,ifa,ila,ip,ifh,i,j,k,kj,iret,kf,lugb,lugi
-      integer   jskp,jdisc,np,igrh,igrhct
+      integer   jskp,jdisc,np,igrh,igrhct,lmgb,lmgi
       integer   jpdtn,jgdtn,npoints,icount,ipack,krec
       integer   pdt_4p0_vert_level,pdt_4p0_vtime
       integer :: listsec0(2)=(/0,2/)
@@ -22757,15 +22834,18 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data cpsglev    /900,850,800,750,700,650,600,550,500,450,400
      &                ,350,300/
       data ec_igparm   /999,999,131,132,131,132,156,156,151,165,166
-     &                 ,131,132,130,156,156,999,131,132,130/
-      data ec_iglevtyp /100,100,100,100,100,100,100,100,1,0,0,100,100
-     &                 ,100,100,100,999,100,100,0/
+     &                 ,131,132,130,156,156,81,131,132,130/
+      data ec_iglevtyp /100,100,100,100,100,100,100,100,1,1,1,100,100
+     &                 ,100,100,100,1,100,100,0/
       data ec_iglev    /850,700,850,850,700,700,850,700,0,0,0,500,500
-     &                 ,401,500,200,999,200,200,0/
+     &                 ,401,500,200,0,200,200,0/
 
-      data ec_genparm   /23*999/
-      data ec_genlevtyp /23*999/
-      data ec_genlev    /23*999/
+      data ec_genparm   /999,7*157,7*999,7*130,135/
+      data ec_genlevtyp /999,7*100,7*999,7*100,100/
+      data ec_genlev    /999,1000,925,800,750,700
+     &                   ,650,600,999,999,999,999
+     &                   ,999,999,999,1000,925,800
+     &                   ,750,700,650,600,500/
 
       data ig2_parm_cat /  2,  2,  2,  2,  2,  2,  3,  3,  3,  2,  2
      &                  ,  2,  2,  0,  3,  3,  0,  2,  2,  0/
@@ -23988,7 +24068,7 @@ c       *------------------------------------------------------------*
             print *,'   value of 4, which is for ECMWF, so in routine'
             print *,'   getdata_grib, the input jpds(5,6,7) parms are' 
             print *,'   going to have values that are specific for'
-            print *,'   ECMWF GRIB1 data.'
+            print *,'   ECMWF GRIB1 data.  Check jpds ECMWF values:'
             print *,' '
             jpds(5)  = ec_igparm(ip) 
             jpds(6)  = ec_iglevtyp(ip)
@@ -24021,8 +24101,19 @@ c       *------------------------------------------------------------*
  831         format (1x,'TIMING: before getgb-1',i2.2,':',i2.2,':',i2.2)
           endif 
 
-          call getgb (lugb,lugi,jf,j,jpds,jgds,
-     &                          kf,k,kpds,kgds,lb,f,iret)
+          if (ip == 17) then
+            if (trkrinfo%read_separate_land_mask_file == 'y') then
+              jpds(14) = -1
+              call getgb (lmgb,lmgi,jf,j,jpds,jgds,
+     &                              kf,k,kpds,kgds,lb,f,iret)
+            else
+              call getgb (lugb,lugi,jf,j,jpds,jgds,
+     &                              kf,k,kpds,kgds,lb,f,iret)
+            endif
+          else
+            call getgb (lugb,lugi,jf,j,jpds,jgds,
+     &                            kf,k,kpds,kgds,lb,f,iret)
+          endif
 
           if (enable_timing /= 0) then
             call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -25740,7 +25831,7 @@ c     array of real, 8-byte data.
 !     write(*,*) 'Got var1id', var1id
 
       ! Read data into an 8-byte real array
-      status = nf_get_var_real (ncid,var1id,readvar8)
+      status = nf_get_var_double (ncid,var1id,readvar8)
       if (status .ne. NF_NOERR) call handle_netcdf_err(status)
 c
       end subroutine get_var1_one_dim8
@@ -25900,7 +25991,8 @@ c     ABSTRACT: This routine reads a netcdf file and returns a
 c     2-dimensional synoptic variable at a particular lead time.
 c     The lead time is specified by the ltix array, which is 
 c     included in module tracked_parms and defined in subroutine 
-c     read_fhours.
+c     read_fhours.  This routine is designed for returning an 
+c     array of double-precision reals.
 c
 c     PARAMETERS
 c
@@ -25966,7 +26058,7 @@ c
         return
       endif
 
-      status = nf_get_vara_real (ncid,var3id,istart,ilength,var3)
+      status = nf_get_vara_double (ncid,var3id,istart,ilength,var3)
       if (status .ne. NF_NOERR) call handle_netcdf_err(status)
 
       end subroutine get_var3_tlev_double
@@ -28646,7 +28738,7 @@ c     latitude and glatmin the southernmost latitude.
         glonmax = tmplon(1)
       endif
 
-      if (tmplat(1) > tmplon(jmax)) then
+      if (tmplat(1) > tmplat(jmax)) then
         glatmax = tmplat(1)
         glatmin = tmplat(jmax)
       else
@@ -28686,7 +28778,7 @@ c     info will be used in subroutine  barnes
       need_to_flip_lats = .false.
       need_to_flip_lons = .false.
 
-      if (tmplat(1) > tmplon(jmax)) then
+      if (tmplat(1) > tmplat(jmax)) then
         do j=1,jmax
           glat(j) = tmplat(j)
         enddo
@@ -31147,10 +31239,10 @@ c     intermediate, incremental contour levels.
             ict = ict + 1
             if (fxy(itemp,j) < dmin) dmin = fxy(itemp,j)    
             if (fxy(itemp,j) > dmax) dmax = fxy(itemp,j)    
-            if (fxy(itemp,j) > 1040.0) then
-              print *,'PRESSERR: itemp= ',itemp,' j= ',j
-     &               ,' fxy(itemp,j)= ',fxy(itemp,j)
-            endif
+c            if (fxy(itemp,j) > 1040.0) then
+c              print *,'PRESSERR: itemp= ',itemp,' j= ',j
+c     &               ,' fxy(itemp,j)= ',fxy(itemp,j)
+c            endif
           else
             iinvct = iinvct + 1
           endif
@@ -31515,6 +31607,20 @@ c     ifamret  return code from this subroutine
 c-----
       still_finding_valid_maxmins = .true.
 
+      candidate_ct = 0
+      cand_not_valid_ct = 0
+      cand_masked_out_ct = 0
+      cand_cc_good_ct = 0
+      cand_cc_bad_ct = 0
+      cmrg_fail_ct = 0
+
+      isia = 0
+      ipa  = 0
+      iia  = 0
+      ija  = 0
+      isaa = 0
+      isla = 0
+
       if (allocated(sortindex))  deallocate (sortindex,stat=isia)
       if (allocated(prstemp))    deallocate (prstemp,stat=ipa)
       if (allocated(ipos))       deallocate (ipos,stat=iia)
@@ -31673,6 +31779,9 @@ c     ------------------------------------------------------------------
      &         ,'at: ',i2.2,':',i2.2,':',i2.2)
 
         maxmin = 'min'
+
+        imsa = 0
+        ivsa = 0
 
         if (allocated(mslp_smoothe)) deallocate (mslp_smoothe,stat=imsa)
         if (allocated(valid_smoothe)) 

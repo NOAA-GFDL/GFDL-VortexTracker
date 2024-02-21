@@ -100,7 +100,7 @@ elif [[ -d /glade ]] ; then
     fi
     target=yellowstone
     module purge
-elif [[ -d /lustre && -d /ncrc ]] ; then
+elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     # We are on GAEA.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         # We cannot simply load the module command.  The GAEA
@@ -109,7 +109,6 @@ elif [[ -d /lustre && -d /ncrc ]] ; then
         # the module command fails.  Hence we actually have to source
         # /etc/profile here.
         echo load the module command 1>&2
-        source /etc/profile
     fi
     target=gaea
 elif [[ "$(hostname)" =~ "odin" ]]; then
