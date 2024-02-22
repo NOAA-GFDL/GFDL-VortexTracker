@@ -295,6 +295,11 @@ c
                                                ! the MSLP data before
                                                ! scanning for new storms
                                                ! in the forecast (y/n)?
+        real , save :: depth_of_mslp_for_gen_scan ! Depth of the
+                                     ! MSLP field (in mb) that is used
+                                     ! by the initial scan for new
+                                     ! storms in subroutine
+                                     ! check_mslp_radial_gradient
       end module genesis_diags
 c     
       module tracked_parms

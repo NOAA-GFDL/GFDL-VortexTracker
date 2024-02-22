@@ -26501,6 +26501,7 @@ c
       namelist/gendiaginfo/genflag,gen_read_rh_fields
      &                    ,need_to_compute_rh_from_q
      &                    ,smoothe_mslp_for_gen_scan
+     &                    ,depth_of_mslp_for_gen_scan
 
 c     Set namelist default values:
       use_per_fcst_command='t'
@@ -26973,6 +26974,9 @@ c
  169    format ('Flag for whether or not to smoothe the MSLP data '
      &         ,'before scanning for new storms = '
      &         ,'smoothe_mslp_for_gen_scan = ',a1)
+        write (6,171) depth_of_mslp_for_gen_scan
+ 171    format ('Value of depth of MSLP (in mb) used for the initial '
+     &         ,'scan to filter for new storms = ',f6.4)
 
         if (genflag == 'y' .or. genflag == 'Y') then
           genflag = 'y'
@@ -31086,7 +31090,7 @@ c     scan the entire array or just a portion of it.
         iend = imax
         jbeg = 1
         jend = jmax
-        print *,'FGC  IF A'
+c        print *,'FGC  IF A'
       else
 
 c        if (trkrinfo%westbd > 360.0 .or. trkrinfo%eastbd < 0.0 .or.
@@ -31098,16 +31102,16 @@ c     &      trkrinfo%westbd <   0.0 .or.
      &      trkrinfo%westbd  >= trkrinfo%eastbd .or.
      &      trkrinfo%southbd >= trkrinfo%northbd) then
 
-          print *,'FGC  ELSE IF B'
+c          print *,'FGC  ELSE IF B'
 
           if (trkrinfo%westbd  > trkrinfo%eastbd) then
  
-            print *,'FGC  ELSE IF IF C'
+c            print *,'FGC  ELSE IF IF C'
 
             if (trkrinfo%westbd < 360.0 .and.
      &          trkrinfo%eastbd >= 0.0)then
 
-              print *,'FGC  ELSE IF IF IF D'
+c              print *,'FGC  ELSE IF IF IF D'
 
               ! In this special case, the user has specified that the 
               ! western boundary be to the west of the Greenwich 
@@ -31144,7 +31148,7 @@ c     &               / dx) + 0.5)
               iend = int(((trkrinfo%eastbd - glonmin + dx)  
      &               / dx) + 0.5) + imax
 
-              print *,'FGC  ELSE IF IF IF AFTER IBEG E'
+c              print *,'FGC  ELSE IF IF IF AFTER IBEG E'
 
               goto 377
 
@@ -31172,7 +31176,7 @@ c     &               / dx) + 0.5)
 
         else
           ! Calculate the beginning and ending i and j points....
-          print *,'FGC  REGULAR ELSE AA'
+c          print *,'FGC  REGULAR ELSE AA'
           jbeg = int(((glatmax + dy - trkrinfo%northbd) / dy)
      &              + 0.5)
           jend = int(((glatmax + dy - trkrinfo%southbd) / dy)
@@ -31184,15 +31188,17 @@ c     &               / dx) + 0.5)
         endif
       endif
 
-      print *,' '
-      print *,'fgc first_ges_center, ibeg= ',ibeg,'  iend= ',iend
-      print *,'fgc first_ges_center, jbeg= ',jbeg,'  jend= ',jend
-      print *,'fgc glatmax= ',glatmax,'  glonmin= ',glonmin
-      print *,'fgc dx= ',dx,'  dy=  ',dy
-      print *,'fgc trkrinfo%northbd= ',trkrinfo%northbd
-      print *,'fgc trkrinfo%southbd= ',trkrinfo%southbd
-      print *,'fgc trkrinfo%westbd= ',trkrinfo%westbd
-      print *,'fgc trkrinfo%eastbd= ',trkrinfo%eastbd
+      if (verb >= 3) then
+        print *,' '
+        print *,'fgc first_ges_center, ibeg= ',ibeg,'  iend= ',iend
+        print *,'fgc first_ges_center, jbeg= ',jbeg,'  jend= ',jend
+        print *,'fgc glatmax= ',glatmax,'  glonmin= ',glonmin
+        print *,'fgc dx= ',dx,'  dy=  ',dy
+        print *,'fgc trkrinfo%northbd= ',trkrinfo%northbd
+        print *,'fgc trkrinfo%southbd= ',trkrinfo%southbd
+        print *,'fgc trkrinfo%westbd= ',trkrinfo%westbd
+        print *,'fgc trkrinfo%eastbd= ',trkrinfo%eastbd
+      endif
 
 c     Scan the requested portion of the grid and pick out the max and
 c     min data values, figure out what the max and min contour levels
@@ -32585,7 +32591,7 @@ c     gm_wrap_flag character flag set in getgridinfo that determines
 c              what GM-wrapping setting to use.
 
       USE set_max_parms; USE trkrparms; USE grid_bounds
-      USE verbose_output; USE level_parms
+      USE verbose_output; USE level_parms; USE genesis_diags
 
       implicit none
 
@@ -32620,21 +32626,30 @@ c      data rdist/5.,10.,15.,20.,25.,30.,35.,40.,50.,60.,75./
       bimct = 0
       ifh99 = 99
 
+c      if (verb >= 3) then
+c        print *,' '
+c        print *,'At top of check_mslp_radial_gradient, the value of the'
+c        print *,'MSLP depth (in mb) that the user entered and will be '
+c        print *,'used to filter for new storms = '
+c        print *,'   depth_of_mslp_for_gen_scan = '
+c     &         ,depth_of_mslp_for_gen_scan
+c      endif
+
       xcent_mslpval = fxy(ip,jp)
 
       ! Ensure that the xmslp_thresh units, which are based on the user
-      ! input trkrinfo%contint value, are in the same units as the
-      ! gridded mslp data....
+      ! input depth_of_mslp_for_gen_scan value, are in the same units 
+      ! as the gridded mslp data....
 
       if (fxy(ip,jp) > 50000.) then
         ! Gridded SLP data units are in Pa, we need to ensure that the
         ! MSLP threshold is also in Pa....
-        if (trkrinfo%contint < 20.0) then
+        if (depth_of_mslp_for_gen_scan < 20.0) then
           ! User entered contour interval in mb.  Convert to Pa...
-          xmslp_thresh = trkrinfo%contint * 100.0
+          xmslp_thresh = depth_of_mslp_for_gen_scan * 100.0
         else
           ! User entered contour interval in Pa.  All okay...
-          xmslp_thresh = trkrinfo%contint
+          xmslp_thresh = depth_of_mslp_for_gen_scan
         endif
 c        xmslp_noise = 5.0
 c        xmslp_noise = 20.0
@@ -32642,11 +32657,11 @@ c        xmslp_noise = 20.0
       else
         ! Gridded SLP data units are in mb, we need to ensure that the
         ! MSLP threshold is also in mb....
-        if (trkrinfo%contint < 20.0) then
+        if (depth_of_mslp_for_gen_scan < 20.0) then
           ! User entered contour interval in mb.  All okay...
-          xmslp_thresh = trkrinfo%contint
+          xmslp_thresh = depth_of_mslp_for_gen_scan
         else
-          xmslp_thresh = trkrinfo%contint / 100.0
+          xmslp_thresh = depth_of_mslp_for_gen_scan / 100.0
         endif
 c        xmslp_noise = 0.05
 c        xmslp_noise = 0.2
@@ -32740,11 +32755,11 @@ c     &                    ,f8.3)
                 ! We have success for this azimuth for one of the two
                 ! checks, the one that checks for the depth of the low,
                 ! i.e., the one indicated by the user-inputted 
-                ! trkrinfo%contint.  There is no need to evaluate this
-                ! check again along this radial, however we still need
-                ! to perform the other check, which checks to see if the
-                ! gradient continues uninterrupted out to a specified
-                ! distance (trying 100 km to start).
+                ! depth_of_mslp_for_gen_scan.  There is no need to
+                ! evaluate this check again along this radial, however
+                ! we still need to perform the other check, which checks
+                ! to see if the gradient continues uninterrupted out to
+                ! a specified distance (trying 100 km to start).
                 one_radial_mslp_depth_flag = 'y'
 c                write (6,93) xcent_mslpval,xintrp_mslp,xmslp_noise
 c   93           format (1x,'       +++ xxtim PASS 1-radial,' 
