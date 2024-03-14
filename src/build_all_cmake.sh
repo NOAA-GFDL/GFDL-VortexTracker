@@ -32,6 +32,10 @@ elif [ $target = gaea ]; then
   export FC=ftn
   export F90=ftn
   export CC=icc
+elif [ $target = ppan ]; then
+  export FC=ifort
+  export F90=ifort
+  export CC=icc
 else
   echo "Unknown machine = $target"
   exit 1
