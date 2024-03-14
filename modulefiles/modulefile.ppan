@@ -8,6 +8,8 @@ module-whatis "tracker prerequisites"
 
 module load intel-oneapi-compilers
 
+module load cmake
+
 module load hdf5
 module load netcdf-c
 module load netcdf-fortran
