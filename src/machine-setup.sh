@@ -113,6 +113,8 @@ elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     target=gaea
 elif [[ "$(hostname)" =~ "odin" ]]; then
     target="odin"
+elif [[ -d /home/$USER && -d /work/$USER ]] ; then
+    targer="ppan"
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
