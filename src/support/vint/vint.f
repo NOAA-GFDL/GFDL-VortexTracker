@@ -22,6 +22,8 @@ c     Written by Tim Marchok
       integer  iha,iho,iva,irfa,iodret,ifcsthour,iia,iparm,nlevsout
       integer  gribver,g2_jpdtn
       integer  ilevs(maxlev)
+      integer date_time(8)
+      character (len=10) big_ben(3)
       real, allocatable :: xinpdat(:,:),xoutdat(:,:),xoutlevs_p(:)
       logical(1), allocatable :: valid_pt(:),readflag(:)
 
@@ -72,16 +74,30 @@ c
         goto 899
       endif
 
-      call open_grib_files (lugb,lugi,lout,gribver,iogret)
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,31) date_time(5),date_time(6),date_time(7)
+ 31   format (1x,'TIMING: vint b4 open_grib_files ',i2.2,':'
+     &        ,i2.2,':',i2.2)
 
+      call open_grib_files (lugb,lugi,lout,gribver,iogret)
       if (iogret /= 0) then
         print '(/,a45,i4,/)','!!! ERROR: in vint open_grib_files, rc= '
      &        ,iogret
         goto 899
       endif
 
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,32) date_time(5),date_time(6),date_time(7)
+ 32   format (1x,'TIMING: vint after open_grib_files ',i2.2,':',i2.2
+     &        ,':',i2.2)
+
       call getgridinfo (lugb,lugi,kf,kpds,kgds,holdgfld,ifcsthour,iparm
      &                 ,gribver,g2_jpdtn,iggret)
+
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,33) date_time(5),date_time(6),date_time(7)
+ 33   format (1x,'TIMING: vint after getgridinfo ',i2.2,':',i2.2
+     &        ,':',i2.2)
 
       allocate (xinpdat(kf,nlevsin),stat=iha)
       allocate (xoutdat(kf,nlevsout),stat=iho)
@@ -107,11 +123,26 @@ c
      &           ,readflag,xinpdat,ifcsthour,iparm,gribver,g2_jpdtn
      &           ,igdret)
 
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,34) date_time(5),date_time(6),date_time(7)
+ 34   format (1x,'TIMING: vint after getdata ',i2.2,':',i2.2
+     &        ,':',i2.2)
+
       call interp_data (kf,valid_pt,nlevsin,ilevs,maxlev,readflag
      &                 ,xinpdat,xoutdat,xoutlevs_p,nlevsout,iidret)
 
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,35) date_time(5),date_time(6),date_time(7)
+ 35   format (1x,'TIMING: vint after interp_data ',i2.2,':',i2.2
+     &        ,':',i2.2)
+
       call output_data (lout,kf,kpds,kgds,holdgfld,xoutdat,valid_pt
      &                ,xoutlevs_p,nlevsout,gribver,iodret)
+
+      call date_and_time (big_ben(1),big_ben(2),big_ben(3),date_time)
+      write (6,36) date_time(5),date_time(6),date_time(7)
+ 36   format (1x,'TIMING: vint after output_data ',i2.2,':',i2.2
+     &        ,':',i2.2)
 
       deallocate (xinpdat)
       deallocate (xoutdat)
@@ -218,7 +249,7 @@ c
 
       implicit none
 c
-      type(gribfield) :: gfld,prevfld,holdgfld
+      type(gribfield) :: holdgfld
       integer,dimension(200) :: jids,jpdt,jgdt
       logical(1), allocatable :: lb(:)
       integer, parameter :: jf=4000000
@@ -258,15 +289,15 @@ c
         ! ---  Initialize Variables ---
         !
 
-        gfld%idsect => NULL()
-        gfld%local => NULL()
-        gfld%list_opt => NULL()
-        gfld%igdtmpl => NULL()
-        gfld%ipdtmpl => NULL()
-        gfld%coord_list => NULL()
-        gfld%idrtmpl => NULL()
-        gfld%bmap => NULL()
-        gfld%fld => NULL()
+        holdgfld%idsect => NULL()
+        holdgfld%local => NULL()
+        holdgfld%list_opt => NULL()
+        holdgfld%igdtmpl => NULL()
+        holdgfld%ipdtmpl => NULL()
+        holdgfld%coord_list => NULL()
+        holdgfld%idrtmpl => NULL()
+        holdgfld%bmap => NULL()
+        holdgfld%fld => NULL()
 
         jdisc=0 ! meteorological products
         jids=-9999
@@ -295,7 +326,7 @@ c       Search for Temperature or GP Height by production template....
         jpdt(9) = ifcsthour
 
         call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn,jgdt
-     &             ,unpack,krec,gfld,iret)
+     &             ,unpack,krec,holdgfld,iret)
         if ( iret.ne.0) then
           print *,' '
           print *,' ERROR: getgb2 error in getgridinfo = ',iret
@@ -306,41 +337,45 @@ c       The default packing is 40  JPEG 2000
 
         ipack = 40
 
-        print *,' gfld%idrtnum = ', gfld%idrtnum
+        print *,' holdgfld%idrtnum = ', holdgfld%idrtnum
 
         !   Set DRT info  ( packing info )
-        if ( gfld%idrtnum.eq.0 ) then      ! Simple packing
+        if ( holdgfld%idrtnum.eq.0 ) then      ! Simple packing
           ipack = 0
-        elseif ( gfld%idrtnum.eq.2 ) then  ! Complex packing
+        elseif ( holdgfld%idrtnum.eq.2 ) then  ! Complex packing
           ipack = 2
-        elseif ( gfld%idrtnum.eq.3 ) then  ! Complex & spatial packing
+        elseif ( holdgfld%idrtnum.eq.3 ) then  ! Complex & spatial
+                                               ! packing
           ipack = 31
-        elseif ( gfld%idrtnum.eq.40.or.gfld%idrtnum.eq.15 ) then
+        elseif ( holdgfld%idrtnum.eq.40.or.holdgfld%idrtnum.eq.15 ) then
           ! JPEG 2000 packing
           ipack = 40
-        elseif ( gfld%idrtnum.eq.41 ) then  ! PNG packing
+        elseif ( holdgfld%idrtnum.eq.41 ) then  ! PNG packing
           ipack = 41
         endif
 
         print *,'After check of idrtnum, ipack= ',ipack
 
-        print *,'Number of gridpts= gfld%ngrdpts= ',gfld%ngrdpts
-        print *,'Number of elements= gfld%igdtlen= ',gfld%igdtlen
-        print *,'PDT num= gfld%ipdtnum= ',gfld%ipdtnum
-        print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
+        print *,'Number of gridpts= holdgfld%ngrdpts= ',holdgfld%ngrdpts
+        print *,'Number of elements= holdgfld%igdtlen= '
+     &         ,holdgfld%igdtlen
+        print *,'PDT num= holdgfld%ipdtnum= ',holdgfld%ipdtnum
+        print *,'GDT num= holdgfld%igdtnum= ',holdgfld%igdtnum
 
-        imax = gfld%igdtmpl(8)
+        imax = holdgfld%igdtmpl(8)
         print *,'at A'
-        jmax = gfld%igdtmpl(9)
+        jmax = holdgfld%igdtmpl(9)
         print *,'at B'
-        dx   = float(gfld%igdtmpl(17))/1.e6
+        dx   = float(holdgfld%igdtmpl(17))/1.e6
         print *,'at C'
-        dy   = float(gfld%igdtmpl(17))/1.e6
+        dy   = float(holdgfld%igdtmpl(17))/1.e6
         print *,'at D'
-        kf   = gfld%ngrdpts
+        kf   = holdgfld%ngrdpts
         print *,'at E'
 
-        holdgfld = gfld
+c        holdgfld = gfld
+c
+c        call gf_free (gfld)
 
       else
 
@@ -400,7 +435,7 @@ c     tracked parameters.
 
       implicit none
 c
-      type(gribfield) :: gfld,prevfld
+      type(gribfield) :: gfld
       CHARACTER(len=8) :: pabbrev
       integer,dimension(200) :: jids,jpdt,jgdt
       logical(1)  valid_pt(kf),lb(kf),readflag(nlevsin)
@@ -503,7 +538,7 @@ c         choose to average something else in the future.
           print *,'after getgb2 call, value of unpacked = '
      &           ,gfld%unpacked
 
-          print *,'after getgb2 call, gfld%ndpts = ',gfld%ndpts
+          print *,'after getgb2 call, gfld%ngrdpts = ',gfld%ngrdpts
           print *,'after getgb2 call, gfld%ibmap = ',gfld%ibmap
 
           if ( iret == 0) then
@@ -536,7 +571,7 @@ c           The default packing is 40  JPEG 2000
             print *,'Number of elements= gfld%igdtlen= ',gfld%igdtlen
             print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
 
-            kf = gfld%ndpts  ! Number of gridpoints returned from read
+            kf = gfld%ngrdpts  ! Number of gridpoints returned from read
 
             do np = 1,kf
               xinpdat(np,lev)  = gfld%fld(np)
@@ -630,7 +665,8 @@ c           Get parameter abbrev for record that was retrieved
             print '(i5,3x,a8,2x,6i5,2x,i8,4g12.4)'
      &          ,krec,pabbrev,pdt_4p0_vert_level/100,gfld%idsect(6)
      &             ,gfld%idsect(7),gfld%idsect(8),gfld%idsect(9)
-     &             ,pdt_4p0_vtime,gfld%ndpts,firstval,lastval,dmin,dmax
+     &             ,pdt_4p0_vtime,gfld%ngrdpts,firstval,lastval
+     &             ,dmin,dmax
 
             do np = 1,kf
               xinpdat(np,lev) = gfld%fld(np)
@@ -650,6 +686,8 @@ c           Get parameter abbrev for record that was retrieved
             enddo
 
           endif
+
+          call gf_free (gfld)
 
         else
 
