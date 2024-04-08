@@ -33951,6 +33951,58 @@ c
         print *,'fxy(ix,jx)= ',fxy(ix,jx),' xcentval= ',xcentval
       endif
 
+c     First, check the value entered by the user for the contour inteval
+c     to ensure that it has the same units as the MSLP values in the 
+c     input synoptic data file.o
+
+      if (xcentval < 1100.0) then
+        ! Pressure units from input data are in mb.  Check to see what
+        ! units the user-input MSLP contour interval are in.
+        if (trkrinfo%contint <= 10.0) then
+          ! User-input units are also in mb, so just leave as is.
+          continue
+        elseif (trkrinfo%contint >10.0) then
+          ! User-input units are likely in Pa, so convert to mb.
+          trkrinfo%contint = trkrinfo%contint / 100.0
+        endif
+      elseif (xcentval > 80000.0) then
+        ! Pressure units from input data are in Pa.  Check to see what
+        ! units the user-input MSLP contour interval are in.
+        if (trkrinfo%contint <= 10.0) then
+          ! User-input units are in mb, so need to convert to Pa.
+          trkrinfo%contint = trkrinfo%contint * 100.0
+        else if (trkrinfo%contint >10.0) then
+          ! User-input units are likely in Pa, so leave as is.
+          continue
+        endif
+      else
+        if (verb .ge. 3) then
+          print *,' '
+          print *,'ERROR: Something wrong in subroutine'
+          print *,'       check_closed_contour.  The mslp value'
+          print *,'       (xcentval) is not in range.'
+          print *,'       xcentval = ',xcentval
+          print *,'       EXITING....'
+          print *,' '
+          stop 95
+        endif
+      endif
+
+      if (verb .ge. 3) then
+        print *,' '
+        print *,' + + + + + + + + + + + + + + + + + + + + + + + + + + '
+        print *,' '
+        print *,'IMPORTANT NOTE: Ensure that the units for MSLP from'
+        print *,'the data file match with the units the user has' 
+        print *,'entered for the contour interval to check here in'
+        print *,'subroutine check_closed_contour....' 
+        print *,' '
+        print *,'xcentval= ',xcentval,'  trkrinfo%contint= '
+     &         ,trkrinfo%contint
+        print *,' '
+        print *,' + + + + + + + + + + + + + + + + + + + + + + + + + + '
+      endif
+
 c     First, set up the contour intervals that will be used.  In
 c     the original version of this code, we used preset 
 c     standard intervals (984,988,992,996,1000,1004....).  But upon
