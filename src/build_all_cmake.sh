@@ -51,7 +51,7 @@ elif [ $target = gaea ]; then
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
 fi
-make -j 8 VERBOSE=1
+make VERBOSE=1
 make install
 
 cd ..
