@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
 source ./machine-setup.sh > /dev/null 2>&1
@@ -32,6 +32,10 @@ elif [ $target = gaea ]; then
   export FC=ftn
   export F90=ftn
   export CC=icc
+elif [ $target = ppan ]; then
+  export FC=ifort
+  export F90=ifort
+  export CC=icc
 else
   echo "Unknown machine = $target"
   exit 1
@@ -51,7 +55,7 @@ elif [ $target = gaea ]; then
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
 fi
-make -j 8 VERBOSE=1
+make VERBOSE=1
 make install
 
 cd ..

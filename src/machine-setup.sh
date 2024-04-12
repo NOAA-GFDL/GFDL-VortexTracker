@@ -108,11 +108,14 @@ elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
         # before loading the module command.  Without those variables,
         # the module command fails.  Hence we actually have to source
         # /etc/profile here.
-        echo load the module command 1>&2
+        source $MODULESHOME/init/bash
+	echo load the module command 1>&2
     fi
     target=gaea
 elif [[ "$(hostname)" =~ "odin" ]]; then
     target="odin"
+elif [[ -d /home/$USER && -d /work/$USER ]] ; then
+    target="ppan"
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
