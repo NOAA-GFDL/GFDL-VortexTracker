@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -ex
 source ./machine-setup.sh > /dev/null 2>&1
