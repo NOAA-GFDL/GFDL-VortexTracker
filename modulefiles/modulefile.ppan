@@ -1,6 +1,4 @@
-#%Module#####################################################
-## Module file for tracker
-#############################################################
+# set up module environment on ppan
 proc ModulesHelp { } {
     puts stderr "Set environment variables for compiling or running tracker"
 }

@@ -1,6 +1,5 @@
-#%Module#####################################################
-## Module file for tracker
-#############################################################
+# set up module environment on gaea
+
 proc ModulesHelp { } {
     puts stderr "Set environment variables for compiling or running tracker"
 }
