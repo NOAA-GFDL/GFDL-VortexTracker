@@ -23,7 +23,5 @@ find_package(bacio REQUIRED)
 find_package(w3nco REQUIRED)
 find_package(w3emc REQUIRED)
 
-add_subdirectory(src/support/supvit/)
-add_subdirectory(src/support/tave/)
-add_subdirectory(src/support/vint/)
+add_subdirectory(src/support/)
 add_subdirectory(src/tracker/)
