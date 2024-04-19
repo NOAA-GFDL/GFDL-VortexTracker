@@ -12,3 +12,8 @@ set(supvit_srcs
   CACHE INTERNAL "")
 
 add_executable(supvit.x ${supvit_srcs})
+
+target_include_directories(
+  supvit.x PUBLIC
+  w3emc
+  g2)
