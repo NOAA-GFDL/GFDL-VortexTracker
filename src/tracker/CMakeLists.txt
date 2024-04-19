@@ -1,8 +1,9 @@
-#=======================================================================
-#$$$ CMAKEFILE DOCUMENTATION BLOCK
-# Biju Thomas
-# Email: biju.thomas@noaa.gov
-#=======================================================================
+#----------------------------------------------------------
+# Last edited by: Caitlyn Mcallister
+# Originated by: Biju Thomas
+# Email: caitlyn.mcallister@noaa.gov
+#        timothy.marchok@noaa.gov
+#----------------------------------------------------------
 
 set(tracker_srcs
   gettrk_modules.f 
