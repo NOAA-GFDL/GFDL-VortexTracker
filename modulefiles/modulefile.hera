@@ -1,8 +1,4 @@
 # set up module environment on hera
-proc ModulesHelp { } {
-    puts stderr "Set environment variables for compiling or running tracker"
-}
-module-whatis "tracker prerequisites"
 
 module use /scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.6.0/envs/unified-env-rocky8/install/modulefiles/Core/
 module load stack-intel

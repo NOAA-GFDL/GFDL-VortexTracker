@@ -1,8 +1,4 @@
 # set up module environment on wcoss_cray
-proc ModulesHelp { } {
-    puts stderr "Set environment variables for compiling or running tracker"
-}
-module-whatis "tracker prerequisites"
 
 module load PrgEnv-intel
 module rm intel

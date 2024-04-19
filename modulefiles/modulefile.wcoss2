@@ -1,8 +1,4 @@
 # set up module environment on wcoss2
-proc ModulesHelp { } {
-    puts stderr "Set environment veriables for compiling or running HAFS"
-}
-module-whatis " HAFS model prerequisites"
 
 # System and compiler prereqs:
 module purge
