@@ -13,7 +13,9 @@ set(supvit_srcs
 
 add_executable(supvit.x ${supvit_srcs})
 
-target_include_directories(
-  supvit.x PUBLIC
+target_link_libraries(
+  supvit.x
+  g2
+  bacio
   w3emc
-  g2)
+  w3nco)
