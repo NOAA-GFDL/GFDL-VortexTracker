@@ -4213,7 +4213,8 @@ c           knots (1.9427) is explained in output_atcf.
                   ! using the values from tcvitals for this storm.
 
                   istmdir = storm(ist)%tcv_stdir
-                  istmspd = storm(ist)%tcv_stspd
+                  istmspd = nint((float(storm(ist)%tcv_stspd) / 10.0)
+     &                      * 1.9427)
 
                   write (6,291) storm(ist)%tcv_storm_id
      &                         ,storm(ist)%tcv_storm_name
@@ -14864,7 +14865,7 @@ c     is requested.
       stmspd  = distm / dt
 
       stmspdkts = stmspd * conv_ms_knots
-      istmspd = int ((stmspdkts * 10) + 0.5)
+      istmspd = nint (stmspdkts)
 
       xincr = slonfg(ist,ifh+1) - fixlon(ist,ifh)
       yincr = slatfg(ist,ifh+1) - fixlat(ist,ifh)
