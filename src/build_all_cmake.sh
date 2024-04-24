@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ./machine-setup.sh > /dev/null 2>&1
+source machine-setup.sh
 
 module use ../modulefiles
 module load modulefile.$target
