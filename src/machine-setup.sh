@@ -10,6 +10,7 @@ if [[ -d /lfs4 ]] ; then
     fi
     target=jet
     module purge
+
 elif [[ -d /scratch1/NCEPDEV ]] ; then
     # We are on NOAA Hera
     if ( ! eval module help > /dev/null 2>&1 ) ; then
@@ -18,6 +19,7 @@ elif [[ -d /scratch1/NCEPDEV ]] ; then
     fi
     target=hera
     module purge
+
 elif [[ -d /work/noaa ]] ; then
     # We are on MSU Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
@@ -30,6 +32,7 @@ elif [[ -d /work/noaa ]] ; then
     module use /apps/contrib/modulefiles
     module use /apps/contrib/NCEPLIBS/lib/modulefiles
     module use /apps/contrib/NCEPLIBS/orion/modulefiles
+
 elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     # We are on NOAA Luna or Surge
     if ( ! eval module help > /dev/null 2>&1 ) ; then
@@ -63,9 +66,11 @@ elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     module use /opt/cray/ari/modulefiles
     module use /opt/modulefiles
     module load modules
+
 elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
     target=wcoss2
     . $MODULESHOME/init/sh
+
 elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     # We are on GAEA.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
@@ -78,10 +83,10 @@ elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
 	echo load the module command 1>&2
     fi
     target=gaea
-elif [[ "$(hostname)" =~ "odin" ]]; then
-    target="odin"
+
 elif [[ -d /home/$USER && -d /work/$USER ]] ; then
     target="ppan"
+
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
