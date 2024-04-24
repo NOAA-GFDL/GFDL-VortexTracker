@@ -34,7 +34,7 @@ elif [[ -d /work/noaa ]] ; then
     module use /apps/contrib/NCEPLIBS/orion/modulefiles
 
 elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
-    # We are on NOAA Luna or Surge
+    # We are on wcoss_cray
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         echo load the module command 1>&2
         source /opt/modules/default/init/$__ms_shell
