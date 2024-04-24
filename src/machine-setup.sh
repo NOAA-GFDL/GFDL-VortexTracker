@@ -102,9 +102,3 @@ elif [[ -d /home/$USER && -d /work/$USER ]] ; then
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
-
-unset __ms_shell
-unset __ms_ksh_test
-unset __ms_bash_test
-unset $__ms_function_name
-unset __ms_function_name
