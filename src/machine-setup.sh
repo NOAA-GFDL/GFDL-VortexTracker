@@ -1,20 +1,3 @@
-# Create a test function for sh vs. bash detection.  The name is
-# randomly generated to reduce the chances of name collision.
-__ms_function_name="setup__test_function__$$"
-eval "$__ms_function_name() { /bin/true ; }"
-
-# Determine which shell we are using
-__ms_ksh_test=$( eval '__text="text" ; if [[ $__text =~ ^(t).* ]] ; then printf "%s" ${.sh.match[1]} ; fi' 2> /dev/null | cat )
-__ms_bash_test=$( eval 'if ( set | grep '$__ms_function_name' | grep -v name > /dev/null 2>&1 ) ; then echo t ; fi ' 2> /dev/null | cat )
-
-if [[ ! -z "$__ms_ksh_test" ]] ; then
-    __ms_shell=ksh
-elif [[ ! -z "$__ms_bash_test" ]] ; then
-    __ms_shell=bash
-else
-    # Not bash or ksh, so assume sh.
-    __ms_shell=sh
-fi
 
 target=""
 USERNAME=`echo $LOGNAME | awk '{ print tolower($0)'}`
