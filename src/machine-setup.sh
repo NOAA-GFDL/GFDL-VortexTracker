@@ -74,11 +74,6 @@ elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
 elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     # We are on GAEA.
     if ( ! eval module help > /dev/null 2>&1 ) ; then
-        # We cannot simply load the module command.  The GAEA
-        # /etc/profile modifies a number of module-related variables
-        # before loading the module command.  Without those variables,
-        # the module command fails.  Hence we actually have to source
-        # /etc/profile here.
         source $MODULESHOME/init/bash
 	echo load the module command 1>&2
     fi
