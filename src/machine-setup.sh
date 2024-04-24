@@ -63,15 +63,6 @@ elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     module use /opt/cray/ari/modulefiles
     module use /opt/modulefiles
     module load modules
-elif [[ -L /usrx && "$( readlink /usrx 2> /dev/null )" =~ dell ]] ; then
-    # We are on NOAA Venus or Mars
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        echo load the module command 1>&2
-        source /usrx/local/prod/lmod/lmod/init/$__ms_shell
-    fi
-    target=wcoss_dell_p3
-    module purge
-    source /usrx/local/prod/lmod/lmod/init/$__ms_shell
 elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
     target=wcoss2
     . $MODULESHOME/init/sh
