@@ -6,7 +6,7 @@ if [[ -d /lfs4 ]] ; then
     # We are on NOAA Jet
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         echo load the module command 1>&2
-        source /apps/lmod/lmod/init/$__ms_shell
+        source /apps/lmod/lmod/init/
     fi
     target=jet
     module purge
