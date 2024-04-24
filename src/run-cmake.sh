@@ -50,7 +50,7 @@ fi
 mkdir build
 cd build
 
-# run cmake
+# build
 if [ $target = wcoss_cray ]; then
   cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 elif [ $target = gaea ]; then
@@ -58,9 +58,13 @@ elif [ $target = gaea ]; then
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
 fi
-make VERBOSE=1
+
+# compile
+make
+
+# install executables in exec/ directory
 make install
 
+# back out of build directory
 cd ..
-
 exit
