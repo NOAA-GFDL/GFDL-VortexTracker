@@ -2,8 +2,8 @@
 
 source machine-setup.sh
 
-module use ../modulefiles
-module load modulefile.$target
+cd ../modulefiles
+source modulefile.$target
 module list
 
 
