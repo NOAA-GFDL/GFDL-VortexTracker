@@ -29,11 +29,6 @@ set(tave_srcs
 
 add_executable(tave.x ${tave_srcs})
 
-target_include_directories(
-  tave.x PUBLIC
-  g2::g2_d
-  w3emc::w3emc_d)
-
 target_link_libraries(
   tave.x
   g2::g2_d
