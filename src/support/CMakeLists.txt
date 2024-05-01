@@ -13,6 +13,8 @@ set(supvit_srcs
 
 add_executable(supvit.x ${supvit_srcs})
 
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+
 target_link_libraries(
   supvit.x
   g2::g2_d
@@ -29,6 +31,8 @@ set(tave_srcs
 
 add_executable(tave.x ${tave_srcs})
 
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+
 target_link_libraries(
   tave.x
   g2::g2_d
@@ -44,6 +48,8 @@ set(vint_srcs
         CACHE INTERNAL "")
 
 add_executable(vint.x ${tave_srcs})
+
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
 
 target_link_libraries(
   vint.x

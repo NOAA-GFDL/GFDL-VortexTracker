@@ -14,6 +14,8 @@ set(tracker_src
 
 add_executable(gettrk.x ${tracker_src})
 
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+
 target_link_libraries(
   gettrk.x
   g2::g2_d
