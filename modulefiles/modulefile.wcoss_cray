@@ -1,3 +1,4 @@
+# this script is out of date but should be functional, it will be updated soon
 # set up module environment on wcoss_cray
 
 module load PrgEnv-intel
