@@ -15,8 +15,7 @@ the particular format needed by the Tropical Prediction Center, and provides the
 
 For more documentation on how the tracker runs in genesis mode or the wind radii and axisymmetric diagnostic schemes please see genesisdoc.md and radiidoc.md, respectively.
 
-## Dependices, Installation, Compiling, Running
-⚠️ IN CONSTRUCTION ⚠️
+## Dependices, Installation, Compiling, Running, Testing
 
 The following external libraries are required for buildig the vortex tracker:
   * NETCDF and Fortran (77/90)
@@ -28,15 +27,38 @@ The following external libraries are required for buildig the vortex tracker:
 
 ### Instructions for building & installing with cmake:
 
-As of right now, building & installing with cmake is only setup to work on RDHPCS systems Hera, Jet, and 
-Orion. 
-If on one of these systems :
-  1.      module load cmake
-  2.      cd src/
-  3.      ./build_all_cmake.sh
+The tracker is currently set up to compile and install on RDHPC systems: Gaea, Jet, Hera, PPAN, and WCOSS2.
+There are two ways to use the cmake build:
 
-❗ Stay tuned for building instructions for other systems ❗
+### Option 1 (automatic) ###
+```
+git clone git clone https://github.com/NOAA-GFDL/GFDL-VortexTracker.git
+cd src/
+./run-cmake.sh
+```
 
-### Running Vortex Tracker
+### Option 2 (manual) ###
+```
+git clone git clone https://github.com/NOAA-GFDL/GFDL-VortexTracker.git
+mkdir build && cd build
+source ../modulefiles/modulefile<name of machine>    # for example, modulefile.ppan or modulefile.jet
+cmake ..
+make
+make install
+```
 
- ❗ COMING SOON ❗
+❗ Things to know in order to successfully compile: <br />
+    If on PPAN -- ensure that you have a clean module environment before running the modulefile.ppan <br />
+    If on GAEA -- user will need to set this environment variable <br />
+               export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6    # if on bash <br />
+               setenv LD_PRELOAD /opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6    # if on csh  <br />
+
+### Running the Vortex Tracker
+
+As of now, the user will need to create their own run script to use the tracker with.
+COMING SOON -- 
+More instructions on what input the tracker needs to funtion properly
+A runscript that will be provided is currently in progress
+
+### Testing
+A testing suite is being made, please stand by for further instructions
