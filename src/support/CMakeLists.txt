@@ -5,6 +5,9 @@
 #        timothy.marchok@noaa.gov
 #----------------------------------------------------------
 
+# fortran flags
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+
 # set up build for supvit support code
 set(supvit_srcs
   supvit/supvit_main.f
@@ -12,8 +15,6 @@ set(supvit_srcs
   CACHE INTERNAL "")
 
 add_executable(supvit.x ${supvit_srcs})
-
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
 
 target_link_libraries(
   supvit.x
@@ -31,8 +32,6 @@ set(tave_srcs
 
 add_executable(tave.x ${tave_srcs})
 
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
-
 target_link_libraries(
   tave.x
   g2::g2_d
@@ -48,8 +47,6 @@ set(vint_srcs
         CACHE INTERNAL "")
 
 add_executable(vint.x ${tave_srcs})
-
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
 
 target_link_libraries(
   vint.x
