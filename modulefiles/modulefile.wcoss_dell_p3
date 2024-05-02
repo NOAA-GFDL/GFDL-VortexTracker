@@ -1,10 +1,4 @@
-#%Module#####################################################
-## Module file for tracker
-#############################################################
-proc ModulesHelp { } {
-    puts stderr "Set environment variables for compiling or running tracker"
-}
-module-whatis "tracker prerequisites"
+# set up module environment on wcoss_dell
 
 module load ips/18.0.5.274
 module load impi/18.0.1

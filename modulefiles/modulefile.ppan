@@ -1,10 +1,4 @@
-#%Module#####################################################
-## Module file for tracker
-#############################################################
-proc ModulesHelp { } {
-    puts stderr "Set environment variables for compiling or running tracker"
-}
-module-whatis "tracker prerequisites"
+# set up module environment on ppan
 
 module load intel-oneapi-compilers
 

@@ -1,12 +1,4 @@
-#%Module#####################################################
-##      Biju.Thomas@noaa.gov
-##     NOAA NCEP EMC, IMSG contractor
-## HAFS prerequisites for WCOSS2
-#############################################################
-proc ModulesHelp { } {
-    puts stderr "Set environment veriables for compiling or running HAFS"
-}
-module-whatis " HAFS model prerequisites"
+# set up module environment on wcoss2
 
 # System and compiler prereqs:
 module purge
