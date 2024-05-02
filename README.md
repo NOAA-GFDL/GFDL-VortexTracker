@@ -60,5 +60,5 @@ COMING SOON --
 More instructions on what input the tracker needs to funtion properly
 A runscript that will be provided is currently in progress
 
-### Testing
+### Testing the Tracker
 A testing suite is being made, please stand by for further instructions
