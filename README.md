@@ -50,8 +50,8 @@ make install
 ❗ Things to know in order to successfully compile: <br />
     If on PPAN -- ensure that you have a clean module environment before running the modulefile.ppan <br />
     If on GAEA -- user will need to set this environment variable <br />
-               export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6    # if on bash <br />
-               setenv LD_PRELOAD /opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6    # if on csh  <br />
+               `export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6`    # if on bash <br />
+               `setenv LD_PRELOAD /opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6`    # if on csh  <br />
 
 ### Running the Vortex Tracker
 
