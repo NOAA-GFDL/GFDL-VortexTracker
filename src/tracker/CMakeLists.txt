@@ -6,13 +6,13 @@
 #----------------------------------------------------------
 
 set(tracker_src
-  gettrk_main.f
+  gettrk_subroutines.f
   gettrk_modules.f
   module_waitfor.f
   cwaitfor.c
   CACHE INTERNAL "")
 
-add_executable(gettrk.x ${tracker_src})
+add_executable(gettrk.x gettrk_main.f${tracker_src})
 
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
 
