@@ -1,3 +1,6 @@
+       module access_subroutines
+
+        contains
 c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
@@ -35384,3 +35387,5 @@ c      call w3tage('GETTRK  ')
 c
       stop
       end
+
+     end module access_subroutines
