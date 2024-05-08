@@ -337,7 +337,7 @@ c                (max_#_storms, max_fcst_times, max_#_parms)
 c
       USE def_vitals; USE inparms; USE set_max_parms; USE level_parms
       USE trig_vals; USE atcf; USE trkrparms; USE verbose_output
-      USE netcdf_parms
+      USE netcdf_parms; USE access_subroutines
 c
       implicit none
 c
