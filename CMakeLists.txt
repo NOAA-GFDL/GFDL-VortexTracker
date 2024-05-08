@@ -23,5 +23,7 @@ find_package(bacio REQUIRED)
 find_package(w3nco REQUIRED)
 find_package(w3emc REQUIRED)
 
+enable_testing()
+
 add_subdirectory(src/support/)
 add_subdirectory(src/tracker/)
