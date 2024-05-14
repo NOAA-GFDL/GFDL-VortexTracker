@@ -275,7 +275,12 @@ c                       subroutines.
 c
 c   23-07-31  Marchok   Fixed an error in output_atcfunix where I had 
 c                       an extra comma in the output record.
-c 
+c
+c   24-05-14  McAlli.   Adds unit test capabilities; in order to have this
+c                       a module wrapper must be placed around all the 
+c                       subroutines. The main program and all subroutines
+c                       have been placed in seperate files for this to work.
+c
 c
 c Input files:
 c   unit   11    Unblocked GRIB1 file containing model data
