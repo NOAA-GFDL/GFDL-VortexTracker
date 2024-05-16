@@ -48,12 +48,16 @@ target_link_libraries(
 # create test executables
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/src/tracker/exec) # put any build executables in exec directory
 
-add_executable(getcorr.x test_tracker/test_getcorr.F90)
-target_link_libraries(getcorr.x PRIVATE subroutine_lib)
+add_executable(test_getcorr.x test_tracker/test_getcorr.F90)
+target_link_libraries(test_getcorr.x PRIVATE subroutine_lib)
 
-add_executable(is_it_a_storm.x test_tracker/test_is_it_a_storm.F90)
-target_link_libraries(is_it_a_storm.x PRIVATE subroutine_lib)
+add_executable(test_is_it_a_storm.x test_tracker/test_is_it_a_storm.F90)
+target_link_libraries(test_is_it_a_storm.x PRIVATE subroutine_lib)
+
+add_executable(test_get_sfc_center.x test_tracker/test_get_sfc_center.F90)
+target_link_libraries(test_get_sfc_center.x PRIVATE subroutine_lib)
 
 # unit test suite
-add_test(test_getcorr ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/getcorr.x)
-add_test(test_is_it_a_storm ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/is_it_a_storm.x)
+add_test(test_getcorr ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_getcorr.x)
+add_test(test_is_it_a_storm ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_is_it_a_storm.x)
+add_test(test_get_sfc_center ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_get_sfc_center.x)
