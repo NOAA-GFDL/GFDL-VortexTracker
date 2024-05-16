@@ -48,12 +48,12 @@ target_link_libraries(
 # create test executables
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/src/tracker/exec) # put any build executables in exec directory
 
-add_executable(calccorr.x test_tracker/test_calccorr.F90)
-target_link_libraries(calccorr.x PRIVATE subroutine_lib)
+add_executable(getcorr.x test_tracker/test_getcorr.F90)
+target_link_libraries(getcorr.x PRIVATE subroutine_lib)
 
 add_executable(is_it_a_storm.x test_tracker/test_is_it_a_storm.F90)
 target_link_libraries(is_it_a_storm.x PRIVATE subroutine_lib)
 
 # unit test suite
-add_test(test_calccorr ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/calccorr.x)
+add_test(test_getcorr ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/getcorr.x)
 add_test(test_is_it_a_storm ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/is_it_a_storm.x)
