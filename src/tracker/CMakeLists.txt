@@ -63,9 +63,25 @@ target_link_libraries(test_distbear.x PRIVATE subroutine_lib)
 add_executable(test_wtavrg.x test_tracker/test_wtavrg.F90)
 target_link_libraries(test_wtavrg.x PRIVATE subroutine_lib)
 
+add_executable(test_wtavrg_lon.x test_tracker/test_wtavrg_lon.F90)
+target_link_libraries(test_wtavrg_lon.x PRIVATE subroutine_lib)
+
+add_executable(test_avgcalc.x test_tracker/test_avgcalc.F90)
+target_link_libraries(test_avgcalc.x PRIVATE subroutine_lib)
+
+add_executable(test_stdevcalc.x test_tracker/test_stdevcalc.F90)
+target_link_libraries(test_stdevcalc.x PRIVATE subroutine_lib)
+
+add_executable(test_calc_vmag.x test_tracker/test_calc_vmag.F90)
+target_link_libraries(test_calc_vmag.x PRIVATE subroutine_lib)
+
 # unit test suite
 add_test(test_getcorr ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_getcorr.x)
 add_test(test_is_it_a_storm ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_is_it_a_storm.x)
 add_test(test_get_sfc_center ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_get_sfc_center.x)
 add_test(test_distbear ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_distbear.x)
 add_test(test_wtavrg ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_wtavrg.x)
+add_test(test_wtavrg_lon ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_wtavrg_lon.x)
+add_test(test_avgcalc ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_avgcalc.x)
+add_test(test_stdevcalc ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_stdevcalc.x)
+add_test(test_calc_vmag ${subroutine_lib} ${CMAKE_BINARY_DIR}/src/tracker/exec/test_calc_vmag.x)
