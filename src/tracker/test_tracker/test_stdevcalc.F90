@@ -17,7 +17,7 @@ program test_subroutine_stdevcalc
   test_xdat     = (/2.0, 4.0, 6.0, 8.0/)
   test_valid    = .true.
   test_xavg     = 5.0  ! avg of test_xdat
-  expected_stdx = 2.23606797749979 
+  expected_stdx = 2.23606797749979
 
   call stdevcalc(test_xdat, test_kmax, test_valid, test_xavg, test_stdx, isret)
 
