@@ -18,7 +18,7 @@ program test_subroutine_avgcalc
   call avgcalc(test_xdat, test_kmax, test_valid, test_xavg, iaret)
 
   if (test_xavg .ne. expected_xavg) then
-    write(*,*) "Error in test wxtavrg"
+    write(*,*) "Error in test avgcalc"
     write(*,*) "Expected ", expected_xavg, " but got ", test_xavg
     error stop
   endif
