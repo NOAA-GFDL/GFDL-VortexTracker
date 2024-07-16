@@ -288,10 +288,12 @@ ncdf_omega500name="omg500"
 # original NetCDF file, using ncks, and combine them into one file.
 #-----------------------------------------------------------------------
 
-fv3_atmos_file=atmos_sos.nest02.tile7_nested_ltd.nc
-fv3_2d_file=nggps2d.nest02.tile7_nested_ltd.nc
+# User will need to add their file names here, if there are multiple
+# files they will need to be added, i.e. data_file2, data_file3, ...
+data_file1 = atmos_sos.nest02.tile7_nested_ltd.nc
+data_file2 = nggps2d.nest02.tile7_nested_ltd.nc
 
-if [ -s ${wdir}/tshield.${PDY}${cyc}.nc ]; then
+if [ -s ${wdir}/combined.${PDY}${cyc}.nc ]; then
 
   set +x
   echo " "
@@ -300,21 +302,23 @@ if [ -s ${wdir}/tshield.${PDY}${cyc}.nc ]; then
   set -x
 
 else
-
+  # data files need to be added here, name them accordingly
   netcdf_temp_file_1=${wdir}/netcdf_temp_atmos.${PDY}${cyc}.nc
   netcdf_temp_file_2=${wdir}/netcdf_temp_nggps.${PDY}${cyc}.nc
-  netcdf_combined_file=${wdir}/tshield.${PDY}${cyc}.nc
+  netcdf_combined_file=${wdir}/combined.${PDY}${cyc}.nc
 
   if [ -s ${netcdf_temp_file_1} ]; then rm ${netcdf_temp_file_1}; fi
   if [ -s ${netcdf_temp_file_2} ]; then rm ${netcdf_temp_file_2}; fi
   if [ -s ${netcdf_combined_file} ]; then rm ${netcdf_combined_file}; fi
 
-  ncks --fl_fmt=64bit -F -v u850,u700,u500,u200,v850,v700,v500,v200,h900,h850,h800,h750,h700,h650,h600,h550,h500,h450,h400,h350,h300,h200,TMP500_300,q1000,q925,q850,q800,q750,q700,q650,q600,t1000,t925,t800,t750,t700,t650,t600,PRMSL,omg500 ${tshddir}/${fv3_atmos_file} ${netcdf_combined_file} || exit 1
-  ncks --fl_fmt=64bit -F -A -v UGRD10m,VGRD10m,TMPsfc ${tshddir}/${fv3_2d_file} ${netcdf_combined_file} || exit 1
+  # User will need to do a ncdump -c to view all variables within each netcdf file
+  # all variables will have to be listed below. One line/ncks function for each data file
+  ncks --fl_fmt=64bit -F -v u850,u700,u500,u200,v850,v700,v500,v200,h900,h850,h800,h750,h700,h650,h600,h550,h500,h450,h400,h350,h300,h200,TMP500_300,q1000,q925,q850,q800,q750,q700,q650,q600,t1000,t925,t800,t750,t700,t650,t600,PRMSL,omg500 ${data_dir}/${data_file1} ${netcdf_combined_file} || exit 1
+  ncks --fl_fmt=64bit -F -A -v UGRD10m,VGRD10m,TMPsfc ${data_dir}/${data_file2} ${netcdf_combined_file} || exit 1
 
 fi
 
-netcdffile=${wdir}/tshield.${PDY}${cyc}.nc
+netcdffile=${wdir}/combined.${PDY}${cyc}.nc
 
 # This next ncdf_time_units variable is going to either be
 # "hours" or "days".  If it's "hours", then all the time data
