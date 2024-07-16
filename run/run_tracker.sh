@@ -37,7 +37,7 @@ export ncdump=/app/spack/2023.02/linux-rhel7-x86_64/intel-2021.7.1/netcdf-c/4.9.
 ulimit -c unlimited
 
 #-----------------------------------------------------------
-# Set critical initial variables and directories 
+# Set critical initial variables and directories
 #-----------------------------------------------------------
 
 export curymdh=2023082900
