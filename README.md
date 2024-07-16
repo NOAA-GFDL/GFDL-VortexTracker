@@ -61,4 +61,4 @@ More instructions on what input the tracker needs to funtion properly
 A runscript that will be provided is currently in progress
 
 ### Testing the Tracker
-A testing suite is being made, please stand by for further instructions
+A full testing suite is being created - tests will be added as they are completed
