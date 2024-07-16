@@ -126,12 +126,12 @@ fi
 
 num_storms=` cat ${wdir}/vitals.${curymdh} | wc -l`
 
-# A quirk of the I/O for the tracker program is that the 
-# vitals file must exist, even if it's empty (i.e., there 
-# are no storms).  So this next IF statement checks to see if there 
-# are any storms for the current YMDH.  If there are, then we simply 
-# continue after catting the vitals file out for display in the 
-# output file.  If storms do not exist, then do a touch to just 
+# A quirk of the I/O for the tracker program is that the
+# vitals file must exist, even if it's empty (i.e., there
+# are no storms).  So this next IF statement checks to see if there
+# are any storms for the current YMDH.  If there are, then we simply
+# continue after catting the vitals file out for display in the
+# output file.  If storms do not exist, then do a touch to just
 # create an empty file.
 
 if [ ${num_storms} -gt 0 ]; then
