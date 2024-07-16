@@ -87,7 +87,11 @@ if [ ! -d ${wdir} ];     then mkdir -p ${pdir}; fi
 
 cd $wdir
 
-tshddir=/archive/Alex.Kaltenbaugh/NGGPS/T-SHiELD_rt2023/${PDY}.${cyc}Z.C768r10n4_atl_new.RT2022_k22dv1_GFSv16_kjet/pp
+#-------------------------------------------------
+# This path is meant for the data directory only,
+# we will define the data files below.
+#-------------------------------------------------
+data_dir=/archive/Alex.Kaltenbaugh/NGGPS/T-SHiELD_rt2023/${PDY}.${cyc}Z.C768r10n4_atl_new.RT2022_k22dv1_GFSv16_kjet/pp
 
 #----------------------------------------------------
 # Check the TC Vitals to see if there are any 
