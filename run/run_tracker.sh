@@ -518,7 +518,7 @@ else
   >${DATA}/tcvit_genesis_storms.txt
 fi
 
-ln -s -f ${rundir}/${cmodel}.tracker_leadtimes                       fort.15
+ln -s -f ${rundir}/tracker_leadtimes                       fort.15
 
 if [ ${inp_data_type} = 'grib' ]; then
   ln -s -f ${ixfile}                                                 fort.31
