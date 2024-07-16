@@ -482,8 +482,8 @@ echo "             smoothe_mslp_for_gen_scan='${smoothe_mslp_for_gen_scan}'/"  >
 # Now link various files that are either needed as input to the tracker,
 # or are output from the tracker.  Note that the namelist file is linked
 # to a fortran unit, instead of using the standard way of redirect on the
-# the command line (e.g., gettrk.exe < namelist_file).  The reason for 
-# this is that someone from NCEP told me that they encountered an issue 
+# the command line (e.g., gettrk.exe < namelist_file).  The reason for
+# this is that someone from NCEP told me that they encountered an issue
 # on one of the platforms running the tracker where the operating system
 # balked at the use of the redirect.  So, to make things easy, the
 # namelist is just fortran-unit-linked to unit 555 now.
@@ -503,9 +503,6 @@ else
     ln -s -f ${ncdf_ls_mask_filename}                                fort.17
   fi
 fi
-
-# ln -s -f ${DATA}/vitals.upd.${atcfout}.${PDY}${shh}                fort.12
-# ln -s -f ${DATA}/genvitals.upd.${cmodel}.${atcfout}.${PDY}${CYL}   fort.14
 
 if [ -s ${wdir}/vitals.${curymdh} ]; then
   cp ${wdir}/vitals.${curymdh} \
