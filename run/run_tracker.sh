@@ -338,7 +338,7 @@ echo " "
 set -x
 
 #####################################################
-# Populate the namelist, using the variables that 
+# Populate the namelist, using the variables that
 # were declared above.
 #####################################################
 
