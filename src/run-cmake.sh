@@ -4,8 +4,8 @@
 source machine-setup.sh
 
 # loads any module/packages needed for cmake build
-cd ../modulefiles
-source modulefile.$target
+cd ../modulefile-setup
+source $target-setup.sh
 module list
 
 # sets environment variables
