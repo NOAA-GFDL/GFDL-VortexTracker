@@ -7,10 +7,10 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=analysis
 
-#------------------------------------------------------
-# Script written by Tim Marchok
-#                   timothy.marchok@noaa.gov
-#------------------------------------------------------
+#--------------------------------------------------------------
+# Script written by Tim Marchok --> timothy.marchok@noaa.gov
+# Edited by Caitlyn McAllister  --> caitlyn.mcallister@noaa.gov
+#--------------------------------------------------------------
 
 export PS4=' + run_tracker.sh line $LINENO: '
 
