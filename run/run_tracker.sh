@@ -43,8 +43,9 @@ ulimit -c unlimited
 export curymdh=2023082900 # date of netcdf info
 export cmodel=tshd # need this for regular tracker run
 
-export HOMEtrak=/home/Caitlyn.Mcallister/findvariables/
-export rundir=${HOMEtrak}/run/
+export home=/home/Caitlyn.Mcallister/findvariables/
+export rundir=${home}/run/
+export execdir={home}/exec/gettrk.x
 export workroot=/work/Caitlyn.Mcallister/findvariables
 export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
 
