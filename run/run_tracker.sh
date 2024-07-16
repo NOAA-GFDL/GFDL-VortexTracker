@@ -40,8 +40,8 @@ ulimit -c unlimited
 # Set critical initial variables and directories
 #-----------------------------------------------------------
 
-export curymdh=2023082900
-export cmodel=tshd
+export curymdh=2023082900 # date of netcdf info
+export cmodel=tshd # need this for regular tracker run
 
 export HOMEtrak=/home/Caitlyn.Mcallister/findvariables/
 export rundir=${HOMEtrak}/run/
