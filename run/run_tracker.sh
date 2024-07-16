@@ -331,10 +331,10 @@ ncdf_time_units=` ${ncdump} -h ${netcdffile} | \
                   awk -F= '{print $2}'       | \
                   awk -F\" '{print $2}'      | \
                   awk '{print $1}'`
-set +x                          
-echo " "                        
-echo "NetCDF time units pulled from data file = ${ncdf_time_units}" 
-echo " "                        
+set +x
+echo " "
+echo "NetCDF time units pulled from data file = ${ncdf_time_units}"
+echo " "
 set -x
 
 #####################################################
