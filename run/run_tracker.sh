@@ -30,6 +30,8 @@ echo " "
 echo "LD_LIBRARY_PATH= $LD_LIBRARY_PATH"
 echo " "
 
+# this has to be changed depending on what computer user is on
+# put this in setup script
 export ncdump=/app/spack/2023.02/linux-rhel7-x86_64/intel-2021.7.1/netcdf-c/4.9.2-pvuitvtd4ixig2ldwtx2qlqkkefh4ora/bin/ncdump
 
 ulimit -c unlimited
