@@ -58,8 +58,7 @@ export basin=al
 #export trkrtype=tracker
 export trkrtype=tcgen
 
-export outdir_tag=cmtrakout
-wdir=${workroot}/${outdir_tag}/${curymdh}/${cmodel}
+wdir=${workroot}/${curymdh}
 if [ ! -d ${wdir} ]; then mkdir -p ${wdir}; fi
 
 set +x
