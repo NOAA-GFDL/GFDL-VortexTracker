@@ -93,10 +93,9 @@ cd $wdir
 #-------------------------------------------------
 data_dir=/archive/Alex.Kaltenbaugh/NGGPS/T-SHiELD_rt2023/${PDY}.${cyc}Z.C768r10n4_atl_new.RT2022_k22dv1_GFSv16_kjet/pp
 
-#----------------------------------------------------
-# Check the TC Vitals to see if there are any 
-# observed storms for the input ymdh.
-#----------------------------------------------------
+#--------------------------------------------------------------------------------
+# Check the TC Vitals to see if there are any observed storms for the input ymdh.
+#--------------------------------------------------------------------------------
 
 tcvit_logfile=${rundir}/tcvit_logfile.${yyyy}.txt
 
