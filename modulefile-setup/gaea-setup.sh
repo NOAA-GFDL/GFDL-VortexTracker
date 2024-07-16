@@ -15,3 +15,12 @@ module load bacio
 module load w3emc
 module load w3nco
 
+module load nco
+module load cdo
+
+export ncdump=/opt/cray/pe/netcdf/4.9.0.3/bin/ncdump
+
+# for grib data
+module load grib-util
+module load wgrib
+module load wgrib2
