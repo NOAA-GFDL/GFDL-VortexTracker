@@ -113,10 +113,10 @@ if [ ${trkrtype} == 'tracker' ]; then
 
 elif [ ${trkrtype} = 'tcgen' -o ${trkrtype} = 'midlat' ]; then
 
-  # For a genesis run of the tracker, the tracker will try to find 
-  # new storms that develop in the model.  Therefore, it's not 
+  # For a genesis run of the tracker, the tracker will try to find
+  # new storms that develop in the model.  Therefore, it's not
   # necessary to have any TC vitals to try to track already-numbered
-  # storms, but it will do so if any already known storms exist.  
+  # storms, but it will do so if any already known storms exist.
 
   ${tcvit_date} ${curymdh} | egrep "JTWC|NHC"             | \
     grep -v TEST | awk 'substr($0,6,1) !~ /8/ {print $0}'   \
