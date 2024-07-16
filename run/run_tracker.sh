@@ -156,51 +156,51 @@ export trkrnbd=40.0    # boundary only used by tracker if trkrtype = tcgen or mi
 export trkrsbd=7.0     # boundary only used by tracker if trkrtype = tcgen or midlat
 export regtype=altg    # This variable is only needed if trkrtype = tcgen or midlat
 
-COM=${DATA}            
-atcfnum=15             
-atcfname="tgbt"        
-atcfout="tgbt"         
-atcfymdh=${PDY}${cyc}  
+COM=${DATA}
+atcfnum=15
+atcfname="tgbt"
+atcfout="tgbt"
+atcfymdh=${PDY}${cyc}
 max_mslp_850=400.0
-mslpthresh=0.0015      
-v850thresh=1.5000      
-v850_qwc_thresh=1.0000 
-cint_grid_bound_check=0.50     
-modtyp='regional'    
-nest_type='fixed'    
+mslpthresh=0.0015
+v850thresh=1.5000
+v850_qwc_thresh=1.0000
+cint_grid_bound_check=0.50
+modtyp='regional'
+nest_type='fixed'
 export WCORE_DEPTH=1.0
-export PHASEFLAG=y      
-export PHASE_SCHEME=both  
+export PHASEFLAG=y
+export PHASE_SCHEME=both
 #export PHASE_SCHEME=vtt
 #export PHASE_SCHEME=cps
-export STRUCTFLAG=y     
-export IKEFLAG=y        
-export genflag=y       
-export sstflag=y      
+export STRUCTFLAG=y
+export IKEFLAG=y
+export genflag=y
+export sstflag=y
 export shear_calc_flag=y
 
-export gen_read_rh_fields=n   
-# export use_land_mask=y     
-# export read_separate_land_mask_file=y  
-export use_land_mask=n     
-export read_separate_land_mask_file=n  
-export need_to_compute_rh_from_q=y  
-export smoothe_mslp_for_gen_scan=y 
-atcfnum=15     
-atcffreq=600   
-rundescr="xxxx"     
-atcfdescr="xxxx"    
-file_sequence="onebig"  
-# For netCDF files, the lead time units are determined below in 
+export gen_read_rh_fields=n
+# export use_land_mask=y
+# export read_separate_land_mask_file=y
+export use_land_mask=n
+export read_separate_land_mask_file=n
+export need_to_compute_rh_from_q=y
+export smoothe_mslp_for_gen_scan=y
+atcfnum=15
+atcffreq=600
+rundescr="xxxx"
+atcfdescr="xxxx"
+file_sequence="onebig"
+# For netCDF files, the lead time units are determined below in
 # an ncdump scan of the file, so leave this blank.
-lead_time_units=' '    
+lead_time_units=' '
 #       gribver=2     # N/A since we are using NetCDF data for T-SHiELD;
 # g2_jpdtn sets the variable that will be used as "JPDTN" for
 # the call to getgb2, if gribver=2.  jpdtn=1 for ens data,
 # jpdtn=0 for deterministic data.
-g2_jpdtn=0       
-inp_data_type=netcdf   
-model=41        
+g2_jpdtn=0
+inp_data_type=netcdf
+model=41
 
 ATCFNAME=` echo "${atcfname}" | tr '[a-z]' '[A-Z]'`
 
