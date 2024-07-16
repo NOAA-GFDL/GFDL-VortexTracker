@@ -16,3 +16,8 @@ module load g2tmpl
 module load bacio
 module load w3emc
 module load w3nco
+
+module load nco
+module load cdo
+
+export ncdump=/app/spack/2023.02/linux-rhel7-x86_64/intel-2021.7.1/netcdf-c/4.9.2-pvuitvtd4ixig2ldwtx2qlqkkefh4ora/bin/ncdump
