@@ -1,3 +1,5 @@
+source $MODULESHOME/init/bash
+
 # set up module environment on ppan
 
 module load intel-oneapi-compilers
