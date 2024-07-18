@@ -83,8 +83,8 @@ export yyyy=`    echo $curymdh | cut -c1-4`
 export cyc=`     echo $curymdh | cut -c9-10`
 export ymdh=${PDY}${cyc}
 
-export wdir=${workroot}/${PDY}${cyc}/
-export DATA=${workroot}/${PDY}${cyc}/
+export wdir=${workroot}/${PDY}${cyc}
+export DATA=${workroot}/${PDY}${cyc}
 
 if [ ! -d ${workroot} ]; then mkdir -p ${workroot}; fi
 if [ ! -d ${wdir} ];     then mkdir -p ${pdir}; fi
