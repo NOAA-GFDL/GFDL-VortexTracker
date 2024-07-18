@@ -38,7 +38,7 @@ export modulesetup=${home}/modulefile-setup
 export execdir=${home}/exec
 
 # CAITLYN is this used?
-export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
+#export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
 
 export tcvit_date=${home}/files/bin/tcvit_date
 export NDATE=${home}/files/bin/ndate.x
