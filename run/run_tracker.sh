@@ -94,7 +94,7 @@ cd $wdir
 
 # USER - add location of data directory
 # This path is meant for the data directory only, we will define the data files below.
-data_dir=/archive/Alex.Kaltenbaugh/NGGPS/T-SHiELD_rt2023/${PDY}.${cyc}Z.C768r10n4_atl_new.RT2022_k22dv1_GFSv16_kjet/pp
+data_dir=
 
 #--------------------------------------------------------------------------------
 # Check the TC Vitals to see if there are any observed storms for the input ymdh.
