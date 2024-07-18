@@ -290,10 +290,10 @@ ncdf_omega500name="omg500"
 # original NetCDF file, using ncks, and combine them into one file.
 #-----------------------------------------------------------------------
 
-# USER - will need to add their file names here, if there are multiple
+# USER - add file names of netcdf data here, if there are multiple
 # files they will need to be added, i.e. data_file2, data_file3, ...
-data_file1 = atmos_sos.nest02.tile7_nested_ltd.nc
-data_file2 = nggps2d.nest02.tile7_nested_ltd.nc
+data_file1=
+data_file2=
 
 if [ -s ${wdir}/combined.${PDY}${cyc}.nc ]; then
 
