@@ -29,6 +29,14 @@ export cmodel=tshd # USER - need this for regular tracker run
 
 # USER - add paths to location of repository (i.e. home=) and location of workroot
 # no other paths should need to be changed
+# do not add spaces next to = (ex. home=/home/...)
+export home=
+export workroot=
+export rundir=${home}/run
+export srcroot=${home}/src
+export modulesetup=${home}/modulefile-setup
+export execdir=${home}/exec
+
 # CAITLYN is this used?
 export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
 
