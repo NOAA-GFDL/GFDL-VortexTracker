@@ -7,6 +7,9 @@
 #SBATCH --ntasks=1
 #SBATCH --partition=analysis
 
+# USER - all sbatch commands above have to be editted according to
+# which rdhpc system is being used
+
 #--------------------------------------------------------------
 # Script written by Tim Marchok --> timothy.marchok@noaa.gov
 # Edited by Caitlyn McAllister  --> caitlyn.mcallister@noaa.gov
@@ -35,13 +38,12 @@ ulimit -c unlimited
 # Set critical initial variables and directories
 #-----------------------------------------------------------
 
-export curymdh=2023082900 # date of netcdf info
-export cmodel=tshd # need this for regular tracker run
+export curymdh=2023082900 # USER - date from netcdf info
+export cmodel=tshd # USER - need this for regular tracker run
+                   # "tshd" or "shld"
 
-export home=/home/Caitlyn.Mcallister/findvariables/
-export rundir=${home}/run/
-export execdir={home}/exec/gettrk.x
-export workroot=/work/Caitlyn.Mcallister/findvariables
+# USER - add paths to location of repository (i.e. home=) and location of workroot
+# no other paths should need to be changed
 # CAITLYN is this used?
 export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
 
@@ -50,8 +52,8 @@ export NDATE=${home}/files/bin/ndate.x
 
 export gribver=1
 export basin=al
-#export trkrtype=tracker
-export trkrtype=tcgen
+# USER - please choose "tracker" or "tcgen"
+# tracker denotes regular tracker run, tcgen denotes genesis run
 
 wdir=${workroot}/${curymdh}
 if [ ! -d ${wdir} ]; then mkdir -p ${wdir}; fi
@@ -82,10 +84,9 @@ if [ ! -d ${wdir} ];     then mkdir -p ${pdir}; fi
 
 cd $wdir
 
-#-------------------------------------------------
-# This path is meant for the data directory only,
-# we will define the data files below.
-#-------------------------------------------------
+
+# USER - add location of data directory
+# This path is meant for the data directory only, we will define the data files below.
 data_dir=/archive/Alex.Kaltenbaugh/NGGPS/T-SHiELD_rt2023/${PDY}.${cyc}Z.C768r10n4_atl_new.RT2022_k22dv1_GFSv16_kjet/pp
 
 #--------------------------------------------------------------------------------
@@ -213,10 +214,9 @@ want_oci=.TRUE.
 use_backup_mslp_grad_check=${use_backup_mslp_grad_check:-y}
 use_backup_850_vt_check=${use_backup_850_vt_check:-y}
 
-# These next definitions declare the names of the variables inside
-# the data files. This allows the tracker to know the exact
-# name of the record to look for.
-
+# USER - These next definitions declare the names of the variables inside
+# the data files. This allows the tracker to know the exact name of the record to look for.
+# Please match these to the variables within the netcdf data files
 ncdf_num_netcdf_vars=999
 ncdf_rv850name="X"
 ncdf_rv700name="X"
@@ -283,7 +283,7 @@ ncdf_omega500name="omg500"
 # original NetCDF file, using ncks, and combine them into one file.
 #-----------------------------------------------------------------------
 
-# User will need to add their file names here, if there are multiple
+# USER - will need to add their file names here, if there are multiple
 # files they will need to be added, i.e. data_file2, data_file3, ...
 data_file1 = atmos_sos.nest02.tile7_nested_ltd.nc
 data_file2 = nggps2d.nest02.tile7_nested_ltd.nc
@@ -297,7 +297,9 @@ if [ -s ${wdir}/combined.${PDY}${cyc}.nc ]; then
   set -x
 
 else
-  # data files need to be added here, name them accordingly
+  # USER - data files need to be added here, name them accordingly
+  # i.e. if there is a data_file1 and data_file2 above then there will need to be a netcdf_temp_file_1
+  # and netcdf_temp_file_2, and so on if there are more
   netcdf_temp_file_1=${wdir}/netcdf_temp_atmos.${PDY}${cyc}.nc
   netcdf_temp_file_2=${wdir}/netcdf_temp_nggps.${PDY}${cyc}.nc
   netcdf_combined_file=${wdir}/combined.${PDY}${cyc}.nc
@@ -306,7 +308,7 @@ else
   if [ -s ${netcdf_temp_file_2} ]; then rm ${netcdf_temp_file_2}; fi
   if [ -s ${netcdf_combined_file} ]; then rm ${netcdf_combined_file}; fi
 
-  # User will need to do a ncdump -c to view all variables within each netcdf file
+  # USER - will need to do a ncdump -c to view all variables within each netcdf file
   # all variables will have to be listed below. One line/ncks function for each data file
   ncks --fl_fmt=64bit -F -v u850,u700,u500,u200,v850,v700,v500,v200,h900,h850,h800,h750,h700,h650,h600,h550,h500,h450,h400,h350,h300,h200,TMP500_300,q1000,q925,q850,q800,q750,q700,q650,q600,t1000,t925,t800,t750,t700,t650,t600,PRMSL,omg500 ${data_dir}/${data_file1} ${netcdf_combined_file} || exit 1
   ncks --fl_fmt=64bit -F -A -v UGRD10m,VGRD10m,TMPsfc ${data_dir}/${data_file2} ${netcdf_combined_file} || exit 1
