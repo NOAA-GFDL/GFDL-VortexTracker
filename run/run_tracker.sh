@@ -1,6 +1,6 @@
-#!/bin/ksh --login
-#SBATCH -o output/07-09_pt2.out
-#SBATCH -J findvariables
+#!/bin/bash --login
+#SBATCH -o output/
+#SBATCH -J tracker
 #SBATCH --export=ALL
 #SBATCH --time=59   # time limit in minutes
 #SBATCH --mem-per-cpu=8G
