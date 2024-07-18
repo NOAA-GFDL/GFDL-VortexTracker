@@ -594,7 +594,7 @@ echo "before gettrk, Output of ulimit command follows...."
 ulimit -a
 echo "before gettrk, Done: Output of ulimit command."
 
-${execdir} <${namelist}
+${execdir}/gettrk.x <${namelist}
 gettrk_rcc=$?
 
 set +x
