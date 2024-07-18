@@ -17,21 +17,6 @@
 
 export PS4=' + run_tracker.sh line $LINENO: '
 
-module purge
-. /usr/local/Modules/5.1.1/init/ksh
-
-# loads any module/packages needed for cmake build
-cd ../modulefiles
-source modulefile.$target
-
-echo " "
-module list
-echo " "
-
-echo " "
-echo "LD_LIBRARY_PATH= $LD_LIBRARY_PATH"
-echo " "
-
 ulimit -c unlimited
 
 #-----------------------------------------------------------
@@ -54,6 +39,20 @@ export gribver=1
 export basin=al
 # USER - please choose "tracker" or "tcgen"
 # tracker denotes regular tracker run, tcgen denotes genesis run
+export trkrtype=tracker
+
+
+# loads any module/packages needed for cmake build
+cd $srcroot
+source machine-setup.sh
+echo $target
+
+cd $modulesetup
+source $target-setup.sh
+
+echo " "
+module list
+echo " "
 
 wdir=${workroot}/${curymdh}
 if [ ! -d ${wdir} ]; then mkdir -p ${wdir}; fi
