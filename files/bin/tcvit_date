@@ -21,13 +21,17 @@ hh=`       echo $ymdh | cut -c9-10`
 #        awk '{ if (length($0) > 100) {print $0} }'              | \
 
 if [ ${yyyy} -ge 2003 ]; then
-  vitdir=/scratch2/GFDL/gfdlscr/Caitlyn.Mcallister/runtracker/files/vitals
+# USER - change location of path respecively
+# i.e. vitdir=/home/$USER/GFDL-VortexTracker/files/vitals
+  vitdir=files/vitals
   grep  "${yyyymmdd} ${hh}" ${vitdir}/syndat_tcvitals.${yyyy}   | \
         grep -v TEST                                            | \
         sort -k2 -k4 -n -k5 -n -u                               | \
         sort -k4 -n -k5 -n
 else
-  vitdir=/scratch2/GFDL/gfdlscr/Caitlyn.Mcallister/runtracker/files/vitals
+# USER - change location of path respecively
+# i.e. vitdir=/home/$USER/GFDL-VortexTracker/files/vitals
+  vitdir=/files/vitals
   grep  "${yyyymmdd} ${hh}" ${vitdir}/syndat_tcvitals.${yyyy}   | \
         grep -v TEST                                            | \
         sort -k2 -k4 -n -k5 -n -u                               | \
