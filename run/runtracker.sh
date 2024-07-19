@@ -23,9 +23,7 @@ ulimit -c unlimited
 # Set critical initial variables and directories
 #-----------------------------------------------------------
 
-export curymdh=2023082900 # USER - date from netcdf info
-export cmodel=tshd # USER - need this for regular tracker run
-                   # "tshd" or "shld"
+export curymdh=2023082900 # USER - date from model initilization date
 
 # USER - add paths to location of repository (i.e. home=) and location of workroot
 # no other paths should need to be changed
@@ -37,8 +35,10 @@ export srcroot=${home}/code/src
 export modulesetup=${home}/code/modulefile-setup
 export execdir=${home}/code/exec
 
-# CAITLYN is this used?
-#export ncdf_ls_mask_filename=${rundir}/SLMSKsfc_T-SHiELD_C768r10n4_atl_new.RT2021_k21d_GFSv16_gaea.nc
+# this next variable specifies the name of a seperate land-sea mask file
+# that can be used in case the main input netcdf file does not contain its own
+# land-sea mask record
+export ncdf_ls_mask_filename=
 
 export tcvit_date=${home}/files/bin/tcvit_date
 export NDATE=${home}/files/bin/ndate.x
@@ -69,7 +69,6 @@ set +x
 echo " "
 echo "+++ Top of run_tshd_ez.sh, time= `date`"
 echo "    curymdh=    $curymdh"
-echo "    cmodel=     $cmodel"
 echo "    trkrtype=   $trkrtype"
 echo "    gribver=    ${gribver}"
 echo "    wdir=       ${wdir}"
@@ -93,7 +92,7 @@ cd $wdir
 
 
 # USER - add location of data directory
-# This path is meant for the data directory only, we will define the data files below.
+# This path is meant for the input data directory only, we will define the data files below.
 data_dir=
 
 #--------------------------------------------------------------------------------
@@ -102,30 +101,9 @@ data_dir=
 
 tcvit_logfile=${rundir}/tcvit_logfile.${yyyy}.txt
 
-if [ ${trkrtype} == 'tracker' ]; then
-
-  if [ ${cmodel} == 'tshd' ]; then
-    ${tcvit_date} ${curymdh} | grep "NHC"                 | \
-    grep -v TEST | awk 'substr($0,6,1) !~ /8/ {print $0}'   \
-    >${wdir}/vitals.${curymdh}
-  elif [ ${cmodel} == 'shld' ]; then
-    ${tcvit_date} ${curymdh} | egrep "JTWC|NHC"           | \
-    grep -v TEST | awk 'substr($0,6,1) !~ /8/ {print $0}'   \
-    >${wdir}/vitals.${curymdh}
-  fi
-
-elif [ ${trkrtype} = 'tcgen' -o ${trkrtype} = 'midlat' ]; then
-
-  # For a genesis run of the tracker, the tracker will try to find
-  # new storms that develop in the model.  Therefore, it's not
-  # necessary to have any TC vitals to try to track already-numbered
-  # storms, but it will do so if any already known storms exist.
-
-  ${tcvit_date} ${curymdh} | egrep "JTWC|NHC"             | \
-    grep -v TEST | awk 'substr($0,6,1) !~ /8/ {print $0}'   \
-    >${wdir}/vitals.${curymdh}
-
-fi
+${tcvit_date} ${curymdh} | egrep "JTWC|NHC"           | \
+grep -v TEST | awk 'substr($0,6,1) !~ /8/ {print $0}'   \
+>${wdir}/vitals.${curymdh}
 
 num_storms=` cat ${wdir}/vitals.${curymdh} | wc -l`
 
@@ -222,7 +200,7 @@ use_backup_mslp_grad_check=${use_backup_mslp_grad_check:-y}
 use_backup_850_vt_check=${use_backup_850_vt_check:-y}
 
 # USER - These next definitions declare the names of the variables inside
-# the data files. This allows the tracker to know the exact name of the record to look for.
+# the input data files. This allows the tracker to know the exact name of the record to look for.
 # Please match these to the variables within the netcdf data files
 ncdf_num_netcdf_vars=999
 ncdf_rv850name="X"
@@ -285,31 +263,29 @@ ncdf_omega500name="omg500"
 
 
 #-----------------------------------------------------------------------
-# Now define what the input NetCDF files are named and then process
-# the different files to pull out just the records we need from the
-# original NetCDF file, using ncks, and combine them into one file.
+# USER - This is where the input netcdf files will be defined.
+# If there is only one data file, please insert the name of file
+# in the data_file1= variable line.
+# example: data_file1=mydata.nc
+# If there are multiple files they will need to be added like so,
+# i.e. data_file2=mydata2.nc, data_file3=mydata3.nc, ...
+# The different files will pull out just the records we need from the
+# original NetCDF files using ncks, and combine them into one file.
+# More instructions on how to do this are below
 #-----------------------------------------------------------------------
-
-# USER - add file names of netcdf data here, if there are multiple
-# files they will need to be added, i.e. data_file2, data_file3, ...
+need_to_combine=y
 data_file1=
-data_file2=
+#data_file2=
 
-if [ -s ${wdir}/combined.${PDY}${cyc}.nc ]; then
-
-  set +x
-  echo " "
-  echo " +++ Processed T-SHiELD files already.  NOT doing ncks stuff...."
-  echo " "
-  set -x
-
-else
+if [ ${need_to_combine} = 'y' ]; then
   # USER - data files need to be added here, name them accordingly
-  # i.e. if there is a data_file1 and data_file2 above then there will need to be a netcdf_temp_file_1
-  # and netcdf_temp_file_2, and so on if there are more
-  netcdf_temp_file_1=${wdir}/netcdf_temp_atmos.${PDY}${cyc}.nc
-  netcdf_temp_file_2=${wdir}/netcdf_temp_nggps.${PDY}${cyc}.nc
-  netcdf_combined_file=${wdir}/combined.${PDY}${cyc}.nc
+  # i.e. if there is a data_file1 and data_file2 above then there will need to be a
+  # netcdf_temp_file_1=${wdir}/mydata.nc and netcdf_temp_file_2=${wdir}/mydata.nc,
+  # and so on if there are more
+
+  netcdf_temp_file_1=${wdir}/ADDNAMEHERE.${PDY}${cyc}.nc
+  netcdf_temp_file_2=${wdir}/ADDNAMEHERE.${PDY}${cyc}.nc
+  netcdf_combined_file=${wdir}/combined.${PDY}${cyc}.nc # USER - do not change this one, leave as it is
 
   if [ -s ${netcdf_temp_file_1} ]; then rm ${netcdf_temp_file_1}; fi
   if [ -s ${netcdf_temp_file_2} ]; then rm ${netcdf_temp_file_2}; fi
@@ -319,10 +295,17 @@ else
   # all variables will have to be listed below. One line/ncks function for each data file
   ncks --fl_fmt=64bit -F -v u850,u700,u500,u200,v850,v700,v500,v200,h900,h850,h800,h750,h700,h650,h600,h550,h500,h450,h400,h350,h300,h200,TMP500_300,q1000,q925,q850,q800,q750,q700,q650,q600,t1000,t925,t800,t750,t700,t650,t600,PRMSL,omg500 ${data_dir}/${data_file1} ${netcdf_combined_file} || exit 1
   ncks --fl_fmt=64bit -F -A -v UGRD10m,VGRD10m,TMPsfc ${data_dir}/${data_file2} ${netcdf_combined_file} || exit 1
+  netcdffile=${wdir}/combined.${PDY}${cyc}.nc
 
+else
+
+  set +x
+  echo " "
+  echo " +++ Processed T-SHiELD files already.  NOT doing ncks stuff...."
+  echo " "
+  set -x
+  netcdffile=${data_dir}/${data_file1}
 fi
-
-netcdffile=${wdir}/combined.${PDY}${cyc}.nc
 
 # This next ncdf_time_units variable is going to either be
 # "hours" or "days".  If it's "hours", then all the time data
@@ -602,7 +585,7 @@ echo "before gettrk, Output of ulimit command follows...."
 ulimit -a
 echo "before gettrk, Done: Output of ulimit command."
 
-${execdir}/gettrk.x <${namelist}
+${execdir}/gettrk.x
 gettrk_rcc=$?
 
 set +x
