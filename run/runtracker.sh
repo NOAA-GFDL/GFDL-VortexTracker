@@ -199,45 +199,52 @@ want_oci=.TRUE.
 use_backup_mslp_grad_check=${use_backup_mslp_grad_check:-y}
 use_backup_850_vt_check=${use_backup_850_vt_check:-y}
 
+#------------------------------------------------------------------------------
 # USER - These next definitions declare the names of the variables inside
-# the input data files. This allows the tracker to know the exact name of the record to look for.
-# Please match these to the variables within the netcdf data files
+# the input data files. This allows the tracker to know the exact name of the
+# record to look for. Please match these to the variables within the netcdf
+# data files.
+# By default they are all set to "X", user will need to change these variables
+# according to what atmospheric data is in netcdf file.
+# Example: geopotential height @ 500m will need to be changed from
+# ncdf_z500name="X" --> ncdf_z500name=h500
+#------------------------------------------------------------------------------
 ncdf_num_netcdf_vars=999
 ncdf_rv850name="X"
 ncdf_rv700name="X"
-ncdf_u850name="u850"
-ncdf_v850name="v850"
-ncdf_u700name="u700"
-ncdf_v700name="v700"
-ncdf_z850name="h850"
-ncdf_z700name="h700"
-ncdf_mslpname="PRMSL"
-ncdf_usfcname="UGRD10m"
-ncdf_vsfcname="VGRD10m"
-ncdf_u500name="u500"
-ncdf_v500name="v500"
-ncdf_u200name="u200"
-ncdf_v200name="v200"
-ncdf_tmean_300_500_name="TMP500_300"
+ncdf_u850name="X"
+ncdf_v850name="X"
+ncdf_u700name="X"
+ncdf_v700name="X"
+ncdf_z850name="X"
+ncdf_z700name="X"
+ncdf_mslpname="X"
+ncdf_usfcname="X"
+ncdf_vsfcname="X"
+ncdf_u500name="X"
+ncdf_v500name="X"
+ncdf_u200name="X"
+ncdf_v200name="X"
+ncdf_tmean_300_500_name="X"
 ncdf_z500name="X"
 ncdf_z200name="X"
-ncdf_lmaskname="SLMSKsfc"
-ncdf_z900name="h900"
-ncdf_z800name="h800"
-ncdf_z750name="h750"
-ncdf_z650name="h650"
-ncdf_z600name="h600"
-ncdf_z550name="h550"
-ncdf_z500name="h500"
-ncdf_z450name="h450"
-ncdf_z400name="h400"
-ncdf_z350name="h350"
-ncdf_z300name="h300"
-ncdf_time_name="time"
-ncdf_lon_name="grid_xt"
-ncdf_lat_name="grid_yt"
-ncdf_sstname="TMPsfc"
-ncdf_q850name="q850"
+ncdf_lmaskname="X"
+ncdf_z900name="X"
+ncdf_z800name="X"
+ncdf_z750name="X"
+ncdf_z650name="X"
+ncdf_z600name="X"
+ncdf_z550name="X"
+ncdf_z500name="X"
+ncdf_z450name="X"
+ncdf_z400name="X"
+ncdf_z350name="X"
+ncdf_z300name="X"
+ncdf_time_name="X"
+ncdf_lon_name="X"
+ncdf_lat_name="X"
+ncdf_sstname="X"
+ncdf_q850name="X"
 ncdf_rh1000name="X"
 ncdf_rh925name="X"
 ncdf_rh800name="X"
@@ -245,21 +252,21 @@ ncdf_rh750name="X"
 ncdf_rh700name="X"
 ncdf_rh650name="X"
 ncdf_rh600name="X"
-ncdf_spfh1000name="q1000"
-ncdf_spfh925name="q925"
-ncdf_spfh800name="q800"
-ncdf_spfh750name="q750"
-ncdf_spfh700name="q700"
-ncdf_spfh650name="q650"
-ncdf_spfh600name="q600"
-ncdf_temp1000name="t1000"
-ncdf_temp925name="t925"
-ncdf_temp800name="t800"
-ncdf_temp750name="t750"
-ncdf_temp700name="t700"
-ncdf_temp650name="t650"
-ncdf_temp600name="t600"
-ncdf_omega500name="omg500"
+ncdf_spfh1000name="X"
+ncdf_spfh925name="X"
+ncdf_spfh800name="X"
+ncdf_spfh750name="X"
+ncdf_spfh700name="X"
+ncdf_spfh650name="X"
+ncdf_spfh600name="X"
+ncdf_temp1000name="X"
+ncdf_temp925name="X"
+ncdf_temp800name="X"
+ncdf_temp750name="X"
+ncdf_temp700name="X"
+ncdf_temp650name="X"
+ncdf_temp600name="X"
+ncdf_omega500name="X"
 
 
 #-----------------------------------------------------------------------
@@ -267,13 +274,15 @@ ncdf_omega500name="omg500"
 # If there is only one data file, please insert the name of file
 # in the data_file1= variable line.
 # example: data_file1=mydata.nc
-# If there are multiple files they will need to be added like so,
+# If there are multiple files set need_to_combine to = y
+# (need_to_combine=y)
+# Then additional files will need to be added,
 # i.e. data_file2=mydata2.nc, data_file3=mydata3.nc, ...
 # The different files will pull out just the records we need from the
 # original NetCDF files using ncks, and combine them into one file.
 # More instructions on how to do this are below
 #-----------------------------------------------------------------------
-need_to_combine=y
+need_to_combine=n
 data_file1=
 #data_file2=
 
