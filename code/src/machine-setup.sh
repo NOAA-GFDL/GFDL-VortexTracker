@@ -41,6 +41,7 @@ elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     target=gaea
 
 elif [[ -d /home/$USER && -d /work/$USER ]] ; then
+    source $MODULESHOME/init/bashinit
     target="ppan"
 
 else
