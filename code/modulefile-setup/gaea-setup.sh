@@ -19,6 +19,7 @@ module load nco
 module load cdo
 
 export ncdump=/opt/cray/pe/netcdf/4.9.0.3/bin/ncdump
+export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6
 
 # for grib data
 module load grib-util
