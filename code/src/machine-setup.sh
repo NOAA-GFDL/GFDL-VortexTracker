@@ -24,7 +24,7 @@ elif [[ -d /work/noaa ]] ; then
     # We are on MSU Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
 	echo load the module command 1>&2
-        source /apps/lmod/lmod/init/$__ms_shell
+        source /apps/lmod/lmod/init
     fi
     target=orion
 
@@ -41,7 +41,7 @@ elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     target=gaea
 
 elif [[ -d /home/$USER && -d /work/$USER ]] ; then
-    source $MODULESHOME/init/bashinit
+    source $MODULESHOME/init/bash
     target="ppan"
 
 else
