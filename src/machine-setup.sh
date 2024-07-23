@@ -20,7 +20,7 @@ elif [[ -d /scratch1/NCEPDEV ]] ; then
     target=hera
     module purge
 
-elif [[ -d /work/noaa ]] ; then
+elif [[ -d /work/noaa && -d /home/$USER && -d work2/noaa ]] ; then
     # We are on MSU Orion
     if ( ! eval module help > /dev/null 2>&1 ) ; then
 	echo load the module command 1>&2
