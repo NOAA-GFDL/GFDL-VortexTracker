@@ -1,8 +1,8 @@
-# set up module environment on orion
+# set up module environment on hercules
 
 module load cmake
 
-module use /work/noaa/epic/role-epic/spack-stack/orion/spack-stack-1.7.0/envs/ue-intel/install/modulefiles/Core
+module use /work/noaa/epic/role-epic/spack-stack/hercules/spack-stack-1.7.0/envs/ue-intel/install/modulefiles/Core
 module load stack-intel
 
 module load zlib
