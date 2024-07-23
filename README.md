@@ -27,12 +27,13 @@ The following external libraries are required for buildig the vortex tracker:
 
 ### Instructions for building & installing with cmake:
 
-The tracker is currently set up to compile and install on RDHPC systems: Gaea, Jet, Hera, PPAN, and WCOSS2.
+The tracker is currently set up to compile and install on RDHPC systems: Gaea, Jet, Hera, PPAN, Orion, and WCOSS2.
 There are two ways to use the cmake build:
 
 ### Option 1 (automatic) ###
 ```
 git clone git clone https://github.com/NOAA-GFDL/GFDL-VortexTracker.git
+cd code/
 cd src/
 ./run-cmake.sh
 ```
@@ -40,25 +41,53 @@ cd src/
 ### Option 2 (manual) ###
 ```
 git clone git clone https://github.com/NOAA-GFDL/GFDL-VortexTracker.git
+cd code/
 mkdir build && cd build
-source ../modulefiles/modulefile<name of machine>    # for example, modulefile.ppan or modulefile.jet
+source ../modulefile-setup/<name of computer>-setup.sh    # for example, ppan-setup.sh or jet-setup.sh
 cmake ..
 make
 make install
 ```
+<br />
 
 ❗ Things to know in order to successfully compile: <br />
-    If on PPAN -- ensure that you have a clean module environment before running the modulefile.ppan <br />
-    If on GAEA -- user will need to set this environment variable <br />
-               `export LD_PRELOAD=/opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6`    # if on bash <br />
-               `setenv LD_PRELOAD /opt/cray/pe/gcc/12.2.0/snos/lib64/libstdc++.so.6`    # if on csh  <br />
+    Some RDHPC systems require a clean module environment before compiling, <br />
+    if that is the case ensure that a module purge is done first before running any cmake commands
 
 ### Running the Vortex Tracker
 
-As of now, the user will need to create their own run script to use the tracker with.
-COMING SOON -- 
-More instructions on what input the tracker needs to funtion properly
-A runscript that will be provided is currently in progress
+Before running a few steps need to be taken:
+* Edit leadtimes
+* Edit tcvit_date file
+* Edit runscript
+
+**Note:** This runscript is configured for bash shells, if the user is using a different shell please change necessary varibales <br />
+Also, note that the runscript only works for netcdf data for the time being. <br /> <br />
+
+
+**Leadtimes** <br />
+Edit the `tracker_leadtimes` script with the leadtimes that match the input data <br />
+These times must be in minutes <br />
+The file is already populated with times as an example of what the file should look like <br />
+❗ **Important** ❗Due to the way the runscript reads the times in this file, <br />
+the formatting of the times is very important. <br />
+Please ensure the values in each column and row stay in the spaces they are currently in. <br /> <br />
+
+**Runscript** <br />
+` cd run/ ` <br />
+Edit `runtracker.sh` with the editor of your chosing <br />
+Search for the word "USER", this will bring you to all of the sections that need to be modified <br />
+Follow along with the comments in the script for instructions
+
+**tcvit_date file** <br />
+`cd files/bin` <br />
+Edit `tcvit_date` file
+Once again, search for the word "USER" to find where paths will need to be added
+
+
+If any problems or questions arise please email Caitlyn --> caitlyn.mcallister@noaa.gov <br />
+or Timothy Marchok --> timothy.marchok@noaa.gov
+
 
 ### Testing the Tracker
-A testing suite is being made, please stand by for further instructions
+A full testing suite is being created - tests will be added as they are completed
