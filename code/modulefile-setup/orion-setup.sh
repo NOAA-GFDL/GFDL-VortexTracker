@@ -9,7 +9,7 @@ module load stack-intel
 module load zlib
 module load hdf5
 module load netcdf-fortran
-module laoad netcdf-c
+module load netcdf-c
 
 module load libpng
 module load jasper
