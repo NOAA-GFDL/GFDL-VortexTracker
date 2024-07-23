@@ -28,6 +28,14 @@ elif [[ -d /work/noaa ]] ; then
     fi
     target=orion
 
+elif [[ -d /work/noaa && -d /home/$USER && -d work2/noaa ]] ; then
+    # We are on MSU Hercules
+    if ( ! eval module help > /dev/null 2>&1 ) ; then
+        echo load the module command 1>&2
+        source /apps/lmod/lmod/init/
+    fi
+    target=hercules
+
 elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
     target=wcoss2
     . $MODULESHOME/init/sh
