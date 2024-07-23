@@ -32,7 +32,7 @@ elif [[ -d /work/noaa && -d /home/$USER ]] ; then
 
 elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
     target=wcoss2
-    . $MODULESHOME/init/sh
+    source $MODULESHOME/init/sh
 
 elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
     # We are on GAEA.

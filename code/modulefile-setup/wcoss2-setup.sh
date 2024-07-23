@@ -1,4 +1,3 @@
-# this script is out of date but functional, it will be updated soon
 # set up module environment on wcoss2
 
 # System and compiler prereqs:
