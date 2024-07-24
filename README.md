@@ -7,8 +7,7 @@ Relative vorticity (max), wind circulation (max), and geopotential height (min).
 At the surface, the 10-m relative vorticity, wind circulation and MSLP are tracked. 
 So many parameters are tracked in order to provide more accurate 
 position estimates for weaker storms, which often have poorly defined structures/centers.
-Currently, the system is set up to be able to process input files in either GRIB1, GRIB2 or NetCDF format. The tracker use input data from global models and regional models, including those with moveable grids. One of these output files contains the positions at 
-every 12 hours from forecast hour 0 to the end of the forecast. The main output file is in ATCF format, which is the format needed by the National Hurricane Center, and provides forecast guidance at lead times that the user requests.
+Currently, the system is set up to be able to process input files in either GRIB1, GRIB2 or NetCDF format. The tracker use input data from global models and regional models, including those with moveable grids. Text output files from the tracker contain diagnostics for a range of forecast variables. The main output file is in ATCF format, which is the format needed by the National Hurricane Center, and provides forecast guidance at lead times that the user requests.
 
 For more documentation on how the tracker runs in genesis mode or the wind radii and axisymmetric diagnostic schemes please see genesisdoc.md and radiidoc.md, respectively.
 
