@@ -1,17 +1,14 @@
 # 🌊 GFDL Vortex Tracker 🌀
 
-  This program tracks the average of the max or min of several parameters in the vicinity of an input
+This program tracks the average of the max or min of several parameters in the vicinity of an input
 first guess (lat,lon) position of a vortex in order to give forecast position estimates for that vortex for
 given numerical model.  For the levels 700 & 850 mb, the tracked parameters are:
-Relative vorticity (max), wind magnitude (min), and geopotential height (min). 
-Also tracked is the min in the MSLP. So many parameters are tracked in order to provide more accurate 
+Relative vorticity (max), wind circulation (max), and geopotential height (min). 
+At the surface, the 10-m relative vorticity, wind circulation and MSLP are tracked. 
+So many parameters are tracked in order to provide more accurate 
 position estimates for weaker storms, which often have poorly defined structures/centers.
-Currently, the system is set up to be able to process GRIB input data files from the GFS, MRF, UKMET, GDAS,
-ECMWF, NGM, NAM and FNMOC/NAVGEM models. Two 1-line files are  output from this program, both containing the 
-forecast fix positions that the  tracker has obtained.  One of these  output files contains the positions at 
-every 12 hours from forecast hour 0 to the end of the forecast. The other file is in ATCF format, which is 
-the particular format needed by the Tropical Prediction Center, and provides the positions at forecast hours
-12, 24, 36, 48 and 72, plus the maximum wind near the storm center at each of those forecast hours.
+Currently, the system is set up to be able to process input files in either GRIB1, GRIB2 or NetCDF format. The tracker use input data from global models and regional models, including those with moveable grids. One of these output files contains the positions at 
+every 12 hours from forecast hour 0 to the end of the forecast. The main output file is in ATCF format, which is the format needed by the National Hurricane Center, and provides forecast guidance at lead times that the user requests.
 
 For more documentation on how the tracker runs in genesis mode or the wind radii and axisymmetric diagnostic schemes please see genesisdoc.md and radiidoc.md, respectively.
 
@@ -27,7 +24,7 @@ The following external libraries are required for buildig the vortex tracker:
 
 ### Instructions for building & installing with cmake:
 
-The tracker is currently set up to compile and install on RDHPC systems: Gaea, Jet, Hera, PPAN, Orion, and WCOSS2.
+The tracker is currently set up to compile and install on RDHPC systems: Gaea, Jet, Hera, PPAN, Orion, Hercules and WCOSS2.
 There are two ways to use the cmake build:
 
 ### Option 1 (automatic) ###
@@ -61,7 +58,7 @@ Before running a few steps need to be taken:
 * Edit tcvit_date file
 * Edit runscript
 
-**Note:** This runscript is configured for bash shells, if the user is using a different shell please change necessary varibales <br />
+**Note:** This runscript is configured for bash shells, if the user is using a different shell please change necessary variables <br />
 Also, note that the runscript only works for netcdf data for the time being. <br /> <br />
 
 
@@ -79,14 +76,14 @@ Edit `runtracker.sh` with the editor of your chosing <br />
 Search for the word "USER", this will bring you to all of the sections that need to be modified <br />
 Follow along with the comments in the script for instructions
 
-**tcvit_date file** <br />
+**Edit tcvit_date file** <br />
 `cd files/bin` <br />
 Edit `tcvit_date` file
 Once again, search for the word "USER" to find where paths will need to be added
 
 
 If any problems or questions arise please email Caitlyn --> caitlyn.mcallister@noaa.gov <br />
-or Timothy Marchok --> timothy.marchok@noaa.gov
+or Tim Marchok --> timothy.marchok@noaa.gov
 
 
 ### Testing the Tracker
