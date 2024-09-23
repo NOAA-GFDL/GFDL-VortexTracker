@@ -6,7 +6,8 @@ c
 c---------------------------------------------------------------------
       subroutine tracker (inp,maxstorm,numtcv,ifhmax,trkrinfo,ncfile
      &                   ,ncfile_id,nc_lsmask_file,nc_lsmask_file_id
-     &                   ,netcdfinfo,ncfile_has_hour0,ncfile_tmax,itret)
+     &                   ,netcdfinfo,ncfile_has_hour0,ncfile_tmax
+     &                   ,vortex_tilt_levs,num_vortex_tilt_levs,itret)
 c
 c     ABSTRACT: This subroutine is the core of the program.  It contains
 c     the main loop for looping through all the forecast hours and all
@@ -70,6 +71,9 @@ c                2016 version of FV3, do not).
 c     ncfile_tmax integer with max number of time levels in the input
 c                NetCDF file, as read in from the NetCDF file itself in
 c                subroutine  read_netcdf_fhours.
+c     vortex_tilt_levs integer array with the values of the vertical 
+c                levels (in mb) that will used for fixing the 
+c                vertically-varying center fixes.
 c
 c     OUTPUT:
 c     itret      return code from this subroutine
@@ -281,6 +285,8 @@ c
       character close_to_boundary*1,quad_wind_circ_check*4
       integer   vradius(3,4),igridzeta(nlevgrzeta),imeanzeta(nlevgrzeta)
       integer   maxmini(maxstorm),maxminj(maxstorm),pdf_ct_bin(16)
+      integer   vortex_tilt_levs(100)
+      integer   num_vortex_tilt_levs
       integer   ifcsthour,stormct,prevstormct,kf,istmspd,istmdir,iggret
       integer   igiret,iuret,jdum,icount,ilonfix,jlatfix,igpret,ifhmax
       integer   ibeg,jbeg,iend,jend,ix1,ix2,n,ilev,npts,icpsa,igzvret
@@ -717,6 +723,7 @@ c       First, allocate the working data arrays....
         if (allocated(spfh))     deallocate (spfh)
         if (allocated(temperature)) deallocate (temperature)
         if (allocated(omega500)) deallocate (omega500)
+        if (allocated(vortex_tilt_data)) deallocate (vortex_tilt_data)
         if (allocated(masked_out))  deallocate (masked_out)
         if (allocated(masked_outc)) deallocate (masked_outc)
       
@@ -752,6 +759,11 @@ c       First, allocate the working data arrays....
           allocate (temperature(imax,jmax,nlevmoist)
      &             ,stat=itempa)
           allocate (omega500(imax,jmax),stat=iomegaa)
+        endif
+
+        if (vortex_tilt_flag == 'y') then
+          allocate (vortex_tilt_data(imax,jmax,num_vortex_tilt_levs)
+     &             ,stat=ivta)
         endif
       
         ita=0
@@ -826,12 +838,13 @@ c       then call subroutine to read data for this forecast time.
         if (trkrinfo%inp_data_type == 'grib') then
           call getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,lmgb,lmgi,trkrinfo)
+     &               ,lugb,lugi,lmgb,lmgi,trkrinfo,num_vortex_tilt_levs)
         elseif (trkrinfo%inp_data_type == 'netcdf') then
           call getdata_netcdf (ncfile_id,nc_lsmask_file_id,readflag
      &               ,readgenflag,valid_pt,imax,jmax,ifh
      &               ,need_to_flip_lats,need_to_flip_lons
-     &               ,ncfile_tmax,netcdfinfo,trkrinfo)
+     &               ,ncfile_tmax,netcdfinfo,trkrinfo
+     &               ,num_vortex_tilt_levs)
         endif
 
         if(enable_timing/=0) then
@@ -3504,6 +3517,56 @@ c                 c---   radmax = radmax + 50.0
 
             endif
 
+            !--------------------------------------------------------
+            ! 
+            !       COMPUTE VORTEX TILT DIAGNOSTICS
+            ! 
+            ! If the user has requested so, then call a routine to 
+            ! perform the vertical vortex tilt diagnostics
+            !
+            !--------------------------------------------------------
+
+            if ((vortex_tilt_flag == 'y' .or. vortex_tilt_flag == 'Y') 
+     &           .and. stormswitch(ist) == 1) then
+
+              if ( verb .ge. 3 ) then
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,264) date_time(5),date_time(6),date_time(7)
+ 264            format (1x,'TIMING: Before vortex tilt ... ',i2.2,':'
+     &                    ,i2.2,':',i2.2)
+              endif
+
+              call get_vortex_tilt (imax,jmax,inp,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
+     &                     ,calcparm,maxstorm,trkrinfo,clon,clat
+     &                     ,glatmax,glatmin,glonmax,glonmin
+     &                     ,inp%modtyp,vortex_tilt_levs,igvtret)
+
+              call find_maxmin (imax,jmax,dx,dy,'zeta'
+     &           ,zeta(1,1,1),cvort_maxmin,ist,slonfg(ist,ifh)
+     &           ,slatfg(ist,ifh),glon,glat,valid_pt,trkrinfo
+     &           ,calcparm(1,ist),clon(ist,ifh,1),clat(ist,ifh,1)
+     &           ,xval(1),glatmax,glatmin,glonmax,glonmin
+     &           ,inp%modtyp,ifmret)
+
+  XXXtilt     call get_gen_diags (imax,jmax,inp,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
+     &                     ,readgenflag,calcparm,maxstorm,trkrinfo
+     &                     ,clon,clat,divg,moist_divg
+     &                     ,rh_800_600_smooth,rh_1000_925_smooth
+     &                     ,omega500_smooth
+     &                     ,already_computed_domain_wide_rh,iggdret)
+
+              if ( verb .ge. 3 ) then
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,266) date_time(5),date_time(6),date_time(7)
+ 266            format (1x,'TIMING: After vortex tilt ... ',i2.2,':'
+     &                    ,i2.2,':',i2.2)
+              endif
+
+            endif
 
 c           Now print out the current fix position and intensity
 c           (in knots) to standard output.  Conversion for m/s to
@@ -22144,7 +22207,8 @@ c
 c-----------------------------------------------------------------------
       subroutine getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,lmgb,lmgi,trkrinfo)
+     &               ,lugb,lugi,lmgb,lmgi,vortex_tilt_levs,trkrinfo
+     &               ,num_vortex_tilt_levs)
 c
 c     ABSTRACT: This subroutine reads the input GRIB file for the
 c     tracked parameters.  It then calls subroutines to convert the
@@ -22211,6 +22275,10 @@ c     21.  650 mb temperature
 c     22.  600 mb temperature
 c     23.  500 mb omega
 c
+c     For vortex tilt (if requested), we will first read in the list of
+c     vertical levels that the user wants, and then we will read the
+c     data for those levels.
+c
 c     INPUT:
 c     imax        integer number of pts in i-direction on grid
 c     jmax        integer number of pts in j-direction on grid
@@ -22226,6 +22294,9 @@ c     lmgb        integer unit number of input grib file for
 c                 an optional land-sea mask file
 c     lmgi        integer unit number of input grib index file for
 c                 an optional land-sea mask file
+c     vortex_tilt_levs integer array with the values of the vertical
+c                 levels (in mb) that will be read in for the vortex
+c                 vertical tilt analysis.
 c     trkrinfo    derived type that contains info on the type of
 c                 tracker run that we are performing.
 c
@@ -22237,7 +22308,7 @@ c                 valid data at the point (used for regional grids)
 
       USE tracked_parms; USE level_parms; USE inparms; USE phase
       USE verbose_output; USE params; USE grib_mod; USE trkrparms
-      USE read_parms; USE genesis_diags
+      USE read_parms; USE genesis_diags; USE vortex_tilt_diags
 
       implicit none
 c
@@ -22286,10 +22357,11 @@ c
       integer   cpsglevtyp(nreadcpsparms)
       integer   ec_cpsgparm(nreadcpsparms)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
+      integer   vortex_tilt_levs(100)
       integer   igvret,ifa,ila,ip,ifh,i,j,k,kj,iret,kf,lugb,lugi
       integer   jskp,jdisc,np,igrh,igrhct,lmgb,lmgi
       integer   jpdtn,jgdtn,npoints,icount,ipack,krec
-      integer   pdt_4p0_vert_level,pdt_4p0_vtime
+      integer   pdt_4p0_vert_level,pdt_4p0_vtime,num_vortex_tilt_levs
       integer :: listsec0(2)=(/0,2/)
       integer :: igds(5)=(/0,0,0,0,0/),previgds(5)
       integer :: idrstmpl(200)
@@ -23563,6 +23635,22 @@ c             Convert data to 2-d array
           enddo grib2_gen_parm_loop
 
         endif
+
+c       *------------------------------------------------------------*
+c        GRIB2 Read for vortex tilt diagnostics
+c
+c        If we are attempting to perform vortex tilt diagnostics, then 
+c        read in data now that will allow us to do that.
+xxxtim
+        if (vortex_tilt_flag == 'y') then
+
+          grib2_vortex_tilt_loop: do ip = 1,num_vortex_tilt_levs
+
+stopped here
+
+
+
+
 
       else
 
@@ -25970,23 +26058,31 @@ c
 c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
-      subroutine read_nlists (inp,trkrinfo,netcdfinfo,lunml)
+      subroutine read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
+     &                        num_vortex_tilt_levs,lunml)
 c
-c     ABSTRACT: This subroutine simply reads in the namelists that are
+c     ABSTRACT: This subroutine reads in the namelists that are
 c     created in the shell script.  Namelist datein contains the 
 c     starting date information, plus the model identifier.  Namelist
 c     stswitch contains the flags for processing for each storm.
+c
+c     UPDATE Sep 2024: This subroutine will now also read in the text
+c     file that contains the user-requested levels to perform a vortex
+c     tilt analysis at.
 c
       USE inparms; USE set_max_parms; USE atcf; USE trkrparms; USE phase
       USE structure; USE gfilename_info; USE contours
       USE verbose_output; USE waitfor_parms; USE netcdf_parms
       USE tracking_parm_prefs; USE shear_diags; USE genesis_diags
-      USE sst_diags
+      USE sst_diags; USE vortex_tilt_diags
 
       implicit none
 
       logical(1) :: namelist_file_exists
-      integer ifh,lunml
+      integer, parameter :: iunit_vtilt = 17
+      integer :: vortex_tilt_levs(100)
+      integer, intent out :: num_vortex_tilt_levs
+      integer ifh,ict,lunml,inpvtix,inpvtlev
       type (datecard) inp
       type (trackstuff) trkrinfo
       type (netcdfstuff) netcdfinfo
@@ -26018,6 +26114,7 @@ c
      &                    ,need_to_compute_rh_from_q
      &                    ,smoothe_mslp_for_gen_scan
      &                    ,depth_of_mslp_for_gen_scan
+      namelist/vortextiltinfo/vortex_tilt_flag,vortex_tilt_parm
 
 c     Set namelist default values:
       use_per_fcst_command='t'
@@ -26092,6 +26189,8 @@ c     Set namelist default values:
   840 continue
       read (lunml,NML=gendiaginfo,END=841)
   841 continue
+      read (lunml,NML=vortextiltinfo,END=843)
+  843 continue
 
       close (lunml)
 
@@ -26519,6 +26618,65 @@ c
           smoothe_mslp_for_gen_scan = 'y'
         else
           smoothe_mslp_for_gen_scan = 'n'
+        endif
+
+        print *,' '
+        print *,'Values read in from vortextiltinfo namelist: '
+        write (6,173) vortex_tilt_flag
+ 173    format ('Vortex tilt flag = vortex_tilt_flag = ',a1)
+        write (6,175) vortex_tilt_parm
+ 175    format ('Vortex tilt parameter = vortex_tilt_parm = ',a5)
+
+      endif
+
+c     ----------------------------------------------------------
+c     In case the user has requested vortex tilt diagnostics
+c     (vortex_tilt_flag = y), read the text file that has the
+c     list of vertical levels.
+
+      if (vortex_tilt_flag == 'y' .or. vortex_tilt_flag == 'Y') then
+
+        vortex_tilt_flag = 'y'  ! Set flag to lower case
+
+        if ( verb >= 3 ) then
+          print *,' '
+          print *,'Before vortex_tilt read while loop in read_nlists'
+        endif
+
+        ict = 0
+        do while (.true.)
+
+          if (ict == 0) then
+            write (6,271) 
+ 271        format (/,'Listing of user-requested vertical levels')
+            write (6,273) 
+ 273        format ('for vortex tilt analysis follows: ')
+          endif
+
+          read (iunit_vtilt,275,end=285) inpvtix,inpvtlev
+
+          if (inpvtlev > 0 .and. inpvtlev < 1060) then
+            write (6,275) inpvtix,inpvtlev
+            ict = ict + 1
+            vortex_tilt_levs(ict) = inpvtlev
+          else
+            write (6,277) inpvtlev
+          endif
+
+        enddo
+
+ 275    format (i4,1x,i5)
+ 277    format (1x,'!!! Invalid level for vortex tilt: ',i8)
+
+ 285    continue
+
+        num_vortex_tilt_levs = ict 
+
+        if ( verb >= 3 ) then
+          print *,' '
+          print *,'After vortex_tilt read, number of level IDs read in'
+          print *,'for pressure levels = num_vortex_tilt_levs = '
+     &           ,num_vortex_tilt_levs
         endif
 
       endif
@@ -32820,6 +32978,87 @@ c     &           ,' vtquadmax(nq)= ',vtquadmax(nq)
 c
       return
       end
+c
+c---------------------------------------------------------------------
+c
+c---------------------------------------------------------------------
+      subroutine get_vortex_tilt (imax,jmax,inp,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt
+     &                     ,read_tilt_flag
+     &                     ,calcparm,maxstorm,trkrinfo,clon,clat
+     &                     ,grid_maxlat,grid_minlat
+     &                     ,grid_maxlon,grid_minlon
+     &                     ,cmodel_type,vortex_tilt_levs,igvtret)
+c
+c     ABSTRACT: This subroutine will diagnose center fixes at vertical
+c     levels that are specified in a text file created by a user.
+c
+c     INPUT:
+c     imax     Num pts in i direction on input grid
+c     jmax     Num pts in j direction on input grid
+c     dx       Grid spacing in i-direction on input grid
+c     dy       Grid spacing in j-direction on input grid
+c     ist      integer number of the storm being processed
+c     ifh      integer index for this forecast hour
+c     fixlon   array containing mean fix longitudes 
+c     fixlat   array containing mean fix latitudes
+c     valid_pt Logical bitmap masking non-valid grid points.  This is a
+c              concern for the regional models, which are interpolated 
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              grid points around the edges which have no valid data.
+c     calcparm Logical flag that indicates whether or not to perform
+c              tracking for a specific parameter
+c     maxstorm Integer max number of storms to track
+c     trkrinfo derived type detailing user-specified grid info
+c     clon     Real array with parameter lon positions
+c     clat     Real array with parameter lat positions
+c     grid_maxlat northernmost latitude on the input grid being sent to
+c              this routine.  This grid may be a subset of the original
+c              full grid from the original dataset.
+c     grid_minlat southernmost latitude on the input grid being sent to
+c              this routine.  This grid may be a subset of the original
+c              full grid from the original dataset.
+c     grid_maxlon easternmost longitude on the input grid being sent to
+c              this routine.  This grid may be a subset of the original
+c              full grid from the original dataset.
+c     grid_minlon westernmost longitude on the input grid being sent to
+c              this routine.  This grid may be a subset of the original
+c              full grid from the original dataset.
+c     cmodel_type character, 'global' or 'regional'
+c     vortex_tilt_levs Integer array with a listing of the vertical 
+c              levels used in the vortex tilt analysis.
+c
+c     INPUT/OUTPUT:
+c
+c     OUTPUT:
+c     igvtret  Return code from this subroutine
+
+      USE radii; USE grid_bounds; USE set_max_parms; USE level_parms
+      USE trig_vals; USE trkrparms; USE tracked_parms
+      USE verbose_output
+
+      implicit none
+c
+      type (trackstuff) trkrinfo
+
+      character(*)  maxmin,cparm,cmodel_type
+      logical(1)    compflag, valid_pt(imax,jmax)
+      real    fxy(imax,jmax),rlonv(imax),rlatv(jmax)
+      real    ctlon,ctlat,degrees,dx,dy,guesslon,guesslat,xval
+      real    rads,re,ri,dell,fmax,fmin,rlatt,rlont,dist,ftemp,ritmp
+      real    vmag_latmax,vmag_latmin,vmag_lonmax,vmag_lonmin,retmp
+      real    tlon,tlat,grid_buffer,temp_grid_minlon,temp_guesslon
+      real    grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
+      integer imax,jmax,ist,bskip1,bskip2,iskip,ifmret,npts,maxvgrid
+      integer ibeg,iend,jbeg,jend,ilonfix,jlatfix,igiret,icount,iret
+      integer ibct,ibarnes_loopct,i,j,k,iix,jix,jvlatfix,ivlonfix
+      integer nhalf,icvpret
+      integer date_time(8)
+      character (len=10) big_ben(3)
+c
+xxxtim
+
+
 c
 c---------------------------------------------------------------------
 c

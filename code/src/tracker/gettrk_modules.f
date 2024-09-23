@@ -301,6 +301,14 @@ c
                                      ! storms in subroutine
                                      ! check_mslp_radial_gradient
       end module genesis_diags
+c
+      module vortex_tilt_diags
+        character*1, save ::   vortex_tilt_flag ! Will vortex tilt diags
+                                                ! be analyzed and
+                                                ! reported (y/n)?
+        character*5, save ::   vortex_tilt_parm ! Can be either zeta,
+                                                ! wcirc, hgt, or temp.
+      end module vortex_tilt_diags
 c     
       module tracked_parms
           real, save, allocatable  ::  zeta(:,:,:)
@@ -319,6 +327,7 @@ c
           real, save, allocatable  ::  temperature(:,:,:)
           real, save, allocatable  ::  omega500(:,:)
           real, save, allocatable  ::  wcirc_grid(:,:,:)
+          real, save, allocatable  ::  vortex_tilt_data(:,:,:)
           integer, save, allocatable :: ifhours(:)  
           integer, save, allocatable :: iftotalmins(:)
           integer, save, allocatable :: ifclockmins(:)

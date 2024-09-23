@@ -352,8 +352,9 @@ c
       character :: ncfile*180,ncfile_has_hour0*1
       character :: nc_lsmask_file*180
       character :: opening_mask*1
+      integer :: vortex_tilt_levs(100)
       integer itret,iggret,iicret,igcret,iret,ifhmax,maxstorm,numtcv
-      integer micret,mgcret
+      integer micret,mgcret,num_vortex_tilt_levs
       integer iocret,enable_timing,ncfile_id,ncfile_tmax,irnhret
       integer nc_lsmask_file_id
       integer, parameter :: lugb=11,lugi=31,lucard=12,lgvcard=14,lout=51
@@ -375,8 +376,10 @@ c      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
       pi = 4. * atan(1.)   ! Both pi and dtr were declared in module 
       dtr = pi/180.0       ! trig_vals, but were not yet defined.
       ncfile_has_hour0 = 'n'  ! Default value; set in read_netcdf_hours
+      vortex_tilt_levs = -999
 c
-      call read_nlists (inp,trkrinfo,netcdfinfo,lunml)
+      call read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
+     &                 ,num_vortex_tilt_levs,lunml)
       enable_timing=trkrinfo%enable_timing
 
       call read_fhours (ifhmax)
@@ -461,7 +464,8 @@ c
 
       call tracker (inp,maxstorm,numtcv,ifhmax,trkrinfo,ncfile
      &             ,ncfile_id,nc_lsmask_file,nc_lsmask_file_id
-     &             ,netcdfinfo,ncfile_has_hour0,ncfile_tmax,itret)
+     &             ,netcdfinfo,ncfile_has_hour0,ncfile_tmax
+     &             ,vortex_tilt_levs,num_vortex_tilt_levs,itret)
 c
 890   continue
 
