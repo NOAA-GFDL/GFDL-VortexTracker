@@ -9301,6 +9301,27 @@ c        endif
 cstr      print '(2x,4(a4,f8.2))','  d1= ',d1*z,'  d2= ',d2*z
 cstr     &                       ,'  d3= ',d3*z,' d4= ',d4*z
 
+      if ((d1 >-999.01 .and. d1 <-998.99)   .or.
+     &    (d1 >-9999.01 .and. d1 <-9998.99) .or.
+     &    (d2 >-999.01 .and. d2 <-998.99)   .or.
+     &    (d2 >-9999.01 .and. d2 <-9998.99) .or.
+     &    (d3 >-999.01 .and. d3 <-998.99)   .or.
+     &    (d3 >-9999.01 .and. d3 <-9998.99) .or.
+     &    (d4 >-999.01 .and. d4 <-998.99)   .or.
+     &    (d4 >-9999.01 .and. d4 <-9998.99)) then
+          ! This is a patch.  If the logical bitmap array, i.e.,
+          ! the valid_pt array, is indicating that this is a valid
+          ! point, but the actual data at this point is either -999
+          ! or -9999, then this means that we have likely
+          ! encountered a bug that has occurred with HWRF and MPAS
+          ! data in which there is an inconsistency in the grid
+          ! edges (and, therefore, bitmaps) among different
+          ! variables.  So if this happens, simply ignore this point
+          ! and cycle the loop.
+        ibiret = 85
+        return
+      endif
+
 c     -------------------------------------------------------------
 c     Compute the interpolated value
 c     -------------------------------------------------------------
