@@ -794,8 +794,9 @@ c       First, allocate the working data arrays....
           print *,'in beginning of tracker, imax= ',imax,' jmax= ',jmax
         endif
 
-c       Initialize all readflags to NOT FOUND for this forecast time,
-c       then call subroutine to read data for this forecast time.
+c       Initialize all data arrays to -9999 and all readflags to 
+c       NOT FOUND for this forecast time, then call subroutine to read 
+c       data for this forecast time.
 
         zeta  = -9999.0 
         u     = -9999.0
@@ -4211,7 +4212,7 @@ c
         endif
       else
 
-        if (opening_mask /= 'y') then
+        if (opening_mask == 'y') then
           print *,' '
           print *,'!!! ERROR: In open_grib_files, opening_mask=y '
           print *,'!!! which means that we are trying to open up an' 
@@ -9299,6 +9300,27 @@ c        endif
 
 cstr      print '(2x,4(a4,f8.2))','  d1= ',d1*z,'  d2= ',d2*z
 cstr     &                       ,'  d3= ',d3*z,' d4= ',d4*z
+
+      if ((d1 >-999.01 .and. d1 <-998.99)   .or.
+     &    (d1 >-9999.01 .and. d1 <-9998.99) .or.
+     &    (d2 >-999.01 .and. d2 <-998.99)   .or.
+     &    (d2 >-9999.01 .and. d2 <-9998.99) .or.
+     &    (d3 >-999.01 .and. d3 <-998.99)   .or.
+     &    (d3 >-9999.01 .and. d3 <-9998.99) .or.
+     &    (d4 >-999.01 .and. d4 <-998.99)   .or.
+     &    (d4 >-9999.01 .and. d4 <-9998.99)) then
+          ! This is a patch.  If the logical bitmap array, i.e.,
+          ! the valid_pt array, is indicating that this is a valid
+          ! point, but the actual data at this point is either -999
+          ! or -9999, then this means that we have likely
+          ! encountered a bug that has occurred with HWRF and MPAS
+          ! data in which there is an inconsistency in the grid
+          ! edges (and, therefore, bitmaps) among different
+          ! variables.  So if this happens, simply ignore this point
+          ! and cycle the loop.
+        ibiret = 85
+        return
+      endif
 
 c     -------------------------------------------------------------
 c     Compute the interpolated value
@@ -16758,7 +16780,7 @@ c                model grids with coarse resolution (ECMWF 2.5 degree).
       type (trackstuff) trkrinfo
 
       real      radmaxwind,degrees,dx,dy,rmax,xcenlon,xcenlat,vmax
-      real      cosfac,dist,vmag
+      real      cosfac,dist,vmag,uval,vval
       logical(1) valid_pt(imax,jmax)
       integer   jbeg_hold,jend_hold,bimect,bimwct,levsfc,imax,jmax
       integer   igmwret,ilonfix,jlatfix,numipts,numjpts,i,j,ip
@@ -17006,6 +17028,26 @@ c     that we are sure radmaxwind is within those points.
           if (dist > radmaxwind) cycle
 
           if (valid_pt(ip,j)) then
+
+            uval = u(ip,j,levsfc)
+            vval = v(ip,j,levsfc)
+
+            if ((uval >-999.01 .and. uval <-998.99) .or.
+     &          (vval >-999.01 .and. vval <-998.99) .or.
+     &          (uval >-9999.01 .and. uval <-9998.99) .or.
+     &          (vval >-9999.01 .and. vval <-9998.99)) then
+              ! This is a patch.  If the logical bitmap array, i.e.,
+              ! the valid_pt array, is indicating that this is a valid
+              ! point, but the actual data at this point is either -999
+              ! or -9999, then this means that we have likely
+              ! encountered a bug that has occurred with HWRF and MPAS
+              ! data in which there is an inconsistency in the grid
+              ! edges (and, therefore, bitmaps) among different
+              ! variables.  So if this happens, simply ignore this point
+              ! and cycle the iloop.
+              cycle iloop
+            endif
+
             vmag = sqrt (u(ip,j,levsfc)**2  + v(ip,j,levsfc)**2)
             if (vmag > vmax) then
               vmax = vmag
@@ -17035,7 +17077,8 @@ c     that we are sure radmaxwind is within those points.
       endif
 
       if ( verb .ge. 3 ) then
-        print *,'At end of get_max_wind, vmax= ',vmax,' rmax= ',rmax
+        print *,'At end of get_max_wind, vmax= ',vmax,' m/s   rmax= '
+     &         ,rmax,' nm'
       endif
 
       return
@@ -21194,12 +21237,12 @@ c     subroutine has to calculate distances (for a global 1 deg grid,
 c     the number of loop iterations is reduced from 65160 to somewhere
 c     around 600).
 c
-c     NOTE: This subroutine will immediately exit with a non-zero
-c     return code if it tries to access a grid point that does not have
-c     valid data.  This would happen in the case of a regional grid, if
-c     you try to access a point near the edge of the grid (remember that
-c     because of the interpolation for the regional grids, there will be
-c     areas around the edges that have no valid data).
+c     NOTE: This subroutine will ignore the data at grid points where 
+c     there is no valid data.  This would happen in the case of a
+c     regional grid, if you try to access a point near the edge of the
+c     grid (remember that because of the interpolation for the regional
+c     grids, there will be areas around the edges that have no valid
+c     data).
 c
 c     INPUT:
 c     flon    Lon value for center point about which barnes anl is done
@@ -21300,14 +21343,17 @@ c     --------------------------
           if (dist .gt. ri) cycle
 
           if (defined_pt(i,j)) then
-            if (fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) then
-              ! This is a patch.  Even though this (i,j) is a valid
-              ! point, its zeta value has been set to -999 because a
-              ! neighboring point in subroutine  rvcal was found
-              ! to be out of the grid boundaries.  This also prevents
-              ! -999 values for MSLP at grid edges in HWRF from 
-              ! getting included in the mean calculation, a problem
-              ! diagnosed in October, 2020.
+            if ((fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) .or.
+     &          (fxy(i,j) >-9999.01 .and. fxy(i,j) <-9998.99)) then
+              ! This is a patch.  If the logical bitmap array, i.e.,
+              ! the defined_pt array, is indicating that this is a valid
+              ! point, but the actual data at this point is either -999
+              ! or -9999, then this means that we have likely
+              ! encountered a bug that has occurred with HWRF and MPAS
+              ! data in which there is an inconsistency in the grid
+              ! edges (and, therefore, bitmaps) among different
+              ! variables.  So if this happens, simply ignore this point
+              ! and cycle the loop.
               cycle
             endif
             wt   = exp(-1.0*dist*dist/res)
@@ -21469,14 +21515,17 @@ c     --------------------------
 
           if (defined_pt(i,j)) then
             if (lsmask(i,j) < 0.5) then
-              if (fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) then
-                ! This is a patch.  Even though this (i,j) is a valid
-                ! point, its sst value has been set to -999 because a
-                ! neighboring point was found
-                ! to be out of the grid boundaries.  This also prevents
-                ! -999 values for MSLP at grid edges in HWRF from 
-                ! getting included in the mean calculation, a problem
-                ! diagnosed in October, 2020.
+              if ((fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) .or.
+     &            (fxy(i,j) >-9999.01 .and. fxy(i,j) <-9998.99)) then
+                ! This is a patch.  If the logical bitmap array, i.e.,
+                ! the defined_pt array, is indicating that this is a
+                ! valid point, but the actual data at this point is 
+                ! either -999 or -9999, then this means that we have
+                ! likely encountered a bug that has occurred with HWRF 
+                ! and MPAS data in which there is an inconsistency in
+                ! the grid edges (and, therefore, bitmaps) among
+                ! different variables.  So if this happens, simply
+                ! ignore this point and cycle the loop.
                 cycle
               endif
               seact = seact + 1
