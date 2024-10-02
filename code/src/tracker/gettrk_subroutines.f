@@ -22377,6 +22377,7 @@ c
       logical :: open_grb=.false.
       character*1 :: lbrdflag
       character*8 :: chparm(nreadparms),ch_genparm(nreadgenparms)
+      CHARACTER(len=6) :: chparm_vtilt
       CHARACTER(len=8) :: pabbrev
       character (len=10) big_ben(3)
       integer   date_time(8)
@@ -22409,7 +22410,7 @@ c
       integer   vortex_tilt_levs(100)
       integer   igvret,ifa,ila,ip,ifh,i,j,k,kj,iret,kf,lugb,lugi
       integer   jskp,jdisc,np,igrh,igrhct,lmgb,lmgi
-      integer   jpdtn,jgdtn,npoints,icount,ipack,krec
+      integer   jpdtn,jgdtn,npoints,icount,ipack,krec,nz,nread_loop
       integer   pdt_4p0_vert_level,pdt_4p0_vtime,num_vortex_tilt_levs
       integer :: listsec0(2)=(/0,2/)
       integer :: igds(5)=(/0,0,0,0,0/),previgds(5)
@@ -23695,11 +23696,277 @@ xxxtim
 
           grib2_vortex_tilt_loop: do ip = 1,num_vortex_tilt_levs
 
+            !
+            ! ---  Initialize Variables ---
+            !
+
+            gfld%idsect => NULL()
+            gfld%local => NULL()
+            gfld%list_opt => NULL()
+            gfld%igdtmpl => NULL()
+            gfld%ipdtmpl => NULL()
+            gfld%coord_list => NULL()
+            gfld%idrtmpl => NULL()
+            gfld%bmap => NULL()
+            gfld%fld => NULL()
+
+            jdisc=0  ! meteorological products
+            jids=-9999
+            jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
+                                      ! 1 = ens fcst
+            jgdtn=0 ! lat/lon grid
+            jgdt=-9999
+            jpdt=-9999
+
+            npoints=0
+            icount=0
+            jskp=0
+
+            if (inp%lt_units == 'minutes') then
+              JPDT(8) = 0
+              JPDT(9) = iftotalmins(ifh)
+            else
+              JPDT(8) = 1
+              JPDT(9) = ifhours(ifh)
+            endif
+
+            if (vortex_tilt_parm == 'zeta' .or.
+     &          vortex_tilt_parm == 'wcirc') then
+              ! For zeta, we require u & v and we will compute the 
+              ! vorticity, we will not subtract out coriolis from
+              ! absolute vorticity.  This is for simplicity.  And
+              ! obviously, for wind circulation, we are going to 
+              ! read u & v separately.  So, for both of these 
+              ! variables, we have to go through the read loop twice.
+              nread_loop = 2
+            else
+              nread_loop = 1
+            endif
+
+            do nz = 1,nread_loop
+
+              if (vortex_tilt_parm == 'zeta' .or.
+     &            vortex_tilt_parm == 'wcirc') then
+
+                JPDT(1) = 2  ! parm category for winds
+
+                if (nz == 1) then
+                  JPDT(2) = 2  ! parm number for u-component of winds
+                  chparm_vtilt = 'u-comp'
+                else
+                  JPDT(2) = 3  ! parm number for v-component of winds
+                  chparm_vtilt = 'v-comp'
+                endif
+
+              elseif (vortex_tilt_parm == 'hgt') then
+                JPDT(1) = 3  ! parm category for gp height
+                JPDT(2) = 5  ! parm number for gp height
+                chparm_vtilt = 'gp hgt'
+              elseif (vortex_tilt_parm == 'temp') then
+                JPDT(1) = 0  ! parm category for temperature
+                JPDT(2) = 0  ! parm number for temperature
+                chparm_vtilt = 'temp'
+              else
+                print *,' '
+                print *,'!!! ERROR: In subroutine getdata_grib,'
+                print *,'!!! vortex tilt diagnostics have been '
+                print *,'!!! requested by the user, but the '
+                print *,'!!! vortex_tilt_parm is not recognized as'
+                print *,'!!! either zeta, wcirc, hgt or temp.'
+                print *,'!!! vortex_tilt_parm= ',vortex_tilt_parm
+                print *,'!!! EXITING....'
+                stop 95
+              endif
+
+              JPDT(10) = 100 ! 100 = isobaric surface
+              JPDT(12) = vortex_tilt_levs(ip) * 100  ! GRIB2 levels
+                                                       ! are in Pa
+               
+              if ( verb_g2 .ge. 1 ) then
+                print *,'before getgb2 call, value of unpack = '
+                       ,unpack
+              endif
+
+              call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
+     &                   ,jgdt,unpack,krec,gfld,iret)
+
+              if (verb_g2 .ge. 1) then
+                print *,'after getgb2 vortex_tilt call,'
+     &                 ,' value of unpacked = ',gfld%unpacked
+                print *,'after getgb2 vortex_tilt call,'
+     &                 ,' gfld%ngrdpts = ',gfld%ngrdpts
+                print *,'after getgb2 vortex_tilt call,'
+     &                 ,' gfld%ibmap = ',gfld%ibmap
+              endif
+
+              if ( verb .ge. 3 ) then
+                print *,'iret from getgb2 in getdata = ',iret
+              endif
+
+              if ( iret == 0) then
+
+                if ( verb .ge. 3 ) then
+                  print *,'+++ Good Read: getgb2 vortex_tilt found'
+     &                   ,' parm: ',chparm_vtilt
+                  print *,'+++       at level = '
+     &                   ,vortex_tilt_levs(ip)
+                  if (inp%lt_units == 'minutes') then
+                    print *,'+++       Forecast time = '
+     &                     ,iftotalmins(ifh),' minutes'
+                  else
+                    print *,'+++       Forecast time = '
+     &                     ,ifhours(ifh),' hours'
+                  endif
+                endif
+
+c               Determine packing information from GRIB2 file
+c               The default packing is 40 (JPEG 2000)
+
+                ipack = 40
+
+                if (verb_g2 .ge. 1) then
+                  print *,' gfld%idrtnum = ', gfld%idrtnum
+                endif
+
+                !   Set DRT info  ( packing info )
+                if ( gfld%idrtnum.eq.0 ) then      ! Simple packing
+                  ipack = 0
+                elseif ( gfld%idrtnum.eq.2 ) then  ! Complex packing
+                  ipack = 2
+                elseif ( gfld%idrtnum.eq.3 ) then  ! Complex & spatial
+     &                                               ! packing
+                  ipack = 31
+                elseif ( gfld%idrtnum.eq.40.or.gfld%idrtnum.eq.15 ) then
+                  ! JPEG 2000 packing
+                  ipack = 40
+                elseif ( gfld%idrtnum.eq.41 ) then  ! PNG packing
+                  ipack = 41
+                endif
 stopped here
+                if ( verb_g2 .ge. 1 ) then
+                  print *,'After check of idrtnum, ipack= ',ipack
+                  print *,'Number of gridpts= gfld%ngrdpts= '
+     &                   ,gfld%ngrdpts
+                  print *,'Number of elements= gfld%igdtlen= '
+     &                   ,gfld%igdtlen
+                  print *,'GDT num= gfld%igdtnum= ',gfld%igdtnum
+                endif
 
+                kf = gfld%ngrdpts  ! Number of gridpoints returned 
+                                   ! from read
 
+                do np = 1,kf
+                  f(np)  = gfld%fld(np)
+                  if (gfld%ibmap == 0) then
+                    lb(np)  = gfld%bmap(np)
+                  else
+                    lb(np)  = .true.
+                  endif
+                enddo
 
+                firstval=gfld%fld(1)
+                lastval=gfld%fld(kf)
 
+                if (verb_g2 .ge. 1) then
+                  print *,' '
+                  print *,' SECTION 0: discipl= ',gfld%discipline
+     &                   ,' gribver= ',gfld%version
+                  print *,' '
+                  print *,' SECTION 1: '
+
+                  do j = 1,gfld%idsectlen
+                    print *,'     sect1, j= ',j,' gfld%idsect(j)= '
+     &                     ,gfld%idsect(j)
+                  enddo
+
+                  if ( associated(gfld%local) .and.
+     &                 gfld%locallen.gt.0) then
+                    print *,' '
+                    print *,' SECTION 2: ',gfld%locallen,' bytes'
+                  else
+                    print *,' '
+                    print *,' SECTION 2 DOES NOT EXIST IN THIS'
+     &                     ,' RECORD'
+                  endif
+
+                  print *,' '
+                  print *,' SECTION 3: griddef= ',gfld%griddef
+                  print *,'            ngrdpts= ',gfld%ngrdpts
+                  print *,'            numoct_opt= ',gfld%numoct_opt
+                  print *,'            interp_opt= ',gfld%interp_opt
+                  print *,'            igdtnum= ',gfld%igdtnum
+                  print *,'            igdtlen= ',gfld%igdtlen
+
+                  print *,' '
+                  print '(a17,i3,a2)',' GRID TEMPLATE 3.'
+     &                  ,gfld%igdtnum,': '
+                  do j=1,gfld%igdtlen
+                    print *,'    j= ',j,' gfld%igdtmpl(j)= '
+     &                  ,gfld%igdtmpl(j)
+                  enddo
+
+c                 Get parameter abbrev for record that was retrieved
+                  print *,' '
+                  print *,'     PDT num (gfld%ipdtnum) = '
+     &                   ,gfld%ipdtnum
+                  print *,' '
+                  print '(a20,i3,a2)',' PRODUCT TEMPLATE 4.'
+     &                   ,gfld%ipdtnum,': '
+                  do j=1,gfld%ipdtlen
+                    print *,'    sect 4  j= ',j,' gfld%ipdtmpl(j)= '
+     &                     ,gfld%ipdtmpl(j)
+                  enddo
+                endif
+
+                pdt_4p0_vtime      = gfld%ipdtmpl(9)
+                pdt_4p0_vert_level = gfld%ipdtmpl(12)
+
+                pabbrev=param_get_abbrev(gfld%discipline
+     &                 ,gfld%ipdtmpl(1),gfld%ipdtmpl(2))
+
+                if (verb .ge. 3) then
+                  print *,' '
+                  write (6,331)
+ 331              format (' rec#   param     level  byy  bmm  bdd  '
+     &             ,'bhh  fhr'
+     &             ,'      npts  firstval    lastval     minval   '
+     &             ,'   maxval')
+                  print '(i5,3x,a8,2x,6i5,2x,i8,4g12.4)'
+     &             ,krec,pabbrev,pdt_4p0_vert_level/100
+     &             ,gfld%idsect(6),gfld%idsect(7),gfld%idsect(8)
+     &             ,gfld%idsect(9),pdt_4p0_vtime,gfld%ngrdpts
+     &             ,firstval,lastval,dmin,dmax
+                endif
+
+c               Convert data to 2-d array.  If the parameter we are
+c               tracking for vortex tilt is zeta or wcirc, then we 
+c               need to first convert the data to separate u and v
+c               arrays, then we will compute zeta or wind circulation
+c               in a different routine, which we will store in 
+
+                if (vortex_tilt_parm == 'zeta' .or.
+     &              vortex_tilt_parm == 'wcirc') then
+                  if (nz == 1) then
+                    call conv1d2d_real (imax,jmax,f,u_vtilt(1,1,ip)
+     &                                 ,need_to_flip_lats)
+                  else
+                    call conv1d2d_real (imax,jmax,f,v_vtilt(1,1,ip)
+     &                                 ,need_to_flip_lats)
+                  endif
+                else
+                  call conv1d2d_real (imax,jmax,f,fparm_vtilt(1,1,ip)
+     &                               ,need_to_flip_lats)
+                endif
+
+              endif
+
+              call gf_free (gfld)
+
+            enddo nread_loop
+
+          enddo grib2_vortex_tilt_loop
+
+        endif  ! End of IF block for vortex tilt GRIB2 read
 
       else
 
