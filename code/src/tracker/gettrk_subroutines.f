@@ -1030,12 +1030,23 @@ c       vorticity calcparms to TRUE for all storms for now.
 
           if (readflag(ivort)) then
           
-            call subtract_cor (imax,jmax,dy,ivort)
+            if (verb >= 3) then
+              print *,' '
+              print *,'Calling subtract_cor, ivort= ',ivort
+            endif
+
+            call subtract_cor (imax,jmax,dy,ivort,valid_pt)
             
             do jj=1,maxstorm
               calcparm(ivort,jj) = .TRUE.
             enddo
           else
+
+            if (verb >= 3) then
+              print *,' '
+              print *,'Computing zeta explicitly, ivort= ',ivort
+            endif
+
             if (ivort == 1) then
               if (readflag(3) .and. readflag(4)) then
                 call rvcal (imax,jmax,dx,dy,ivort,valid_pt)
@@ -21359,8 +21370,8 @@ c     --------------------------
 
       icount = 0
 
-      do jix=jjbeg,jjend,bskip
-        do iix=iibeg,iiend,bskip
+      jloop: do jix=jjbeg,jjend,bskip
+        iloop: do iix=iibeg,iiend,bskip
 
           i = iix
           j = jix
@@ -21403,7 +21414,7 @@ c     --------------------------
 
           call calcdist(flon,flat,rlon(i),rlat(j),dist,degrees)
 
-          if (dist .gt. ri) cycle
+          if (dist .gt. ri) cycle iloop
 
           if (defined_pt(i,j)) then
             if ((fxy(i,j) >-999.01 .and. fxy(i,j) <-998.99) .or.
@@ -21417,7 +21428,7 @@ c     --------------------------
               ! edges (and, therefore, bitmaps) among different
               ! variables.  So if this happens, simply ignore this point
               ! and cycle the loop.
-              cycle
+              cycle iloop
             endif
             wt   = exp(-1.0*dist*dist/res)
             wts  = wts + wt
@@ -21445,8 +21456,8 @@ carw           return
             endif
           endif
  
-        enddo
-      enddo
+        enddo iloop
+      enddo jloop
  
       if (wts > 1.0E-5) then
          favg = favg/wts
@@ -22146,7 +22157,7 @@ c
 c-----------------------------------------------------------------------
 c
 c-----------------------------------------------------------------------
-      subroutine subtract_cor (imax,jmax,dy,level)
+      subroutine subtract_cor (imax,jmax,dy,level,valid_pt)
 c
 c     ABSTRACT: This subroutine  subtracts out the coriolis parameter
 c     from the vorticity values.  It is needed because at the original
@@ -22158,13 +22169,23 @@ c
       implicit none
 
       integer :: i,j,imax,jmax,level
-      real    :: dy,coriolis,rlat
+      real    :: dy,coriolis,rlat,zval
+      logical(1) :: valid_pt(imax,jmax)
 c
       do j=1,jmax
         rlat = glatmax - ((j-1) * dy)
         coriolis = 2. * omega * sin(rlat*dtr) 
         do i=1,imax
-          zeta(i,j,level) = zeta(i,j,level) - coriolis
+          if (valid_pt(i,j)) then
+            zval = zeta(i,j,level)
+            if ((zval >-999.01 .and. zval <-998.99) .or.
+     &          (zval >-9999.01 .and. zval <-9998.99)) then
+              continue ! keep zeta value at initialized value of -999
+                       ! or -9999
+            else
+              zeta(i,j,level) = zeta(i,j,level) - coriolis
+            endif
+          endif
         enddo
       enddo
 c
@@ -30342,7 +30363,8 @@ c     Abstract of subroutine  get_next_ges for further details.
       if (verb >= 3) then
         print *,' '
         print *,' In get_smooth_value_at_pt for cvar= ',cvar
-        print *,' *** AFTER *** call to get_ij_bounds'
+        print *,' *** AFTER *** call to get_ij_bounds for '
+        print *,' boundaries of barnes analysis.'
         print *,' npts= ',npts,' ri= ',ri
         print *,' imax= ',imax,' jmax= ',jmax
         print *,' dx= ',dx,' dy= ',dy
@@ -30364,20 +30386,6 @@ c     Abstract of subroutine  get_next_ges for further details.
         endif
         igsvret = 92
         return
-      endif
-
-      if (verb >= 3) then
-        print *,' '
-        print *,' +++ In get_smooth_value_at_pt after call'
-        print *,'     to get_ij_bounds getting bounds for '
-        print *,'     the  barnes analysis...'
-        print *,'     cvar= ',cvar
-        print *,'     glatmax= ',glatmax,'  glatmin= ',glatmin
-        print *,'     glonmax= ',glonmax,'  glonmin= ',glonmin
-        print *,'     xcenlon= ',xcenlon,'  xcenlat= ',xcenlat
-        print *,'     ilonfix= ',ilonfix,'  jlatfix= ',jlatfix
-        print *,'     ibeg= ',ibeg,'  iend= ',iend
-        print *,'     jbeg= ',jbeg,'  jend= ',jend
       endif
 
       ! Since we are only doing the  barnes analysis centered at one
