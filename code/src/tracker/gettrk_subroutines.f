@@ -4247,9 +4247,9 @@ c
         print *,'gopen_g_file= ',gopen_g_file
         print *,'gopen_i_file= ',gopen_i_file
 
-        write (6,81) gopen_g_file,gopen_i_file
-   81   format (1x,'tpm gopen_g_file= ...',a<nlen1>
-     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
+c        write (6,81) gopen_g_file,gopen_i_file
+c   81   format (1x,'tpm gopen_g_file= ...',a<nlen1>
+c     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
 
         print *,'gopen_g_file= ',gopen_g_file,'....'
         print *,'gopen_i_file= ',gopen_i_file,'....'
