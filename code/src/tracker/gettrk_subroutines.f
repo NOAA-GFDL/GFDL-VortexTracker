@@ -25345,7 +25345,7 @@ c     tracker was compiled in.
         enddo
       elseif (xtype == 6) then
         ! Read data into an 8-byte double real array
-        status = nf_get_var_double (ncid,var1id,var1)
+        status = nf_get_var_double (ncid,var1id,real(var1,kind=8))
         if (status .ne. NF_NOERR) call handle_netcdf_err(status)
         do i = 1,nmax
           var1(i) = readvar8(i)
