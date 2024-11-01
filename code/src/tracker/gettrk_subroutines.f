@@ -14516,6 +14516,7 @@ c
       real      ucomp,vcomp,xdist,ydist,ydeg,dt,extraplat
       real      cosfac
       real      dtkm
+      character(len=1) :: in_grid, extrap_flag
 c
       in_grid = 'n'
       extrap_flag = 'y'
