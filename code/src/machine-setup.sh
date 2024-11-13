@@ -1,51 +1,19 @@
+# this script defines a target variable that is equivalent to which rdhpc system user is on
+# it does this be indexing through an array with each login-node for the different systems
 
+# declare target variable (i.e. which system user is on)
 target=""
-USERNAME=`echo $LOGNAME | awk '{ print tolower($0)'}`
+echo $HOSTNAME
 
-if [[ -d /lfs4 ]] ; then
-    # We are on NOAA Jet
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        echo load the module command 1>&2
-        source /apps/lmod/lmod/init/
-    fi
-    target=jet
-    module purge
+# create arrays with elements of every known login-node for each system
+analysis=("an001" "an002" "an007" "an008" "an009" "an010" "an011" "an012" "an014" \
+          "an101" "an102" "an103" "an104" "an105" "an106" "an107" "an108" "an200" \
+          "an201" "an202" "an203" "an204" "an205" "an206" "an207" "an210")
 
-elif [[ -d /scratch1/NCEPDEV ]] ; then
-    # We are on NOAA Hera
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        echo load the module command 1>&2
-        source /apps/lmod/lmod/init/
-    fi
-    target=hera
-    module purge
-
-elif [[ -d /work/noaa && -d /home/$USER ]] ; then
-    # We are on MSU Orion
+for i in "${!analysis[@]}"; do
+  if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
-    target=orion
-
-elif [[ -d /work/noaa && -d /home/$USER ]] ; then
-    # We are on MSU Hercules
-    source $MODULESHOME/init/bash
-    target=hercules
-
-elif [[ -d /lfs/h1 && -d /lfs/h2 ]] ; then
-    target=wcoss2
-    source $MODULESHOME/init/sh
-
-elif [[ -d /ncrc && -d /gpfs/f5 ]] ; then
-    # We are on GAEA.
-    if ( ! eval module help > /dev/null 2>&1 ) ; then
-        source $MODULESHOME/init/bash
-	echo load the module command 1>&2
-    fi
-    target=gaea
-
-elif [[ -d /home/$USER && -d /work/$USER ]] ; then
-    source $MODULESHOME/init/bash
-    target="ppan"
-
-else
-    echo WARNING: UNKNOWN PLATFORM 1>&2
-fi
+    target=analysis
+    echo $target
+  fi
+done
