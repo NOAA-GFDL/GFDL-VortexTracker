@@ -21,6 +21,9 @@ hera=("hecflow01" "hera" "hfe01" "hfe02" "hfe03" "hfe04" "hfe05" "hfe06" "hfe07"
 orion=("orion-login-1.hpc.msstate.edu" "orion-login-2.hpc.msstate.edu" \
        "orion-login-2.hpc.msstate.edu" "orion-login-2.hpc.msstate.edu")
 
+hercules=("hercules-login-1.hpc.msstate.edu" "hercules-login-2.hpc.msstate.edu" \
+          "hercules-login-3.hpc.msstate.edu" "hercules-login-4.hpc.msstate.edu")
+
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
@@ -57,6 +60,14 @@ for i in "${!orion[@]}"; do
   if [ "${orion[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
     target=orion
+    echo $target
+  fi
+done
+
+for i in "${!hercules[@]}"; do
+  if [ "${hercules[$i]}" == $HOSTNAME ]; then
+    source $MODULESHOME/init/bash
+    target=hercules
     echo $target
   fi
 done
