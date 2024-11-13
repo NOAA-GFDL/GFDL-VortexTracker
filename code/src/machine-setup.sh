@@ -14,6 +14,8 @@ gaea=("gaea" \
       "gaea51" "gaea52" "gaea53" "gaea54" "gaea55" "gaea56" "gaea57" "gaea58" \
       "gaea60" "gaea61" "gaea62" "gaea63" "gaea64" "gaea65" "gaea66" "gaea67" "gaea68")	
 
+jet=("ecflow1" "fe1" "fe2" "fe3" "fe4" "fe5" "fe6" "fe7" "fe8" "tfe1" "tfe2")
+
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
@@ -26,6 +28,14 @@ for i in "${!gaea[@]}"; do
   if [ "${gaea[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
     target=gaea
+    echo $target
+  fi
+done
+
+for i in "${!jet[@]}"; do
+  if [ "${jet[$i]}" == $HOSTNAME ]; then
+    source $MODULESHOME/init/bash
+    target=jet
     echo $target
   fi
 done
