@@ -18,6 +18,9 @@ jet=("ecflow1" "fe1" "fe2" "fe3" "fe4" "fe5" "fe6" "fe7" "fe8" "tfe1" "tfe2")
 
 hera=("hecflow01" "hera" "hfe01" "hfe02" "hfe03" "hfe04" "hfe05" "hfe06" "hfe07" "hfe08" "hfe09" "hfe10" "hfe11")
 
+orion=("orion-login-1.hpc.msstate.edu" "orion-login-2.hpc.msstate.edu" \
+       "orion-login-2.hpc.msstate.edu" "orion-login-2.hpc.msstate.edu")
+
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
@@ -46,6 +49,14 @@ for i in "${!hera[@]}"; do
   if [ "${hera[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
     target=hera
+    echo $target
+  fi
+done
+
+for i in "${!orion[@]}"; do
+  if [ "${orion[$i]}" == $HOSTNAME ]; then
+    source $MODULESHOME/init/bash
+    target=orion
     echo $target
   fi
 done
