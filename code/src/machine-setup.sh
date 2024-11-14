@@ -1,5 +1,6 @@
 # this script defines a target variable that is equivalent to which rdhpc system user is on
 # it does this be indexing through an array with each login-node for the different systems
+# this is used so that the correct set of modules is loaded for each individual rdhpc system
 
 # declare target variable (i.e. which system user is on)
 target=""
@@ -24,6 +25,9 @@ orion=("orion-login-1.hpc.msstate.edu" "orion-login-2.hpc.msstate.edu" \
 hercules=("hercules-login-1.hpc.msstate.edu" "hercules-login-2.hpc.msstate.edu" \
           "hercules-login-3.hpc.msstate.edu" "hercules-login-4.hpc.msstate.edu")
 
+#wcoss2= this will have to be done when I have access to wcoss2
+
+# loop through each system array for a matching login-node to set target = to the correct machine
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
