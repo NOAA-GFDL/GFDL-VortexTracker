@@ -19,6 +19,8 @@ cd build
 # build src code
 if [ $target = analysis ]; then 	# new ifx & icx compilers do not work properly with spack envs used on analysis
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
+elif [ $target = gaea ]; then
+  cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 else
   cmake .. -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
 fi
