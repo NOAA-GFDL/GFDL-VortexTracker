@@ -15,7 +15,6 @@ module load g2
 module load g2tmpl
 module load bacio
 module load w3emc
-module load w3nco
 
 module load nco
 module load cdo
