@@ -342,7 +342,7 @@ c                (max_#_storms, max_fcst_times, max_#_parms)
 c
       USE def_vitals; USE inparms; USE set_max_parms; USE level_parms
       USE trig_vals; USE atcf; USE trkrparms; USE verbose_output
-      USE netcdf_parms; USE access_subroutines
+      USE netcdf_parms; USE access_subroutines; USE vortex_tilt_diags
 c
       implicit none
 c
@@ -352,7 +352,7 @@ c
       character :: ncfile*180,ncfile_has_hour0*1
       character :: nc_lsmask_file*180
       character :: opening_mask*1
-      integer :: vortex_tilt_levs(100)
+      integer :: vortex_tilt_levs(vortex_max_levs)
       integer itret,iggret,iicret,igcret,iret,ifhmax,maxstorm,numtcv
       integer micret,mgcret,num_vortex_tilt_levs
       integer iocret,enable_timing,ncfile_id,ncfile_tmax,irnhret
@@ -379,7 +379,8 @@ c      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
       vortex_tilt_levs = -999
 c
       call read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
-     &                 ,num_vortex_tilt_levs,lunml)
+     &                 ,num_vortex_tilt_levs
+     &                 ,vortex_tilt_levs,lunml)
       enable_timing=trkrinfo%enable_timing
 
       call read_fhours (ifhmax)
@@ -465,7 +466,7 @@ c
       call tracker (inp,maxstorm,numtcv,ifhmax,trkrinfo,ncfile
      &             ,ncfile_id,nc_lsmask_file,nc_lsmask_file_id
      &             ,netcdfinfo,ncfile_has_hour0,ncfile_tmax
-     &             ,vortex_tilt_levs,num_vortex_tilt_levs,itret)
+     &             ,num_vortex_tilt_levs,vortex_tilt_levs,itret)
 c
 890   continue
 

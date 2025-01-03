@@ -308,6 +308,14 @@ c
                                                 ! reported (y/n)?
         character*5, save ::   vortex_tilt_parm ! Can be either zeta,
                                                 ! wcirc, hgt, or temp.
+        integer, parameter ::  vortex_max_levs=100 ! Max allowable
+                                                ! number of vertical
+                                                ! levs for vortex tilt
+        integer, save :: vortex_tilt_allow_thresh ! Max distance (km)
+                                                ! per mb of height 
+                                                ! difference allowed
+                                                ! between vortex fixes
+                                                ! at adjacent levels.
       end module vortex_tilt_diags
 c     
       module tracked_parms
@@ -327,12 +335,21 @@ c
           real, save, allocatable  ::  temperature(:,:,:)
           real, save, allocatable  ::  omega500(:,:)
           real, save, allocatable  ::  wcirc_grid(:,:,:)
-          real, save, allocatable  ::  vortex_tilt_data(:,:,:)
+          real, save, allocatable  ::  utilt(:,:,:)
+          real, save, allocatable  ::  vtilt(:,:,:)
+          real, save, allocatable  ::  xtilt(:,:,:)
+          real, save, allocatable  ::  xtiltlon(:,:)
+          real, save, allocatable  ::  xtiltlat(:,:)
+          real, save, allocatable  ::  xtiltval(:,:)
+          real, save, allocatable  ::  xtilt_dist_flag(:,:)
           integer, save, allocatable :: ifhours(:)  
           integer, save, allocatable :: iftotalmins(:)
           integer, save, allocatable :: ifclockmins(:)
           integer, save, allocatable :: ltix(:)
           real, save, allocatable    :: fhreal(:)
+          logical(1), save, allocatable :: utilt_readflag(:)
+          logical(1), save, allocatable :: vtilt_readflag(:)
+          logical(1), save, allocatable :: xtilt_readflag(:)
       end module tracked_parms
 c
       module tracking_parm_prefs

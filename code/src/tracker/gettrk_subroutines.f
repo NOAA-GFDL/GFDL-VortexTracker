@@ -7,7 +7,7 @@ c---------------------------------------------------------------------
       subroutine tracker (inp,maxstorm,numtcv,ifhmax,trkrinfo,ncfile
      &                   ,ncfile_id,nc_lsmask_file,nc_lsmask_file_id
      &                   ,netcdfinfo,ncfile_has_hour0,ncfile_tmax
-     &                   ,vortex_tilt_levs,num_vortex_tilt_levs,itret)
+     &                   ,num_vortex_tilt_levs,vortex_tilt_levs,itret)
 c
 c     ABSTRACT: This subroutine is the core of the program.  It contains
 c     the main loop for looping through all the forecast hours and all
@@ -238,7 +238,7 @@ c
       USE gen_vitals; USE structure; USE verbose_output 
       USE waitfor_parms; USE module_waitfor; USE netcdf_parms
       USE tracking_parm_prefs; USE shear_diags; USE genesis_diags
-      USE read_parms; USE sst_diags
+      USE read_parms; USE sst_diags; USE vortex_tilt_diags
 c         
       implicit none
 c
@@ -255,6 +255,7 @@ c
       character :: need_to_expand_r34(4)*1,ncfile_has_hour0*1
       character :: already_computed_domain_wide_rh*1,gm_wrap_flag*21
       character :: low_level_wind_circ_flag*1,opening_mask*1
+      character :: gwctype*7,rvctype*7
       character*(*), intent(in) :: ncfile
       character*(*), intent(in) :: nc_lsmask_file
       integer :: ncfile_id
@@ -270,7 +271,7 @@ c
       integer   ioaret,ioaxret,ifgcret,ifmret,igugret,isoiret,icccret
       integer   igrret,igmwret,iorret,ignret,iovret,icbret,igucret,ita
       integer   ifilret,ifret,iaret,isret,iotmret,iwa,iisa,sl_counter
-      integer   iicret,igcret,igwcret,imbowret,iatret,ioapret
+      integer   iicret,igcret,igwcret,imbowret,iatret,ioapret,nwclev
       integer(kind=8) :: pfcret
       logical(1), allocatable :: valid_pt(:,:)
       logical(1), allocatable :: masked_outc(:,:),masked_out(:,:)
@@ -285,8 +286,8 @@ c
       character close_to_boundary*1,quad_wind_circ_check*4
       integer   vradius(3,4),igridzeta(nlevgrzeta),imeanzeta(nlevgrzeta)
       integer   maxmini(maxstorm),maxminj(maxstorm),pdf_ct_bin(16)
-      integer   vortex_tilt_levs(100)
-      integer   num_vortex_tilt_levs
+      integer   vortex_tilt_levs(vortex_max_levs)
+      integer   num_vortex_tilt_levs,ixtlo,ixtla,ixtvl,ixtdf
       integer   ifcsthour,stormct,prevstormct,kf,istmspd,istmdir,iggret
       integer   igiret,iuret,jdum,icount,ilonfix,jlatfix,igpret,ifhmax
       integer   ibeg,jbeg,iend,jend,ix1,ix2,n,ilev,npts,icpsa,igzvret
@@ -473,6 +474,13 @@ c          lugi = 5200
           write (6,402) ifhours(ifh),ifclockmins(ifh)
   402     format (1x,'*   New forecast hour: ',i4,':',i2.2)
           print *,'*-------------------------------------------*'
+        endif
+
+        if (vortex_tilt_flag == 'y') then
+          ! Re-initialize the vortex tilt distance / continuity flags
+          ! back to zero for all storms and all vertical levels with
+          ! each new forecast hour.
+          xtilt_dist_flag = 0
         endif
 
         if (inp%file_seq == 'multi') then
@@ -760,11 +768,6 @@ c       First, allocate the working data arrays....
      &             ,stat=itempa)
           allocate (omega500(imax,jmax),stat=iomegaa)
         endif
-
-        if (vortex_tilt_flag == 'y') then
-          allocate (vortex_tilt_data(imax,jmax,num_vortex_tilt_levs)
-     &             ,stat=ivta)
-        endif
       
         ita=0
         icpsa=0 
@@ -774,6 +777,61 @@ c       First, allocate the working data arrays....
             allocate (cpshgt(imax,jmax,nreadcpsparms),stat=icpsa)
           endif
         endif   
+
+        iuta = 0; ivta = 0; ixta = 0
+        iutrfa = 0; ivtrfa = 0; ixtrfa = 0
+        if (vortex_tilt_flag == 'y') then
+          if (vortex_tilt_parm == 'zeta' .or.
+     &        vortex_tilt_parm == 'wcirc') then
+            ! For zeta, we require u & v and we will compute the 
+            ! vorticity explicitly on our own; We will not read
+            ! in absolute vorticity and subtract out coriolis.  This is
+            ! for simplicity.  And obviously, for wind circulation, we
+            ! are need to read u & v separately.  So, for both of these
+            ! variables, we have to go through the read loop twice in 
+            ! order to read both u & v.
+            if (allocated(utilt)) deallocate (utilt)
+            if (allocated(vtilt)) deallocate (vtilt)
+            if (allocated(utilt_readflag)) deallocate (utilt_readflag)
+            if (allocated(vtilt_readflag)) deallocate (vtilt_readflag)
+            allocate (utilt(imax,jmax,num_vortex_tilt_levs),stat=iuta)
+            allocate (vtilt(imax,jmax,num_vortex_tilt_levs),stat=ivta)
+            allocate (utilt_readflag(num_vortex_tilt_levs),stat=iutrfa)
+            allocate (vtilt_readflag(num_vortex_tilt_levs),stat=ivtrfa)
+          endif
+          if (allocated(xtilt)) deallocate (xtilt)
+          if (allocated(xtilt_readflag)) deallocate (xtilt_readflag)
+          if (allocated(xtiltlon)) deallocate (xtiltlon)
+          if (allocated(xtiltlat)) deallocate (xtiltlat)
+          if (allocated(xtiltval)) deallocate (xtiltval)
+          if (allocated(xtilt_dist_flag)) deallocate (xtilt_dist_flag)
+          allocate (xtilt(imax,jmax,num_vortex_tilt_levs),stat=ixta)
+          allocate (xtilt_readflag(num_vortex_tilt_levs),stat=ixtrfa)
+          allocate (xtiltlon(maxstorm,num_vortex_tilt_levs),stat=ixtlo)
+          allocate (xtiltlat(maxstorm,num_vortex_tilt_levs),stat=ixtla)
+          allocate (xtiltval(maxstorm,num_vortex_tilt_levs),stat=ixtvl)
+          allocate (xtilt_dist_flag(maxstorm,num_vortex_tilt_levs)
+     &             ,stat=ixtdf)
+
+          if (iuta /= 0 .or. ivta /= 0 .or. ixta /= 0 .or.
+     &        iutrfa /= 0 .or. ivtrfa /= 0 .or. ixtrfa /= 0 .or.
+     &        ixtlo /= 0 .or. ixtlat /= 0 .or. ixtvl /= 0 .or. 
+     &        ixtdf /= 0) then
+            if (verb >= 1) then
+              print *,' '
+              print *,'!!! ERROR in sub tracker allocating arrays'
+              print *,'!!! for vortex tilt.'
+              print *,'!!! iuta = ',iuta,' ivta= ',ivta,' ixta= ',ixta
+              print *,'!!! iutrfa = ',iutrfa,' ivtrfa= ',ivtrfa
+     &               ,' ixta= ',ixta
+              print *,'!!! ixtlo = ',ixtlo,' ixtla= ',ixtla,' ixta= '
+     &               ,' ixtvl= ',ixtvl
+              print *,'!!! ixtdf= ',ixtdf
+              print *,'!!! STOPPING'
+            endif
+            stop 94
+          endif
+        endif
 
         if (iza /= 0 .or. iua /= 0 .or. iha /= 0 .or. ivpa /= 0 .or.
      &      iva /= 0 .or. isa /= 0 .or. icpsa /= 0 .or. ita /= 0 .or.
@@ -1049,7 +1107,8 @@ c       vorticity calcparms to TRUE for all storms for now.
 
             if (ivort == 1) then
               if (readflag(3) .and. readflag(4)) then
-                call rvcal (imax,jmax,dx,dy,ivort,valid_pt)
+                rvctype = 'tracker'
+                call rvcal (imax,jmax,dx,dy,ivort,rvctype,valid_pt)
                 do jj=1,maxstorm
                   calcparm(1,jj) = .TRUE.
                 enddo
@@ -1060,7 +1119,8 @@ c       vorticity calcparms to TRUE for all storms for now.
               endif
             else
               if (readflag(5) .and. readflag(6)) then
-                call rvcal (imax,jmax,dx,dy,ivort,valid_pt)
+                rvctype = 'tracker'
+                call rvcal (imax,jmax,dx,dy,ivort,rvctype,valid_pt)
                 do jj=1,maxstorm
                   calcparm(2,jj) = .TRUE.
                 enddo
@@ -1136,10 +1196,12 @@ c       Compute the sfc vorticity if sfc_u and sfc_v have been read in.
               calcparm(11,jj) = .FALSE.
             enddo
           else
-            ! The 3 in the next call to rvcal is to indicate the 3rd 
-            ! level for the zeta array, which is for the surface (or 
-            ! 10m) data.
-            call rvcal (imax,jmax,dx,dy,3,valid_pt)
+            ! The value of 3 for ivort in the next call to rvcal is to
+            ! indicate the 3rd level for the zeta array, which is for
+            ! the surface (or 10m) data.
+            rvctype = 'tracker'
+            ivort = 3
+            call rvcal (imax,jmax,dx,dy,ivort,rvctype,valid_pt)
             do jj=1,maxstorm
               calcparm(11,jj) = .TRUE.
             enddo
@@ -1712,10 +1774,14 @@ c           time from some of the other parameters.
      &                   ,':',i2.2)
                 endif
 
+                idum    = 999
+                nwclev  = 850
+                gwctype = 'tracker'
                 call get_wind_circulation (uvgeslon,uvgeslat,imax,jmax
-     &               ,dx,dy,ist,850,valid_pt,calcparm(3,ist)
+     &               ,dx,dy,ist,idum,nwclev,valid_pt
      &               ,clon(ist,ifh,3),clat(ist,ifh,3),xval(3),trkrinfo
-     &               ,inp%modtyp,cmaxmin,ifh,gm_wrap_flag,igwcret)
+     &               ,inp%modtyp,cmaxmin,ifh,gm_wrap_flag,gwctype
+     &               ,igwcret)
 
                 if (enable_timing/=0) then
                   call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -1762,10 +1828,14 @@ c     &               ,igucret)
      &                   ,':',i2.2)
                 endif
 
+                idum    = 999
+                nwclev  = 700
+                gwctype = 'tracker'
                 call get_wind_circulation (uvgeslon,uvgeslat,imax,jmax
-     &               ,dx,dy,ist,700,valid_pt,calcparm(5,ist)
+     &               ,dx,dy,ist,idum,nwclev,valid_pt
      &               ,clon(ist,ifh,5),clat(ist,ifh,5),xval(5),trkrinfo
-     &               ,inp%modtyp,cmaxmin,ifh,gm_wrap_flag,igwcret)
+     &               ,inp%modtyp,cmaxmin,ifh,gm_wrap_flag,gwctype
+     &               ,igwcret)
 
                 if (enable_timing/=0) then
                   call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -1816,11 +1886,14 @@ c     &               ,igucret)
      &                   ,':',i2.2)
                 endif
 
+                idum    =  999
+                nwclev  = 1020
+                gwctype = 'tracker'
                 call get_wind_circulation (uvgeslon,uvgeslat,imax,jmax
-     &                ,dx,dy,ist,1020,valid_pt,calcparm(10,ist)
+     &                ,dx,dy,ist,idum,nwclev,valid_pt
      &                ,clon(ist,ifh,10),clat(ist,ifh,10),xval(10)
      &                ,trkrinfo,inp%modtyp,cmaxmin,ifh,gm_wrap_flag
-     &                ,igwcret)
+     &                ,gwctype,igwcret)
 
                 if (enable_timing/=0) then
                   call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -3534,7 +3607,8 @@ c                 c---   radmax = radmax + 50.0
             !       COMPUTE VORTEX TILT DIAGNOSTICS
             ! 
             ! If the user has requested so, then call a routine to 
-            ! perform the vertical vortex tilt diagnostics
+            ! perform the vertical vortex tilt diagnostics and write
+            ! the data out to a text file.
             !
             !--------------------------------------------------------
 
@@ -3549,26 +3623,13 @@ c                 c---   radmax = radmax + 50.0
      &                    ,i2.2,':',i2.2)
               endif
 
-              call get_vortex_tilt (imax,jmax,inp,dx,dy
-     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
-     &                     ,calcparm,maxstorm,trkrinfo,clon,clat
+              call get_vortex_tilt (imax,jmax,dx,dy
+     &                     ,ist,ifh,fixlon,fixlat,valid_pt
+     &                     ,maxstorm,trkrinfo
      &                     ,glatmax,glatmin,glonmax,glonmin
-     &                     ,inp%modtyp,vortex_tilt_levs,igvtret)
-
-              call find_maxmin (imax,jmax,dx,dy,'zeta'
-     &           ,zeta(1,1,1),cvort_maxmin,ist,slonfg(ist,ifh)
-     &           ,slatfg(ist,ifh),glon,glat,valid_pt,trkrinfo
-     &           ,calcparm(1,ist),clon(ist,ifh,1),clat(ist,ifh,1)
-     &           ,xval(1),glatmax,glatmin,glonmax,glonmin
-     &           ,inp%modtyp,ifmret)
-
-  XXXtilt     call get_gen_diags (imax,jmax,inp,dx,dy
-     &                     ,ist,ifh,fixlon,fixlat,valid_pt,readflag
-     &                     ,readgenflag,calcparm,maxstorm,trkrinfo
-     &                     ,clon,clat,divg,moist_divg
-     &                     ,rh_800_600_smooth,rh_1000_925_smooth
-     &                     ,omega500_smooth
-     &                     ,already_computed_domain_wide_rh,iggdret)
+     &                     ,inp%modtyp,ifcsthour
+     &                     ,num_vortex_tilt_levs
+     &                     ,vortex_tilt_levs,igvtret)
 
               if ( verb .ge. 3 ) then
                 call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -4156,6 +4217,16 @@ c
      &  deallocate (netcdf_file_time_values)
       if (allocated(nctotalmins)) 
      &  deallocate (nctotalmins)
+      if (allocated(utilt_readflag)) deallocate (utilt_readflag)
+      if (allocated(vtilt_readflag)) deallocate (vtilt_readflag)
+      if (allocated(xtilt_readflag)) deallocate (xtilt_readflag)
+      if (allocated(utilt)) deallocate (utilt)
+      if (allocated(vtilt)) deallocate (vtilt)
+      if (allocated(xtilt)) deallocate (xtilt)
+      if (allocated(xtiltlon)) deallocate (xtiltlon)
+      if (allocated(xtiltlat)) deallocate (xtiltlat)
+      if (allocated(xtiltval)) deallocate (xtiltval)
+      if (allocated(xtilt_dist_flag)) deallocate (xtilt_dist_flag)
 c
       return 
       end   
@@ -6438,8 +6509,9 @@ c     icqwret  return code from this subroutine
       integer, parameter :: numdist=5,numquad=4,num_qtr_azim=6
       integer  imax,jmax,ist,ifh,iquad,idist,ibiret1,ibiret2,bimct
       integer  igvtret,iazim,bad_quad_ct,good_quad_ct,icqwret
-      integer  azimuth_ct
+      integer  azimuth_ct,ip,ifh99
       character*4  quad_wind_circ_check
+      character :: c_int_type*7
       character (*)  gm_wrap_flag
       real     rdist(numdist),vt_quad(numquad)
       real     dx,dy,bear,targlat,targlon,xintrp_u,xintrp_v
@@ -6451,6 +6523,9 @@ c
 
       icqwret = 0
       vt_quad = -999.
+      ifh99 = -99
+      ip = -999
+      c_int_type = 'tracker'
       quad_wind_circ_check = 'null'
 
       quadloop1: do iquad = 1,4
@@ -6484,11 +6559,11 @@ c
 
             call bilin_int_uneven (targlat,targlon
      &           ,dx,dy,imax,jmax,trkrinfo,850,'u',xintrp_u
-     &           ,valid_pt,bimct,-99,ibiret1)
+     &           ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &           ,dx,dy,imax,jmax,trkrinfo,850,'v',xintrp_v
-     &           ,valid_pt,bimct,-99,ibiret2)
+     &           ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret2)
 
             if (ibiret1 == 0 .and. ibiret2 == 0) then
               wmag = sqrt (xintrp_u**2 + xintrp_v**2)
@@ -6634,9 +6709,10 @@ c       sr_vt:    Quadrant tangential winds in storm-relative framework
       type (trackstuff) trkrinfo
 
       character (*)  gm_wrap_flag
+      character :: c_int_type*7
       integer, parameter :: numdist=14,numquad=4,num_qtr_azim=6
       integer  imax,jmax,igwsret,ist,ifh,iquad,idist,ibiret1,ibiret2
-      integer  igvtret,ipct,maxstorm,iazim,azimuth_ct,bimct
+      integer  igvtret,ipct,maxstorm,iazim,azimuth_ct,bimct,ip,ifh99
       real     fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real     rdist(numdist)
       real     er_wind(numquad,numdist)
@@ -6655,6 +6731,9 @@ c
      &          ,400.,450.,500./
 
       igwsret = 0
+      ifh99 = -99
+      ip = -999
+      c_int_type = 'tracker'
 
       er_wind = 0.0
       sr_wind = 0.0
@@ -6806,11 +6885,11 @@ c            print *,' '
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
-     &            ,valid_pt,bimct,-99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
-     &            ,valid_pt,bimct,-99,ibiret2)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret2)
 
             if (ibiret1 == 0 .and. ibiret2 == 0) then
               wmag = sqrt (xintrp_u**2 + xintrp_v**2)
@@ -6921,11 +7000,11 @@ c            endif
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
-     &            ,valid_pt,bimct,-99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
-     &            ,valid_pt,bimct,-99,ibiret2)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret2)
 
             if (ibiret1 == 0 .and. ibiret2 == 0) then
               wmag = sqrt (xintrp_u**2 + xintrp_v**2)
@@ -7991,13 +8070,13 @@ c            is for 200 mb.
       type (trackstuff) trkrinfo
       type (datecard) inp
 
-      character :: found_vt_ge_1_flag*1
+      character :: found_vt_ge_1_flag*1,c_int_type*7
       character (*)  gm_wrap_flag
       integer, parameter :: numdist=19,numazim=24,numlev=2
       integer u_cart_sum_ct(numlev),v_cart_sum_ct(numlev)
       integer max_dist_index(2)
       integer imax,jmax,ist,ifh,maxstorm,idist,azimuth_ct,iazim
-      integer level,ibiret1,ibiret2,bimct,igvtret,igsret,ilev
+      integer level,ibiret1,ibiret2,bimct,igvtret,igsret,ilev,ip
       real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
@@ -8020,6 +8099,9 @@ c            is for 200 mb.
       data rdist/50.,75.,100.,125.,150.,175.,200.,225.,250.,275.,300.
      &          ,325.,350.,375.,400.,425.,450.,475.,500./
 c
+      ip = -999
+      c_int_type = 'tracker'
+
       u_cart        = 0.0
       v_cart        = 0.0
       u_cart_sum    = 0.0
@@ -8141,11 +8223,11 @@ c     ------------------------------------------------------------------
 
             call bilin_int_uneven (targlat,targlon
      &          ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
-     &          ,valid_pt,bimct,ifh,ibiret1)
+     &          ,valid_pt,bimct,ifh,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &          ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
-     &          ,valid_pt,bimct,ifh,ibiret2)
+     &          ,valid_pt,bimct,ifh,ip,c_int_type,ibiret2)
 
 c            if (verb >= 1) then
 c              print *,' '
@@ -9088,7 +9170,7 @@ c
 c-----------------------------------------------------------------------
       subroutine bilin_int_uneven (targlat,targlon,dx,dy
      &              ,imax,jmax,trkrinfo,level,cparm,xintrp_val
-     &              ,valid_pt,bimct,ifh,ibiret)
+     &              ,valid_pt,bimct,ifh,ip,c_int_type,ibiret)
 c
 c     ABSTRACT: This subroutine performs a bilinear interpolation to get
 c     a data value at a given lat/lon that may be anywhere within a box
@@ -9101,7 +9183,6 @@ c     below are ratios that determine how geographically close the
 c     target location is to the point of origin (pt.1 (i,j)) in terms
 c     of both longitude (to) and latitude (ta).
 c
-c
 c        pt.1                pt.2
 c        (i,j)              (i+1,j)
 c
@@ -9112,6 +9193,16 @@ c
 c        pt.4                pt.3
 c        (i,j+1)            (i+1,j+1)
 c
+c
+c     UPDATE 10/2024: This routine has been modified so that for u and
+c     v, it can handle interpolation for either the main tracking or 
+c     for the vortex tilt analysis.  There are big implications for this
+c     routine in terms of the u & v arrays that are accessed.  To ensure
+c     the correct array is accessed, there is an input variable to this
+c     routine, c_int_type, that has a value of either tracker or 
+c     vtxtilt.  If it is a vtxtilt call, then the input value of ip 
+c     contains the index for the pressure level.  If it is a tracker 
+c     call, then the value of ip is meaningless for this routine.
 
       USE grid_bounds; USE tracked_parms; USE level_parms
       USE trkrparms
@@ -9122,11 +9213,12 @@ c
       type (trackstuff) trkrinfo
 
       character  cparm*1
+      character :: c_int_type(*)
       logical(1) valid_pt(imax,jmax)
       real       targlat,targlon,xintrp_val,dx,dy,tmp_targlon
       real       to,ta,d1,d2,d3,d4,z,eastlon
       integer    ie,iw,jn,js,ibiret,imax,jmax,level,nlev,bimct
-      integer    ie_hold,iw_hold,ifh
+      integer    ie_hold,iw_hold,ifh,ip
 
       ibiret = 0
 
@@ -9317,19 +9409,30 @@ c          print *,'          iw= ',iw,' ie= ',ie,' jn= ',jn,' js= ',js
         return
       endif 
 
-      select case (level)
-        case (850);  nlev = nlev850  ! check module level_parms for
-        case (700);  nlev = nlev700  ! the values of these....
-        case (500);  nlev = nlev500
-        case (200);  nlev = nlev200
-        case (1020); nlev = levsfc
-      end select
+      if (c_int_type == 'tracker') then
+        select case (level)
+          case (850);  nlev = nlev850  ! check module level_parms
+          case (700);  nlev = nlev700  ! for the values of
+          case (500);  nlev = nlev500  ! these nlev variables.
+          case (200);  nlev = nlev200
+          case (1020); nlev = levsfc
+        end select
+      elseif (c_int_type == 'vtxtilt') then
+        nlev = ip
+      endif
 
       if (cparm == 'u') then
-        d1 = u(iw,jn,nlev)
-        d2 = u(ie,jn,nlev)
-        d3 = u(ie,js,nlev)
-        d4 = u(iw,js,nlev)
+        if (c_int_type == 'tracker') then
+          d1 = u(iw,jn,nlev)
+          d2 = u(ie,jn,nlev)
+          d3 = u(ie,js,nlev)
+          d4 = u(iw,js,nlev)
+        elseif (c_int_type == 'vtxtilt') then
+          d1 = utilt(iw,jn,nlev)
+          d2 = utilt(ie,jn,nlev)
+          d3 = utilt(ie,js,nlev)
+          d4 = utilt(iw,js,nlev)
+        endif
 c        if (ifh == 1) then
 c          write (6,134) iw,ie,jn,js,nlev,d1,d2,d3,d4
 c  134     format (1x,'bix: U iw= ',i5,' ie= ',i5,' jn= ',i5,' js= '
@@ -9337,10 +9440,17 @@ c     &           ,i5,' nlev= ',i3,' d1= ',f12.6,' d2= ',f12.6,' d3= '
 c     &           ,f12.6,' d4= ',f12.6)
 c        endif
       else if (cparm == 'v') then
-        d1 = v(iw,jn,nlev)
-        d2 = v(ie,jn,nlev)
-        d3 = v(ie,js,nlev)
-        d4 = v(iw,js,nlev)
+        if (c_int_type == 'tracker') then
+          d1 = v(iw,jn,nlev)
+          d2 = v(ie,jn,nlev)
+          d3 = v(ie,js,nlev)
+          d4 = v(iw,js,nlev)
+        elseif (c_int_type == 'vtxtilt') then
+          d1 = vtilt(iw,jn,nlev)
+          d2 = vtilt(ie,jn,nlev)
+          d3 = vtilt(ie,js,nlev)
+          d4 = vtilt(iw,js,nlev)
+        endif
 c        if (ifh == 1) then
 c          write (6,138) iw,ie,jn,js,nlev,d1,d2,d3,d4
 c  138     format (1x,'bix: V iw= ',i5,' ie= ',i5,' jn= ',i5,' js= '
@@ -15753,7 +15863,7 @@ c
       integer   n_r34_iter,ifh99,ilevint,target_ix,idist,iquad
       integer   holland_good_1_ct,holland_good_2_ct,i,n,iazim,igvtret
       integer   num_bins_to_check,checkct,ihc,igrret,ibiret1,ibiret2
-      integer   free_pass_ix,ist,ijunk
+      integer   free_pass_ix,ist,ijunk,ip
       real, parameter :: r34_bin_width = 3.0  !width of radial bins(km)
       real (dp) :: radii_wmag_bucket(num_qtr_azim)
       real      mean_radii_wind(numquad,num_r34_bins)
@@ -15777,7 +15887,7 @@ c
       character cstormid*3
       character :: need_to_expand_r34(4)*1
       character :: holland_good_1_flag*1,holland_good_2_flag*1
-      character :: free_pass*1
+      character :: free_pass*1,c_int_type*7
       character (*)   gm_wrap_flag
 
 c     ---------------------------------------------------------------- 
@@ -15787,6 +15897,8 @@ c     1059 km max radius (num_r34_bins = 353)
 c     ---------------------------------------------------------------- 
 
       igrret  = 0
+      ip = -999
+      c_int_type = 'tracker'
 
       do i = 1,num_r34_bins
         rdist(i) = float(i) * r34_bin_width
@@ -15927,11 +16039,11 @@ c     &         ,mean_radii_vt_4quad_sum
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,ilevint,'u',xintrp_u
-     &            ,valid_pt,bimct,ifh99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,ilevint,'v',xintrp_v
-     &            ,valid_pt,bimct,ifh99,ibiret2)
+     &            ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret2)
 
 c            if (idist == 1) then
 c              print *,'vtn A, xintrp_u= ',xintrp_u,' xintrp_v= '
@@ -17233,8 +17345,8 @@ c
       integer   ibeg,jbeg,iend,jend,igarret,bimct,ibiret1,ibiret2
       integer   azimuth_ct,maxrmw_ix,rdist_ix,ir,idv_start,idv_end
       integer   rising_sum_dvdr_ct,declining_sum_dvdr_ct,kr,mr
-      integer   idist,iazim,ird
-      character :: got_good_armw*1,perform_rising_dvdr*1
+      integer   idist,iazim,ird,ifh99
+      character :: got_good_armw*1,perform_rising_dvdr*1,c_int_type*7
       character (*)  gm_wrap_flag
 c
       data rdist1/  3.,  6.,  9., 12., 15., 18., 21., 24., 27., 30.
@@ -17258,6 +17370,10 @@ c
      &           ,315.,318.,321.,324.,327.,330.,333.,336.,339.,342.
      &           ,345.,348./
 c
+      ifh99 =  -99
+      ip    = -999
+      c_int_type = 'tracker'
+      
       got_good_armw = 'n'
       rdist_ix = 1
       axisymet_rmw_dist = -999.0
@@ -17306,11 +17422,11 @@ c
 
             call bilin_int_uneven (targlat,targlon
      &           ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
-     &           ,valid_pt,bimct,-99,ibiret1)
+     &           ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret1)
 
             call bilin_int_uneven (targlat,targlon
      &           ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
-     &           ,valid_pt,bimct,-99,ibiret2)
+     &           ,valid_pt,bimct,ifh99,ip,c_int_type,ibiret2)
 
             if (ibiret1 == 0 .and. ibiret2 == 0) then
               wmag = sqrt (xintrp_u**2 + xintrp_v**2)
@@ -18424,9 +18540,10 @@ c
 c-----------------------------------------------------------------------
       subroutine get_wind_circulation (uvgeslon,uvgeslat,imax,jmax
      &                     ,dx,dy
-     &                     ,ist,level,valid_pt,cflag
+     &                     ,ist,ip,level,valid_pt
      &                     ,ctlon,ctlat,fxval,trkrinfo
-     &                     ,cmodel_type,maxmin,ifh,gm_wrap_flag,igwcret)
+     &                     ,cmodel_type,maxmin,ifh,gm_wrap_flag,gwctype
+     &                     ,igwcret)
 c
 c     ABSTRACT: This subroutine calculates the center fix position for
 c     the wind circulation near the storm center.  This center fix is 
@@ -18440,6 +18557,15 @@ c     fixes that have already been made for this lead time.  That
 c     modified guess position is passed into this subroutine as uvgeslon
 c     and uvgeslat, and that's where the searching for the wind 
 c     circulation is centered.
+c
+c     UPDATE OCT 2024: This routine can also be called by subroutine
+c     get_vortex_tilt.  In this case, the guess position of 
+c     (uvgeslon,uvgeslat) sent by the calling routine will be the 
+c     (fixlon,fixlat) for the first (lowest) level, and then can be
+c     modified according to the previous level's position as we work
+c     our way up.  The key to how this routine is being called and
+c     which u & v data to use is the input flag, gwctype, which will
+c     have a value of either 'tracker' or 'vtxtilt'.
 c
 c     This subroutine works by converting the winds to Vt and Vr at 
 c     each grid point evaluated, relative to each candidate center point
@@ -18465,6 +18591,46 @@ c              this routine.  This grid may be a subset of the original
 c              full grid from the original dataset.
 c     cmodel_type character, 'global' or 'regional'
 c
+c     INPUT:
+c     uvgeslon Guess longitude of the storm used for this routine
+c     uvgeslat Guess latitude of the storm used for this routine
+c     imax     Num pts in i direction on input grid
+c     jmax     Num pts in j direction on input grid
+c     dx       Grid spacing in i-direction on input grid
+c     dy       Grid spacing in j-direction on input grid
+c     ist      integer number of the storm being processed
+c     ip       integer index number for the pressure level being
+c              being processed.  This is only used for the vortex tilt
+c              stuff, i.e., if gwctype=vtxtilt.  For the use of this 
+c              routine as part of the main TC tracking, the critical 
+c              level value is passed into this routine in the level
+c              input variable for this routine.
+c     level    integer pressure level (in mb) of data to be processed
+c              for the wind circulation
+c     valid_pt Logical bitmap masking non-valid grid points.  This is a
+c              concern for the regional models, which are interpolated 
+c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
+c              grid points around the edges which have no valid data.
+c     trkrinfo derived type detailing user-specified grid info
+c     cmodel_type character string pulled from the input namelist that 
+c              will have a value of 'global' or 'regional'
+c     maxmin   Char string indicating whether to search for a max or min
+c     ifh      integer index for the current forecast hour being 
+c              processed
+c     gm_wrap_flag character flag originally set in getgridinfo that 
+c              determines the GM-wrapping setting for this grid
+c     gwctype  character string that indicates whether the call to this
+c              routine is meant as part of the main tracking 
+c              (gwctype=tracker) or as part of the vortex tilt analysis
+c              (gwctype=vtxtilt)
+c
+c     OUTPUT:
+c     ctlon & ctlat  real longitude & latitude fix position where this 
+c              routine found the fix for wind circulation.
+c     fxval    real value of the diagnosed wind circulation at the 
+c              location where this routine found the wind circulation 
+c     igwcret  integer return code from this routine
+c
 
       USE radii; USE grid_bounds; USE tracked_parms; USE trig_vals
       USE level_parms; USE trkrparms
@@ -18479,6 +18645,7 @@ c
 
       character(*)  cmodel_type,maxmin
       character(*)  gm_wrap_flag
+      character(*)  gwctype
       character :: threshold_tripped*1
       integer, parameter :: numdist=7,numazim=24
       integer imax,jmax,ist,level,igwcret,icvpret,idist,iazim
@@ -18497,7 +18664,7 @@ c
       integer igibret,bimct,ifh
       integer circ_diff_ct,ir,nhalf,bskip1,bskip2,iskip,nlev
       integer ilonfix,jlatfix,ibeg,iend,jbeg,jend,i,j,k,iix,jix
-      logical(1) cflag, valid_pt(imax,jmax)
+      logical(1) valid_pt(imax,jmax)
 
 c----------------
 c
@@ -18510,16 +18677,14 @@ c
         print *,' glonmax= ',glonmax
         print *,' glonmin= ',glonmin
         print *,' trkrinfo%gridtype= ',trkrinfo%gridtype
+        print *,' ip= ',ip,' level= ',level
         print *,' cmodel_type= ',cmodel_type
         print *,' maxmin= ',maxmin
         print *,' imax= ',imax,'  jmax= ',jmax
         print *,' uvgeslon= ',uvgeslon,'  uvgeslat= ',uvgeslat
         print *,'   (0-360 uvgeslon)= ',mod(uvgeslon,360.)
         print *,' dx= ',dx,' dy= ',dy,' ist= ',ist
-        print *,' cflag= ',cflag
-        print *,' ctlon= ',ctlon,' ctlat= ',ctlat
-        print *,' fxval= ',fxval
-        print *,' igwcret= ',igwcret
+        print *,' gm_wrap_flag= ',gm_wrap_flag,' gwctype= ',gwctype
       endif
 
       igwcret = 0
@@ -18543,8 +18708,8 @@ c
       fmax  = -1.0e+15; fmin  =  1.0e+15
       ctlon = 0.0; ctlat = 0.0
 
-c     Distances checked and the radial intervals are a function of 
-c     the grid resolution....
+c     The distances that will be checked and the radial intervals are
+c     a function of the grid resolution....
 
       if (dell > 0.50) then
         rdist(1) =  50.
@@ -18564,13 +18729,17 @@ c     the grid resolution....
         rdist(7) = 215.
       endif
 
-      select case (level)
-        case (850);  nlev = nlev850  ! check module level_parms for
-        case (700);  nlev = nlev700  ! the values of these....
-        case (500);  nlev = nlev500
-        case (200);  nlev = nlev200
-        case (1020); nlev = levsfc
-      end select
+      if (gwctype == 'tracker') then
+        select case (level)
+          case (850);  nlev = nlev850  ! check module level_parms
+          case (700);  nlev = nlev700  ! for the values
+          case (500);  nlev = nlev500  ! of these nlev variables.
+          case (200);  nlev = nlev200
+          case (1020); nlev = levsfc
+        end select
+      elseif (gwctype == 'vtxtilt') then
+        nlev = ip
+      endif
 
       print *,' in get_wind_circulation, nlev= ',nlev
 
@@ -18735,9 +18904,17 @@ c         these "off-grid" points.  So.... if the return code from
 c         check_valid_point comes back non-zero, simply cycle iloop
 c         and go to the next point.
 
-          call check_valid_point (imax,jmax,dx,dy,u(1,1,nlev),maxmin
+          if (gwctype == 'tracker') then
+            call check_valid_point (imax,jmax,dx,dy,u(1,1,nlev)
+     &        ,maxmin
      &        ,valid_pt,rlont,rlatt,grid_maxlat,grid_minlat,grid_maxlon
      &        ,temp_grid_minlon,trkrinfo,icvpret)
+          elseif (gwctype == 'vtxtilt') then
+            call check_valid_point (imax,jmax,dx,dy,utilt(1,1,nlev)
+     &        ,maxmin
+     &        ,valid_pt,rlont,rlatt,grid_maxlat,grid_minlat,grid_maxlon
+     &        ,temp_grid_minlon,trkrinfo,icvpret)
+          endif
 
           if (icvpret /= 0) then
             if ( verb .ge. 1 ) then
@@ -18817,11 +18994,11 @@ c              endif
           
               call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
-     &            ,valid_pt,bimct,ifh,ibiret1)
+     &            ,valid_pt,bimct,ifh,ip,gwctype,ibiret1)
 
               call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
-     &            ,valid_pt,bimct,ifh,ibiret2)
+     &            ,valid_pt,bimct,ifh,ip,gwctype,ibiret2)
 
               if (ibiret1 == 0 .and. ibiret2 == 0) then
                 call getvrvt (rlont,rlatt,targlon,targlat
@@ -19088,9 +19265,17 @@ c           Again, check and make sure that the lat/lon point in
 c           question here has valid data (see the explanation further
 c           up in this subroutine inside iloop).
 
-            call check_valid_point (imax,jmax,dx,dy,u(1,1,nlev),maxmin
-     &          ,valid_pt,rlont,rlatt,grid_maxlat,grid_minlat
-     &          ,grid_maxlon,grid_minlon,trkrinfo,icvpret)
+            if (gwctype == 'tracker') then
+              call check_valid_point (imax,jmax,dx,dy,u(1,1,nlev)
+     &            ,maxmin
+     &            ,valid_pt,rlont,rlatt,grid_maxlat,grid_minlat
+     &            ,grid_maxlon,grid_minlon,trkrinfo,icvpret)
+            elseif (gwctype == 'vtxtilt') then
+              call check_valid_point (imax,jmax,dx,dy,utilt(1,1,nlev)
+     &            ,maxmin
+     &            ,valid_pt,rlont,rlatt,grid_maxlat,grid_minlat
+     &            ,grid_maxlon,grid_minlon,trkrinfo,icvpret)
+            endif
 
             if (icvpret /= 0) then
               cycle iloop2
@@ -19157,11 +19342,11 @@ ctmwc                endif
 
                 call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
-     &            ,valid_pt,bimct,ifh,ibiret1)
+     &            ,valid_pt,bimct,ifh,ip,gwctype,ibiret1)
   
                 call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
-     &            ,valid_pt,bimct,ifh,ibiret2)
+     &            ,valid_pt,bimct,ifh,ip,gwctype,ibiret2)
 
                 if (ibiret1 == 0 .and. ibiret2 == 0) then
                   call getvrvt (rlont,rlatt,targlon,targlat
@@ -22428,7 +22613,7 @@ c
       integer   cpsglevtyp(nreadcpsparms)
       integer   ec_cpsgparm(nreadcpsparms)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
-      integer   vortex_tilt_levs(100)
+      integer   vortex_tilt_levs(vortex_max_levs)
       integer   igvret,ifa,ila,ip,ifh,i,j,k,kj,iret,kf,lugb,lugi
       integer   jskp,jdisc,np,igrh,igrhct,lmgb,lmgi
       integer   jpdtn,jgdtn,npoints,icount,ipack,krec,nz,nread_loop
@@ -23712,8 +23897,29 @@ c        GRIB2 Read for vortex tilt diagnostics
 c
 c        If we are attempting to perform vortex tilt diagnostics, then 
 c        read in data now that will allow us to do that.
-xxxtim
+c
+c       *------------------------------------------------------------*
+
         if (vortex_tilt_flag == 'y') then
+
+          if (vortex_tilt_parm == 'zeta' .or.
+     &        vortex_tilt_parm == 'wcirc') then
+            ! For zeta or wind circulation, we will compute both of 
+            ! these quantities, so we need to read in both u & v, so set
+            ! nread_loop to 2 in order to loop this read loop twice.
+            nread_loop = 2
+          else
+            nread_loop = 1
+          endif
+
+          ! Initialize all read flags for tilt diagnostics to false
+
+          if (vortex_tilt_parm == 'zeta' .or.
+     &        vortex_tilt_parm == 'wcirc') then
+            utilt_readflag = .false.
+            vtilt_readflag = .false.
+          endif
+          xtilt_readflag = .false.
 
           grib2_vortex_tilt_loop: do ip = 1,num_vortex_tilt_levs
 
@@ -23734,7 +23940,7 @@ xxxtim
             jdisc=0  ! meteorological products
             jids=-9999
             jpdtn=trkrinfo%g2_jpdtn ! 0 = analysis or forecast; 
-                                      ! 1 = ens fcst
+                                    ! 1 = ens fcst
             jgdtn=0 ! lat/lon grid
             jgdt=-9999
             jpdt=-9999
@@ -23749,19 +23955,6 @@ xxxtim
             else
               JPDT(8) = 1
               JPDT(9) = ifhours(ifh)
-            endif
-
-            if (vortex_tilt_parm == 'zeta' .or.
-     &          vortex_tilt_parm == 'wcirc') then
-              ! For zeta, we require u & v and we will compute the 
-              ! vorticity, we will not subtract out coriolis from
-              ! absolute vorticity.  This is for simplicity.  And
-              ! obviously, for wind circulation, we are going to 
-              ! read u & v separately.  So, for both of these 
-              ! variables, we have to go through the read loop twice.
-              nread_loop = 2
-            else
-              nread_loop = 1
             endif
 
             do nz = 1,nread_loop
@@ -23821,7 +24014,8 @@ xxxtim
               endif
 
               if ( verb .ge. 3 ) then
-                print *,'iret from getgb2 in getdata = ',iret
+                print *,'iret from getgb2 vortex_tilt in getdata = '
+     &                 ,iret
               endif
 
               if ( iret == 0) then
@@ -23863,7 +24057,7 @@ c               The default packing is 40 (JPEG 2000)
                 elseif ( gfld%idrtnum.eq.41 ) then  ! PNG packing
                   ipack = 41
                 endif
-stopped here
+
                 if ( verb_g2 .ge. 1 ) then
                   print *,'After check of idrtnum, ipack= ',ipack
                   print *,'Number of gridpts= gfld%ngrdpts= '
@@ -23884,6 +24078,17 @@ stopped here
                     lb(np)  = .true.
                   endif
                 enddo
+
+                call bitmapchk(kf,lb,f,dmin,dmax)
+
+c               Convert logical bitmap to 2-d array (only need to do 
+c               this once since using same model for all variables).
+
+                if (lbrdflag .eq. 'n') then
+                  call conv1d2d_logic (imax,jmax,lb,valid_pt
+     &                                           ,need_to_flip_lats)
+                  lbrdflag = 'y'
+                endif
 
                 firstval=gfld%fld(1)
                 lastval=gfld%fld(kf)
@@ -23961,22 +24166,26 @@ c                 Get parameter abbrev for record that was retrieved
 
 c               Convert data to 2-d array.  If the parameter we are
 c               tracking for vortex tilt is zeta or wcirc, then we 
-c               need to first convert the data to separate u and v
+c               need to first place the data into separate u and v
 c               arrays, then we will compute zeta or wind circulation
-c               in a different routine, which we will store in 
+c               in a different routine, and we will then store that
+c               zeta or wind circulation data 
 
                 if (vortex_tilt_parm == 'zeta' .or.
      &              vortex_tilt_parm == 'wcirc') then
                   if (nz == 1) then
-                    call conv1d2d_real (imax,jmax,f,u_vtilt(1,1,ip)
+                    call conv1d2d_real (imax,jmax,f,utilt(1,1,ip)
      &                                 ,need_to_flip_lats)
+                    utilt_readflag(ip) = .true.
                   else
-                    call conv1d2d_real (imax,jmax,f,v_vtilt(1,1,ip)
+                    call conv1d2d_real (imax,jmax,f,vtilt(1,1,ip)
      &                                 ,need_to_flip_lats)
+                    vtilt_readflag(ip) = .true.
                   endif
                 else
-                  call conv1d2d_real (imax,jmax,f,fparm_vtilt(1,1,ip)
+                  call conv1d2d_real (imax,jmax,f,xtilt(1,1,ip)
      &                               ,need_to_flip_lats)
+                  xtilt_readflag(ip) = .true.
                 endif
 
               endif
@@ -24587,8 +24796,200 @@ c             Convert data to 2-d array
             endif
 
           enddo grib1_gen_parm_loop
-  
+
         endif
+
+c       *------------------------------------------------------------*
+c        GRIB1 Read for vortex tilt diagnostics
+c
+c        If we are attempting to perform vortex tilt diagnostics, then 
+c        read in data now that will allow us to do that.
+c
+c       *------------------------------------------------------------*
+
+        if (vortex_tilt_flag == 'y') then
+
+          if (vortex_tilt_parm == 'zeta' .or.
+     &        vortex_tilt_parm == 'wcirc') then
+            ! For zeta and wind circulation, we will compute these 
+            ! quantities explicitly, so we need to read both u & v.
+            ! Therefore, we will set nread_loop to 2 in order to cycle
+            ! this read loop twice.
+            nread_loop = 2
+          else
+            nread_loop = 1
+          endif
+
+          if (vortex_tilt_parm == 'zeta' .or.
+     &        vortex_tilt_parm == 'wcirc') then
+            utilt_readflag = .false.
+            vtilt_readflag = .false.
+          endif
+          xtilt_readflag = .false.
+
+          grib1_vortex_tilt_loop: do ip = 1,num_vortex_tilt_levs
+
+            nzloop: do nz = 1,nread_loop
+
+              if (vortex_tilt_parm == 'zeta' .or.
+     &            vortex_tilt_parm == 'wcirc') then
+
+                if (nz == 1) then
+                  if (inp%model == 4) then  ! ECMWF u-comp
+                    jpds(5)  = 131
+                  else  ! u-comp for non-ECMWF models
+                    jpds(5)  = 33
+                  endif
+                  chparm_vtilt = 'u-comp'
+                else
+                  if (inp%model == 4) then  ! ECMWF v-comp
+                    jpds(5)  = 132
+                  else  ! v-comp for non-ECMWF models
+                    jpds(5)  = 34
+                  endif
+                  chparm_vtilt = 'v-comp'
+                endif
+
+              elseif (vortex_tilt_parm == 'hgt') then
+
+                if (inp%model == 4) then  ! ECMWF gp height
+                  jpds(5)  = 156
+                else  ! gp height for non-ECMWF models
+                  jpds(5)  = 7
+                endif
+                chparm_vtilt = 'hgt'
+
+              elseif (vortex_tilt_parm == 'temp') then
+
+                if (inp%model == 4) then  ! ECMWF temperature
+                  jpds(5)  = 130
+                else  ! temperature for non-ECMWF models
+                  jpds(5)  = 11
+                endif
+                chparm_vtilt = 'temp'
+
+              endif
+
+              jpds(6)  = 100
+              jpds(7)  = vortex_tilt_levs(ip)
+
+              if (verb >= 3) then
+                print *,' '
+                print *,' --- Before vortex_tilt getgb,'
+                print *,' ---               jpds(5)= ',jpds(5)
+                print *,' ---               jpds(6)= ',jpds(6)
+                print *,' ---               jpds(7)= ',jpds(7)
+              endif
+
+              if (inp%lt_units == 'minutes') then
+                jpds(14) = iftotalmins(ifh)
+              else
+                jpds(14) = ifhours(ifh)
+              endif
+               
+              call getgb (lugb,lugi,jf,j,jpds,jgds,
+     &                      kf,k,kpds,kgds,lb,f,iret)
+
+              if (verb >= 3) then
+                print *,' '
+                if (inp%lt_units == 'minutes') then
+                  print *,'After getgb vortex_tilt call, j= ',j,' k= ',k
+     &                 ,' iftotalmins= ',iftotalmins(ifh)
+     &                 ,' parm # (ip) = ',ip,' iret= ',iret
+                else
+                  print *,'After getgb vortex_tilt call, j= ',j,' k= ',k
+     &                 ,' ifhours= ',ifhours(ifh),' parm # (ip) = ',ip
+     &                 ,' iret= ',iret
+                endif
+              endif
+
+              if (iret == 0) then
+
+                if (verb >= 3) then
+                  print *,'+++ Good Read: getgb vortex_tilt found parm:'
+     &                   ,' ',chparm_vtilt
+                  print *,'+++       at level = ',jpds(7)
+                  if (inp%lt_units == 'minutes') then
+                    print *,'+++       Forecast time = '
+     &                   ,iftotalmins(ifh),' minutes'
+                  else
+                    print *,'+++       Forecast time = ',ifhours(ifh)
+     &                     ,' hours'
+                  endif
+                endif
+
+                call bitmapchk(kf,lb,f,dmin,dmax)
+
+                if (verb >= 3) then
+                  if (inp%lt_units == 'minutes') then
+                    write (6,29)
+                  else
+                    write (6,31)
+                  endif
+ 29               format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  '
+     &                 ,'fmin  npts  minval       maxval')
+ 31               format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  '
+     &                 ,'fhr   npts  minval       maxval')
+                  print '(i4,2x,8i5,i8,2g12.4)',
+     &                 k,(kpds(i),i=5,11),kpds(14),kf,dmin,dmax
+                endif
+
+c               Convert logical bitmap to 2-d array (only need to do this
+c               once since using same model for all variables).
+
+                if (lbrdflag .eq. 'n') then
+                  call conv1d2d_logic (imax,jmax,lb,valid_pt
+     &                                     ,need_to_flip_lats)
+                  lbrdflag = 'y'
+                endif
+
+c               Convert data to 2-d array.  If the parameter we are
+c               tracking for vortex tilt is zeta or wcirc, then we 
+c               need to first place the data into separate u and v
+c               arrays, then we will compute zeta or wind circulation
+c               in a different routine, and we will then store that
+c               zeta or wind circulation data 
+
+                if (vortex_tilt_parm == 'zeta' .or.
+     &              vortex_tilt_parm == 'wcirc') then
+                  if (nz == 1) then
+                    call conv1d2d_real (imax,jmax,f,utilt(1,1,ip)
+     &                                 ,need_to_flip_lats)
+                    utilt_readflag = .true.
+                  else
+                    call conv1d2d_real (imax,jmax,f,vtilt(1,1,ip)
+     &                                 ,need_to_flip_lats)
+                    vtilt_readflag = .true.
+                  endif
+                else
+                  call conv1d2d_real (imax,jmax,f,xtilt(1,1,ip)
+     &                               ,need_to_flip_lats)
+                  xtilt_readflag = .true.
+                endif
+
+              else
+
+                if ( verb .ge. 3 ) then
+                  print *,'!!! NOTE: vortex_tilt getgb could not find'
+     &                   ,' parm: ',chparm_vtilt
+                  print *,'!!!       at level = ',jpds(7)
+                  if (inp%lt_units == 'minutes') then
+                    print *,'!!!       Forecast time = '
+     &                     ,iftotalmins(ifh),' minutes'
+                  else
+                    print *,'!!!       Forecast time = ',ifhours(ifh)
+     &                     ,' hours'
+                  endif
+
+                endif
+
+              endif
+
+            enddo nzloop
+
+          enddo grib1_vortex_tilt_loop
+  
+        endif ! End of IF block for vortex tilt GRIB1 read
 
       endif
 c
@@ -24604,7 +25005,8 @@ c-----------------------------------------------------------------------
       subroutine getdata_netcdf (ncfile_id,nc_lsmask_file_id,readflag
      &                  ,readgenflag,valid_pt,imax,jmax,ifh
      &                  ,need_to_flip_lats,need_to_flip_lons
-     &                  ,ncfile_tmax,netcdfinfo,trkrinfo)
+     &                  ,ncfile_tmax,netcdfinfo,trkrinfo
+     &                  ,num_vortex_tilt_levs)
 c
 c     ABSTRACT: This subroutine reads the input NetCDF file for the 
 c     tracked parameters for one lead time.
@@ -24690,6 +25092,12 @@ c                 indicates if data needs flipped east to west
 c     ncfile_tmax integer with max number of time levels in the input
 c                 NetCDF file, as read in from the NetCDF file
 c                 itself in subroutine  read_netcdf_fhours.
+c     netcdfinfo  variable of user-defined type netcdfstuff (from 
+c                 module netcdf_parms).
+c     trkrinfo    derived type that contains info on the type of 
+c                 tracker run that we are performing.
+c     num_vortex_tilt_levs integer number of vertical levels that will
+c                 be used for the vortex tilt analysis
 c
 c     OUTPUT:
 c     readflag    logical array, indicates if a parm was read in
@@ -24716,15 +25124,17 @@ c
       logical(1) readgenflag(nreadgenparms)
       logical(1) ::  need_to_flip_lats,need_to_flip_lons
       character*1  :: lbrdflag,match_check,match_zero_check
+      character*40, allocatable :: cnc_tilt_var(:,:)
       character*30 :: chparm(nreadparms)
       character*30 :: chparm_cps(nreadcpsparms)
       character*30 :: chparm_gen(nreadgenparms)
+      integer, allocatable :: cnc_tilt_var_prs(:)
       integer, intent(in) :: ncfile_id,nc_lsmask_file_id,imax,jmax
       integer :: igvret,ifa,ip,ifh,i,j,k,m,n,ncfile_tmax,nf_get_att_real
       integer :: nf_get_att_double,nf_inq_attlen,imvlen,ifvlen
       integer :: usertime,ncix,missing_val_length,nf_status
-      integer :: nf_inq_varid,varid,igrh,igrhct,nc_zero_ix
-      integer :: xtype,ignrret
+      integer :: nf_inq_varid,varid,igrh,igrhct,nc_zero_ix,np
+      integer :: xtype,ignrret,ilev,ilevix,ictvret,ictvpret
 c
       lbrdflag = 'n'
 
@@ -25580,6 +25990,182 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
 
       endif
 
+c     *------------------------------------------------------------*
+c      NetCDF Read for genesis diagnostics
+c
+c      If we are attempting to perform vortex tilt diagnostics, then 
+c      read in data now that will allow us to do that.
+c
+c     *------------------------------------------------------------*
+
+      if (vortex_tilt_flag == 'y') then
+
+        if (allocated(cnc_tilt_var))     deallocate (cnc_tilt_var)
+        if (allocated(cnc_tilt_var_prs)) deallocate (cnc_tilt_var_prs)
+        allocate (cnc_tilt_var(num_vortex_tilt_levs,2),stat=ictvret)
+        allocate (cnc_tilt_var_prs(num_vortex_tilt_levs),stat=ictvpret)
+
+        if (ictvret /= 0 .or. ictvpret /= 0) then
+          print *,' '
+          print *,'!!! ERROR in getdata_netcdf allocating cnc_tilt_var'
+     *           ,' arrays.'
+          print *,'!!! ictvret= ',ictvret,' ictvpret= ',ictvpret
+          print *,'!!! STOPPING....'
+          stop 94
+        endif
+
+        if (verb >= 3) then
+          print *,' '
+          print *,'Vortex tilt: Reading in NetCDF variable names that'
+          print *,'             will be needed to read in the actual'
+          print *,'             data.  NetCDF variable names follow:'
+          print *,' '
+        endif
+
+        ict = 1
+        do while (.true.)
+
+          read (iunit_ncvt_vars,405,end=130) iprslev,cvar
+
+          ilevct = int((ict-1) / 2 + 1)
+
+          ilevmod = mod(ict,2)
+          if (ilevmod > 0) then
+            ilevix = 1
+          elseif (ilevmod == 0) then
+            ilevix = 2
+          endif
+
+          cnc_tilt_var(ilevct,ilevix) = cvar
+          cnc_tilt_var_prs(ilevct)    = iprslev
+
+          if (verb >= 3) then
+            write (6,417) ilevct,ilevix,iprslev
+     &                   ,cnc_tilt_var(ilevct,ilevix)
+          endif 
+
+          ict = ict + 1
+
+        enddo
+
+  405   format (1x,i4,1x,a40)
+  417   format (1x,'NetCDF tilt vars: ilevct= ',i3,'  ilevix= ',i4
+     &            ,' prs level= ',i4,'  cvar: ---> ',a40,'<----')
+
+        nc_vortex_tilt_read_loop: do ip = 1,num_vortex_tilt_levs
+
+          ! For each vertical level, two passes are made through the
+          ! next loop.  If our vortex_tilt_parm is 'zeta' or 'wcirc',
+          ! then we need to read both the u and v data, i.e., we need to
+          ! go through two read iterations of this loop.  Otherwise, if
+          ! our vortex_tilt_parm is 'hgt' or 'temp', then we only need
+          ! to read one record per height level, so for the second
+          ! iteration through this next nploop, just cycle.
+
+          nploop: do np = 1,2
+
+            if (np == 2 .and. (vortex_tilt_parm == 'hgt' .or.
+     &                         vortex_tilt_parm == 'temp')) then
+              cycle nploop
+            endif
+
+            call get_netcdf_real_type (ncfile_id
+     &            ,trim(cnc_tilt_var(ip,np)),xtype,ignrret)
+
+            if (xtype == 5) then
+              call get_var3_tlev_real4 (ncfile_id
+     &            ,trim(cnc_tilt_var(ip,np)),imax,jmax,ncix,f4,igvret)
+              f = f4
+            else
+              call get_var3_tlev_double (ncfile_id
+     &            ,trim(cnc_tilt_var(ip,np)),imax,jmax,ncix,f8,igvret)
+              f = f8
+            endif
+
+            if (verb >= 3) then
+              print *,' '
+              print *,'After tilt read, parm= ',cnc_tilt_var(ip,np)
+     &           ,' ifh= ',ifh,' lead time index= ',ltix(ifh)
+     &           ,' np #  = ',np,' ncix= ',ncix,' igvret= ',igvret
+            endif
+
+            if (igvret == 0) then
+
+              set flag here on this line for tilt read flag....
+              dmin = minval(f)
+              dmax = maxval(f)
+
+              nf_status = nf_inq_varid (ncfile_id
+     &            ,trim(cnc_tilt_var(ip,np)),varid)
+
+              call get_netcdf_real_type (ncfile_id
+     &            ,trim(cnc_tilt_var(ip,np)),xtype,ignrret)
+
+              if (xtype == 5) then
+                nf_status = nf_get_att_real (ncfile_id,varid
+     &                      ,"missing_value",xmissing_val4)
+                xmissing_value = xmissing_val4
+              else
+                nf_status = nf_get_att_double (ncfile_id,varid
+     &                      ,"missing_value",xmissing_val8)
+                xmissing_value = xmissing_val8
+              endif
+
+              if (verb >= 3) then
+                write (6,431)
+ 431            format (' V-tilt parmread lead time      lev#'
+     &                 ,' pass#  parm_id   '
+     &                 ,23x,'minval       maxval')
+
+                write (6,433) ifhours(ifh),ifclockmins(ifh),ip,np
+     &                       ,cnc_tilt_var(ip,np),dmin,dmax
+ 433            format ('   ',i3,':',i2.2,20x,i3,2x,i3,8x,a30,1x,2g12.4)
+                write (6,435) cnc_tilt_var(ip,np),xmissing_value
+ 435            format ('   --- ',a38,' missing value = ',g12.4)
+              endif
+
+c             Convert data to 2-d array.  If the parameter we are
+c             tracking for vortex tilt is zeta or wcirc, then we need
+c             to first place the data into separate u and v arrays, then
+c             we will compute zeta or wind circulation in a different
+c             routine, and we will then store that zeta or wind
+c             circulation data.
+
+              if (vortex_tilt_parm == 'zeta' .or.
+     &            vortex_tilt_parm == 'wcirc') then
+                if (np == 1) then
+                  call conv1d2d_real_netcdf (imax,jmax,f,utilt(1,1,ip)
+     &                                      ,need_to_flip_lats)
+                  utilt_readflag(ip) = .true.
+                else
+                  call conv1d2d_real_netcdf (imax,jmax,f,vtilt(1,1,ip)
+     &                                      ,need_to_flip_lats)
+                  vtilt_readflag(ip) = .true.
+                endif
+              else
+                call conv1d2d_real_netcdf (imax,jmax,f,xtilt(1,1,ip)
+     &                                    ,need_to_flip_lats)
+                xtilt_readflag(ip) = .true.
+              endif
+
+            else
+
+              if (verb >= 3) then
+                print *,' '
+                print *,'ERROR: in getdata_netcdf, from call to either'
+                print *,'get_var3_tlev_real4 or get_var3_tlev_double'
+                print *,'for vortex_tilt variables.'
+                print *,'igvret= ',igvret,' ip= ',ip,' np= ',np
+              endif
+
+            endif
+
+          enddo nploop
+
+        enddo nc_vortex_tilt_read_loop
+
+      endif
+
       if (allocated(f)) deallocate(f)
 c
       return
@@ -26396,7 +26982,8 @@ c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
       subroutine read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
-     &                        num_vortex_tilt_levs,lunml)
+     &                        num_vortex_tilt_levs
+     &                        vortex_tilt_levs,lunml)
 c
 c     ABSTRACT: This subroutine reads in the namelists that are
 c     created in the shell script.  Namelist datein contains the 
@@ -26417,7 +27004,7 @@ c
 
       logical(1) :: namelist_file_exists
       integer, parameter :: iunit_vtilt = 17
-      integer :: vortex_tilt_levs(100)
+      integer :: vortex_tilt_levs(vortex_max_levs)
       integer, intent out :: num_vortex_tilt_levs
       integer ifh,ict,lunml,inpvtix,inpvtlev
       type (datecard) inp
@@ -26452,6 +27039,7 @@ c
      &                    ,smoothe_mslp_for_gen_scan
      &                    ,depth_of_mslp_for_gen_scan
       namelist/vortextiltinfo/vortex_tilt_flag,vortex_tilt_parm
+     &                       ,vortex_tilt_allow_thresh
 
 c     Set namelist default values:
       use_per_fcst_command='t'
@@ -26963,6 +27551,9 @@ c
  173    format ('Vortex tilt flag = vortex_tilt_flag = ',a1)
         write (6,175) vortex_tilt_parm
  175    format ('Vortex tilt parameter = vortex_tilt_parm = ',a5)
+        write (6,177) vortex_tilt_allow_thresh
+ 177    format ('Vortex tilt allow thresh = vortex_tilt_allow_thresh = '
+     &         ,i4)
 
       endif
 
@@ -29638,7 +30229,7 @@ c
 c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
-      subroutine rvcal (imax,jmax,dlon,dlat,z,vp)
+      subroutine rvcal (imax,jmax,dlon,dlat,z,rvctype,vp)
 c
 c     ABSTRACT: This routine calculates the relative vorticity (zeta)
 c     from u,v on a lat/lon grid. Centered finite 
@@ -29656,6 +30247,28 @@ c     by the use of the "nlev850", "nlev700" and "levsfc" variables
 c     from module level_parms.  So we need to be sure to properly 
 c     annotate that in this routine.
 c
+c     UPDATE 10/2024: The tracker has been updated to allow for vortex
+c     tilt analysis.  For this analysis, separate reads are done and the
+c     data for u & v are in arrays named utilt and vtilt, and there is a 
+c     1-to-1 correspondence between the array indices and the levels
+c     with this data.  The key is in the value of the 'rvctype'
+c     variable, where a value of 'tracker' is for computing zeta for the
+c     main tracking, and a value of 'vtxtilt' is for the vortex tilt.
+c
+c     INPUT:
+c     imax     Num pts in i direction on input grid
+c     jmax     Num pts in j direction on input grid
+c     dlon     Grid spacing in i-direction on input grid
+c     dlat     Grid spacing in j-direction on input grid
+c     z        integer index for the vertical level whose meaning
+c              depends on the value of the next variable, rvctype.
+c     rvctype  character variable of value 'tracker' or 'vtxtilt'.
+c              This routine can be used to calculate zeta for the 
+c              main tracking, in which case rvctype='tracker',  This
+c              routine can also be used to calculate zeta for the vortex
+c              tilt analysis, in which case rvctype='vtxtilt'.
+c     vp       Logical; bitmap indicating if valid data at that point.
+c
 c     LOCAL VARIABLES:
 c
       USE tracked_parms; USE trig_vals; USE grid_bounds
@@ -29664,7 +30277,8 @@ c
       implicit none
 
       dimension cosfac(jmax),tanfac(jmax)
-      real      tmpzeta(imax,jmax)
+      character :: rvctype(*)
+c      real      tmpzeta(imax,jmax)
       real      xlondiff,xlatdiff,dlon,dlat,dfix
       real      dlat_edge,dlat_inter,dlon_edge,dlon_inter
       real      rlat(jmax),cosfac,tanfac
@@ -29675,32 +30289,38 @@ c
 c     --------------------------
 
 c     Figure out what level of data we have and what the array 
-c     indices should be.
+c     indices should be.  This is only needed for the main tracking
+c     (i.e., if rvctype = 'tracker'), not if we are calculating zeta
+c     for the vortex tilt (because, for the vortex tilt, we use the 
+c     input value z explicitly as the array index).
 
-      if (z == 1) then
-        ! z = 1 for 850 mb zeta, w = 1 for 850 mb winds
-c        w = 1  
-        w = nlev850  ! part of 1/2022 bugfix for levsfc winds
-      else if (z == 2) then
-        ! z = 2 for 700 mb zeta, w = 2 for 700 mb winds
-c        w = 2  
-        w = nlev700  ! part of 1/2022 bugfix for levsfc winds
-      else if (z == 3) then
-        ! z = 3 for sfc zeta, w = 5 for sfc (10m) winds
-c        w = 4
-        w = levsfc  ! 1/2022 bugfix for levsfc winds, needed because 
-                    ! 200 mb winds were added which are now in the #4
-                    ! slot of the u & v arrays.  So, to future-proof
-                    ! this, use the level IDs from module level_parms
-                    ! instead of the hard-wired numbers.
+      if (rvctype == 'tracker') then
+        if (z == 1) then
+          ! z = 1 for 850 mb zeta, w = 1 for 850 mb winds
+c          w = 1  
+          w = nlev850  ! part of 1/2022 bugfix for levsfc winds
+        else if (z == 2) then
+          ! z = 2 for 700 mb zeta, w = 2 for 700 mb winds
+c          w = 2  
+          w = nlev700  ! part of 1/2022 bugfix for levsfc winds
+        else if (z == 3) then
+          ! z = 3 for sfc zeta, w = 5 for sfc (10m) winds
+c          w = 4
+          w = levsfc  ! 1/2022 bugfix for levsfc winds, needed because 
+                      ! 200 mb winds were added which are now in the #4
+                      ! slot of the u & v arrays.  So, to future-proof
+                      ! this, use the level IDs from module level_parms
+                      ! instead of the hard-wired numbers.
+        endif
       endif
 
 c     Calculate grid increments for interior and edge points.
 
 c     IMPORTANT: If dtk is defined in module trig_vals in km, then
 c     we need to multiply by 1000 here to get meters.  If it's defined
-c     as meters, just let it be.  Since the wind values are given in 
-c     meters, that's why we need the dlon values to be in meters.
+c     as meters, just let it be.  Since the wind values in the input 
+c     data are given in m/s, that's why we need the dlon values to be
+c     in meters.
 
       if (dtk < 750.) then     ! chances are, dtk was defined as km
         dfix = 1000.0
@@ -29785,13 +30405,24 @@ c
         if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
      &      vp(i,j+1) .and. vp(i,j-1)) then
 c 
-         zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
-     &               - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
-     &               + tanfac(j)*u(i,j,w)
-
+          if (rvctype == 'tracker') then 
+            zeta(i,j,z)= (v(i+1,j,w)
+     &                  - v(i-1,j,w))/(dlon_inter * cosfac(j))
+     &                  - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
+     &                  + tanfac(j)*u(i,j,w)
+          elseif (rvctype == 'vtxtilt') then
+            xtilt(i,j,z)= (vtilt(i+1,j,z)
+     &             - vtilt(i-1,j,z))/(dlon_inter * cosfac(j))
+     &             - (utilt(i,j-1,z) - utilt(i,j+1,z))/(dlat_inter)
+     &             + tanfac(j)*utilt(i,j,z)
+          endif
         else
 c         zeta(i,j,z)= -999.
-         zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+          if (rvctype == 'tracker') then 
+            zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+          elseif (rvctype == 'vtxtilt') then
+            xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+          endif
         endif
 c
        enddo
@@ -29807,12 +30438,24 @@ c
        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and. 
      &     vp(i,j-1)) then
 c
-         zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
+         if (rvctype == 'tracker') then
+           zeta(i,j,z)= (v(i+1,j,w) 
+     &              - v(i-1,j,w))/(dlon_inter * cosfac(j))
      &              - (u(i,j-1,w) - u(i,j,w))/(dlat_edge) 
      &              + tanfac(j)*u(i,j,w)
+          elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z)= (vtilt(i+1,j,z) 
+     &              - vtilt(i-1,j,z))/(dlon_inter * cosfac(j))
+     &              - (utilt(i,j-1,z) - utilt(i,j,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
+          endif
        else
 c         zeta(i,j,z)= -999.
-         zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         endif
        endif
 c
       enddo
@@ -29827,12 +30470,24 @@ c
        if (vp(i,j) .and. vp(i+1,j) .and. vp(i-1,j) .and.  
      &     vp(i,j+1)) then
 c
-         zeta(i,j,z)= (v(i+1,j,w) - v(i-1,j,w))/(dlon_inter * cosfac(j))
+         if (rvctype == 'tracker') then
+           zeta(i,j,z)= (v(i+1,j,w) 
+     &              - v(i-1,j,w))/(dlon_inter * cosfac(j))
      &              - (u(i,j,w) - u(i,j+1,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z)= (vtilt(i+1,j,z)
+     &              - vtilt(i-1,j,z))/(dlon_inter * cosfac(j))
+     &              - (utilt(i,j,z) - utilt(i,j+1,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
+         endif
        else
 c         zeta(i,j,z)= -999.
-         zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         endif
        endif
 c
       enddo
@@ -29847,12 +30502,24 @@ c
        if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) .and.  
      &     vp(i,j-1)) then
 c
-         zeta(i,j,z) = (v(i+1,j,w) - v(i,j,w))/(dlon_edge * cosfac(j))
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = (v(i+1,j,w) 
+     &               - v(i,j,w))/(dlon_edge * cosfac(j))
      &               - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
      &               + tanfac(j)*u(i,j,w)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = (vtilt(i+1,j,z) 
+     &               - vtilt(i,j,z))/(dlon_edge * cosfac(j))
+     &               - (utilt(i,j-1,z) - utilt(i,j+1,z))/(dlat_inter)
+     &               + tanfac(j)*utilt(i,j,z)
+         endif
        else
 c         zeta(i,j,z)= -999.
-         zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         endif
        endif
 c
       enddo
@@ -29867,12 +30534,24 @@ c
        if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) .and.  
      &     vp(i,j-1)) then
 c
-         zeta(i,j,z) = (v(i,j,w) - v(i-1,j,w))/(dlon_edge * cosfac(j))
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = (v(i,j,w) 
+     &               - v(i-1,j,w))/(dlon_edge * cosfac(j))
      &               - (u(i,j-1,w) - u(i,j+1,w))/(dlat_inter)
      &               + tanfac(j)*u(i,j,w)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = (vtilt(i,j,z) 
+     &               - vtilt(i-1,j,z))/(dlon_edge * cosfac(j))
+     &               - (utilt(i,j-1,z) - utilt(i,j+1,z))/(dlat_inter)
+     &               + tanfac(j)*utilt(i,j,z)
+         endif
        else 
 c         zeta(i,j,z)= -999.
-         zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         if (rvctype == 'tracker') then
+           zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         elseif (rvctype == 'vtxtilt') then
+           xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+         endif
        endif
 c
       enddo
@@ -29884,12 +30563,24 @@ c     ---------
       j=jmax
       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j-1) ) then 
 c
-        zeta(i,j,z) = (v(i+1,j,w)-v(i,j,w))/(dlon_edge * cosfac(j))
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = (v(i+1,j,w)
+     &              - v(i,j,w))/(dlon_edge * cosfac(j))
      &              - (u(i,j-1,w)-u(i,j,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = (vtilt(i+1,j,z)
+     &              - vtilt(i,j,z))/(dlon_edge * cosfac(j))
+     &              - (utilt(i,j-1,z)-utilt(i,j,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
+        endif
       else
 c        zeta(i,j,z)= -999.
-        zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        endif
       endif
 c
 c     ---------
@@ -29899,12 +30590,24 @@ c     ---------
       j=1
       if (vp(i,j) .and. vp(i+1,j) .and. vp(i,j+1) ) then
 c
-        zeta(i,j,z) = (v(i+1,j,w) - v(i,j,w))/(dlon_edge * cosfac(j))
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = (v(i+1,j,w) 
+     &              - v(i,j,w))/(dlon_edge * cosfac(j))
      &              - (u(i,j,w) - u(i,j+1,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = (vtilt(i+1,j,z) 
+     &              - vtilt(i,j,z))/(dlon_edge * cosfac(j))
+     &              - (utilt(i,j,z) - utilt(i,j+1,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
+        endif
       else
 c        zeta(i,j,z)= -999.
-        zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        endif
       endif
 c
 c     ---------
@@ -29914,12 +30617,24 @@ c     ---------
       j=1
       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j+1) ) then
 c
-        zeta(i,j,z) = (v(i,j,w) - v(i-1,j,w))/(dlon_edge * cosfac(j))
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = (v(i,j,w) 
+     &              - v(i-1,j,w))/(dlon_edge * cosfac(j))
      &              - (u(i,j,w) - u(i,j+1,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = (vtilt(i,j,z) 
+     &              - vtilt(i-1,j,z))/(dlon_edge * cosfac(j))
+     &              - (utilt(i,j,z) - utilt(i,j+1,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
+        endif
       else
 c        zeta(i,j,z)= -999.
-        zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        endif
       endif
 c
 c     ---------
@@ -29929,19 +30644,30 @@ c     ---------
       j=jmax
       if (vp(i,j) .and. vp(i-1,j) .and. vp(i,j-1) ) then
 c
-        zeta(i,j,z) = (v(i,j,w)-v(i-1,j,w))/(dlon_edge * cosfac(j))
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = (v(i,j,w)
+     &              - v(i-1,j,w))/(dlon_edge * cosfac(j))
      &              - (u(i,j-1,w)-u(i,j,w))/(dlat_edge)
      &              + tanfac(j)*u(i,j,w)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = (vtilt(i,j,z)
+     &              - vtilt(i-1,j,z))/(dlon_edge * cosfac(j))
+     &              - (utilt(i,j-1,z)-utilt(i,j,z))/(dlat_edge)
+     &              + tanfac(j)*utilt(i,j,z)
       else
 c        zeta(i,j,z)= -999.
-        zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        if (rvctype == 'tracker') then
+          zeta(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        elseif (rvctype == 'vtxtilt') then
+          xtilt(i,j,z) = 2. * omega * sin(rlat(j)*dtr)
+        endif
       endif
 c
-      do ii=1,imax
-        do jj=1,jmax
-          tmpzeta(ii,jj) = zeta(ii,jj,z) * 1.e5
-        enddo
-      enddo
+c      do ii=1,imax
+c        do jj=1,jmax
+c          tmpzeta(ii,jj) = zeta(ii,jj,z) * 1.e5
+c        enddo
+c      enddo
 
       return
       end
@@ -32597,11 +33323,12 @@ c              what GM-wrapping setting to use.
 
       character  one_radial_mslp_depth_flag*1
       character  continuous_gradient_flag*1
+      character  c_int_type*7
       character(*)  gm_wrap_flag
       integer, parameter :: distmax=11,num_azim=8
       integer  imax,jmax,ip,jp,idist,ilevint,bimct,iazim,ifh99,iquadct
       integer  iazim_good_depth_ct,ibiret1,icmrgret,i,j
-      integer  iazim_full_dist_ct
+      integer  iazim_full_dist_ct,idum
       real, intent(in) :: fxy(imax,jmax)
       real     max_radial_grad_dist(num_azim)
       real     rdist(distmax)
@@ -32688,6 +33415,8 @@ c     radius.  If at any radius, you find an MSLP value that is lower
 c     than the one immediately radially inward, then this gradient 
 c     check will fail for the entire candidate point.
 
+      idum = -999
+      c_int_type = 'tracker'
       iazim_good_depth_ct = 0
 
       azimloop1: do iazim = 1,num_azim
@@ -32723,7 +33452,7 @@ c        print *,'    ==> xxtim, iazim= ',iazim,' bear= ',bear
  
           call bilin_int_uneven (targlat,targlon
      &            ,dx,dy,imax,jmax,trkrinfo,ilevint,'p',xintrp_mslp
-     &            ,valid_pt,bimct,ifh99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret1)
 
           if (ibiret1 == 0) then
 
@@ -33058,6 +33787,7 @@ c     iccwcret  return code from this subroutine
       integer   imax,jmax,idist,azimuth_ct,ibiret1,ibiret2,bimct,iq,nq
       integer   final_quad_full_vt_ct,iccwcret,iazim,igvtret,ifh
       integer   final_quad_half_vt_ct,final_quad_sum_ct
+      integer   idum,ifh99
       real      xcandlon,ycandlat
       real      rdist(numdist)
       real      vtsum(numquad,numdist),vtquadmax(numquad)
@@ -33066,6 +33796,7 @@ c     iccwcret  return code from this subroutine
       character :: low_level_wind_circ_flag*1
       character :: quad_pass_flag(numquad)*1
       character :: quad_pass_half_vt_flag(numquad)*1
+      character :: c_int_type*7
       character (*)  gm_wrap_flag
       character (*)  tracker_application
       logical(1) valid_pt(imax,jmax)
@@ -33080,6 +33811,10 @@ c
       vtct                   = 0
       iccwcret               = 0
       igvtret                = 0
+
+      idum  = -999
+      ifh99 = -99
+      c_int_type = 'tracker'
 
       full_vt_thresh = 7.0                   ! wind speed in m/s
       half_vt_thresh = 0.5 * full_vt_thresh  ! wind speed in m/s
@@ -33131,11 +33866,11 @@ c        print *,' '
 
           call bilin_int_uneven (targlat,targlon
      &         ,dx,dy,imax,jmax,trkrinfo,1020,'u',xintrp_u
-     &         ,valid_pt,bimct,-99,ibiret1)
+     &         ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret1)
 
           call bilin_int_uneven (targlat,targlon
      &         ,dx,dy,imax,jmax,trkrinfo,1020,'v',xintrp_v
-     &         ,valid_pt,bimct,-99,ibiret2)
+     &         ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret2)
 
 c          write (6,81) iazim,bear,targlat,targlon,xintrp_u,xintrp_v 
 c     &                ,ibiret1,ibiret2
@@ -33306,16 +34041,18 @@ c
 c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
-      subroutine get_vortex_tilt (imax,jmax,inp,dx,dy
+      subroutine get_vortex_tilt (imax,jmax,dx,dy
      &                     ,ist,ifh,fixlon,fixlat,valid_pt
-     &                     ,read_tilt_flag
-     &                     ,calcparm,maxstorm,trkrinfo,clon,clat
+     &                     ,maxstorm,trkrinfo
      &                     ,grid_maxlat,grid_minlat
      &                     ,grid_maxlon,grid_minlon
-     &                     ,cmodel_type,vortex_tilt_levs,igvtret)
+     &                     ,cmodel_type,ifcsthour
+     &                     ,num_vortex_tilt_levs
+     &                     ,vortex_tilt_levs,igvtret)
 c
 c     ABSTRACT: This subroutine will diagnose center fixes at vertical
-c     levels that are specified in a text file created by a user.
+c     levels that are specified in a text file created by a user.  That
+c     text file was read in and processed in subroutine read_nlists.
 c
 c     INPUT:
 c     imax     Num pts in i direction on input grid
@@ -33330,12 +34067,8 @@ c     valid_pt Logical bitmap masking non-valid grid points.  This is a
 c              concern for the regional models, which are interpolated 
 c              from Lam-Conf or NPS grids onto lat/lon grids, leaving 
 c              grid points around the edges which have no valid data.
-c     calcparm Logical flag that indicates whether or not to perform
-c              tracking for a specific parameter
 c     maxstorm Integer max number of storms to track
 c     trkrinfo derived type detailing user-specified grid info
-c     clon     Real array with parameter lon positions
-c     clat     Real array with parameter lat positions
 c     grid_maxlat northernmost latitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
 c              full grid from the original dataset.
@@ -33349,6 +34082,9 @@ c     grid_minlon westernmost longitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
 c              full grid from the original dataset.
 c     cmodel_type character, 'global' or 'regional'
+c     num_vortex_tilt_levs Integer number of vertical levels that the
+c              user included in a text file to be processed for the 
+c              vortex tilt analysis.
 c     vortex_tilt_levs Integer array with a listing of the vertical 
 c              levels used in the vortex tilt analysis.
 c
@@ -33359,30 +34095,231 @@ c     igvtret  Return code from this subroutine
 
       USE radii; USE grid_bounds; USE set_max_parms; USE level_parms
       USE trig_vals; USE trkrparms; USE tracked_parms
-      USE verbose_output
+      USE verbose_output; USE atcf; USE def_vitals
+      USE vortex_tilt_diags
 
       implicit none
 c
       type (trackstuff) trkrinfo
 
-      character(*)  maxmin,cparm,cmodel_type
-      logical(1)    compflag, valid_pt(imax,jmax)
-      real    fxy(imax,jmax),rlonv(imax),rlatv(jmax)
-      real    ctlon,ctlat,degrees,dx,dy,guesslon,guesslat,xval
-      real    rads,re,ri,dell,fmax,fmin,rlatt,rlont,dist,ftemp,ritmp
-      real    vmag_latmax,vmag_latmin,vmag_lonmax,vmag_lonmin,retmp
-      real    tlon,tlat,grid_buffer,temp_grid_minlon,temp_guesslon
-      real    grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
-      integer imax,jmax,ist,bskip1,bskip2,iskip,ifmret,npts,maxvgrid
-      integer ibeg,iend,jbeg,jend,ilonfix,jlatfix,igiret,icount,iret
-      integer ibct,ibarnes_loopct,i,j,k,iix,jix,jvlatfix,ivlonfix
-      integer nhalf,icvpret
-      integer date_time(8)
       character (len=10) big_ben(3)
+      character(*)  cmodel_type
+      character :: gwctype*7,rvctype*7
+      character :: cmaxmin*3,cvort_maxmin*3,basinid*2
+      character :: cymdh*10
+      logical(1)    compflag, valid_pt(imax,jmax)
+      real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
+      real    dx,dy,guesslon,guesslat,dist,degrees,xmax_allow_diff
+      real    grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
+      integer vortex_tilt_levs(vortex_max_levs)
+      integer imax,jmax,ist,ifmret
+      integer igvtret,num_vortex_tilt_levs,ifcsthour,maxstorm
+      integer date_time(8)
 c
-xxxtim
+      igvtret = 0
 
+      if (verb >= 3) then
+        print *,'Top of vortex_tilt calculation loop....'
+      endif
 
+      write (cymdh,'(i10.10)') atcfymdh
+
+      xtiltlon =  -99.0
+      xtiltlat =  -99.0
+      xtiltval = -999.0
+
+      level_loop: do ip = 1,num_vortex_tilt_levs
+
+        if (verb >= 3) then
+          print *,' '
+          print *,'New vertical level in vortex tilt diagnosis: '
+          print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
+        endif
+
+        ! For the first (lowest) level, determine the guess lon & lat
+        ! using the fixlon & fixlat that the tracker diagnosed for this
+        ! lead time for this storm.  For subsequent levels, use the 
+        ! diagnosed vortex-tilt lat & lon from the next lower level that
+        ! was just processed in the last iteration of the loop.
+
+        if (ip == 1) then
+          guesslon = fixlon(ist,ifh)
+          guesslat = fixlon(ist,ifh)
+        else
+          guesslon = xtiltlon(ist,ip-1)
+          guesslat = xtiltlat(ist,ip-1)
+        endif
+
+        if (guesslat >= 0.0) then
+          cmaxmin      = 'max' 
+          cvort_maxmin = 'max' 
+        else
+          cmaxmin      = 'min' 
+          cvort_maxmin = 'min' 
+        endif
+
+        ! Now determine the center, using slightly different methods 
+        ! depending on what variable we are using -- zeta, wind
+        ! circulation, temperature or gp height.  If using zeta or wind
+        ! circulation, we have to compute those metrics first, using the
+        ! u and v values in utilt and vtilt, before finding the centers. 
+
+        if (vortex_tilt_parm == 'zeta' .or. vortex_tilt_parm == 'wcirc')
+     &  then
+
+          if (utilt_readflag(ip) .and. vtilt_readflag(ip)) then
+            continue
+          else
+            print *,' '
+            print *,'!!! ERROR: In get_vortex_tilt, we are trying to'
+            print *,'!!! compute zeta or wcirc, but readflags for u and'
+            print *,'!!! v at this level are false, indicating that u'
+            print *,'!!! and/or v could not be read for this level.'
+            print *,'!!! ip= ',ip,' prs level= ',vortex_tilt_levs(ip)
+            igvtret = 95
+            return
+          endif
+          if (vortex_tilt_parm == 'zeta') then
+            rvctype = 'vtxtilt'
+            call rvcal (imax,jmax,dx,dy,ip,rvctype,valid_pt)
+
+            if ( verb .ge. 3 ) then
+              print *,' '
+              print *,'         ---    ---    ---'
+              print *,'Now calling find_maxmin for vortex-tilt zeta'
+              print *,'at ',vortex_tilt_levs(ip),' mb'
+            endif
+
+            call find_maxmin (imax,jmax,dx,dy,'zeta'
+     &         ,xtilt(1,1,ip),cvort_maxmin,ist,guesslon
+     &         ,guesslat,glon,glat,valid_pt,trkrinfo
+     &         ,compflag,xtiltlon(ist,ip),xtiltlat(ist,ip)
+     &         ,xtiltval(ist,ip),glatmax,glatmin,glonmax,glonmin
+     &         ,cmodel_type,ifmret)
+
+            if (ifmret /= 0) then
+              if (verb >= 3) then
+                print *,' '
+                print *,'ERROR in get_vortex_tilt from call to '
+                print *,'find_maxmin in get_vortex_tilt for zeta.'
+                print *,'ifmret= ',ifmret
+                print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
+              endif
+              exit level_loop
+            endif
+
+          elseif (vortex_tilt_parm == 'wcirc') then
+
+            gwctype = 'vtxtilt'
+            call get_wind_circulation (guesslon,guesslat,imax,jmax
+     &            ,dx,dy,ist,ip,vortex_tilt_levs(ip),valid_pt
+     &            ,xtiltlon(ist,ip),xtiltlat(ist,ip),xtiltval(ist,ip)
+     &            ,trkrinfo,cmodel_type,cmaxmin,ifh,gm_wrap_flag,gwctype
+     &            ,igwcret)
+
+            if (igwcret /= 0) then
+              if (verb >= 3) then
+                print *,' '
+                print *,'ERROR in get_vortex_tilt from call to '
+                print *,'find_maxmin in get_vortex_tilt for wcirc.'
+                print *,'igwcret= ',igwcret
+                print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
+              endif
+              exit level_loop
+            endif
+
+          endif
+
+        else
+
+          ! Inside this else statement, we are doing the vortex center
+          ! fix for other variables, which are defined by 
+          ! vortex_tilt_parm as either 'temp' or 'hgt'.
+
+          call find_maxmin (imax,jmax,dx,dy,vortex_tilt_parm
+     &       ,xtilt(1,1,ip),cvort_maxmin,ist,guesslon
+     &       ,guesslat,glon,glat,valid_pt,trkrinfo
+     &       ,compflag,xtiltlon(ist,ip),xtiltlat(ist,ip)
+     &       ,xtiltval(ist,ip),glatmax,glatmin,glonmax,glonmin
+     &       ,cmodel_type,ifmret)
+
+          if (ifmret /= 0) then
+            if (verb >= 3) then
+              print *,' '
+              print *,'ERROR in get_vortex_tilt from call to '
+              print *,'find_maxmin in get_vortex_tilt for '
+     &               ,vortex_tilt_parm
+              print *,'ifmret= ',ifmret
+              print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
+            endif
+            exit level_loop
+          endif
+
+        endif
+
+        ! Now determine if the difference between the position found at
+        ! the current level and the next lowest level is within an 
+        ! allowable distance, as defined by the user, in order
+        ! to be considered an upward extension of the same vortex.  For
+        ! example, if the user defines vortex_tilt_allow_thresh=1
+        ! (1 km), and suppose we are working on the 875 mb level and our
+        ! previous level was 900 mb, then our pressure difference is 
+        ! 25 mb, and our max allowable difference in position is 
+        ! 25 mb * (1 km / mb) = 25 km.
+
+        if (ip == 1) then
+          xtilt_dist_flag(ist,1) = 1  ! Default setting for lowest level
+        else
+          ! Only check the difference in distance for the tilt flag if
+          ! the flag at the next lowest level indicates that the vortex
+          ! was still intact.  Otherwise, the default value of 0 will
+          ! be left as is.
+          if (xtilt_dist_flag(ist,ip-1) == 1) then
+            call calcdist (xtiltlon(ist,ip),xtiltlat(ist,ip)
+     &                    ,xtiltlon(ist,ip-1),xtiltlat(ist,ip-1)
+     &                    ,dist,degrees)
+
+            xmax_allow_diff = vortex_tilt_allow_thresh * 
+     &              (abs(vortex_tilt_levs(ip-1) - vortex_tilt_levs(ip)))
+
+            if (dist <= xmax_allow_diff) then
+              xtilt_dist_flag(ist,ip) = 1  
+            endif
+          endif
+        endif
+
+c       -----------------------------------------------------------
+c       Now output the data for this storm, this level
+c       -----------------------------------------------------------
+
+        select case (storm(ist)%tcv_storm_id(3:3))
+          case ('L','l');  basinid = 'AL'
+          case ('E','e');  basinid = 'EP'
+          case ('C','c');  basinid = 'CP'
+          case ('W','w');  basinid = 'WP'
+          case ('O','o');  basinid = 'SC'
+          case ('T','t');  basinid = 'EC'
+          case ('U','u');  basinid = 'AU'
+          case ('P','p');  basinid = 'SP'
+          case ('S','s');  basinid = 'SI'
+          case ('B','b');  basinid = 'BB'
+          case ('A','a');  basinid = 'AA'
+          case ('Q','q');  basinid = 'SL'
+          case default;    basinid = '**'
+        end select
+
+        write (xx,91) ifcsthour,vortex_tilt_levs(ip),
+     &        ,xtiltlat(ist,ip),-1.0*(360.0-xtiltlon(ist,ip))
+     &        ,xtilt_dist_flag(ist,ip),dist,xtiltlon(ist,ip)
+     &        ,vortex_tilt_parm
+     &        ,basinid,storm(ist)%tcv_storm_id(1:2),cymdh(1:4)
+     &        ,atcfymdh,fixlat(ist,ifh)
+     &        ,-1.0*(360.0-fixlon(ist,ifh)),fixlon(ist,ifh)
+
+      enddo level_loop
+c
+      return
+      end
 c
 c---------------------------------------------------------------------
 c
@@ -33432,10 +34369,11 @@ c              which GM-wrapping setting to use.
 
       character(*)  cmodel_type
       character(*)  gm_wrap_flag
+      character :: c_int_type*7
       integer, parameter :: numazim=24
       integer    imax,jmax,level,imbowret,nlev,iazim,i,j
-      integer    ibiret1,ibiret2,azimuth_ct,igvtret
-      integer    jnfix,jsfix,iefix,iwfix,bimct,ifh
+      integer    ibiret1,ibiret2,azimuth_ct,igvtret,ifh99
+      integer    jnfix,jsfix,iefix,iwfix,bimct,ifh,idum
       real       vr(numazim),vt(numazim)
       real       dx,dy,ctlon,ctlat,rdist,bear,targlat,targlon
       real       xintrp_u,xintrp_v,grid_buffer,xmax_rdist_reached
@@ -33444,6 +34382,10 @@ c              which GM-wrapping setting to use.
       logical(1) searching_valid_pts
 
       imbowret = 0
+
+      ifh99 = -99
+      idum  = -999
+      c_int_type = 'tracker'
 
       select case (level)
         case (850);  nlev = nlev850  ! check module level_parms for
@@ -33525,11 +34467,11 @@ c              which GM-wrapping setting to use.
 
           call bilin_int_uneven (targlat,targlon
      &        ,dx,dy,imax,jmax,trkrinfo,level,'u',xintrp_u
-     &            ,valid_pt,bimct,-99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret1)
 
           call bilin_int_uneven (targlat,targlon
      &        ,dx,dy,imax,jmax,trkrinfo,level,'v',xintrp_v
-     &            ,valid_pt,bimct,-99,ibiret2)
+     &            ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret2)
     
           if (ibiret1 == 0 .and. ibiret2 == 0) then
             call getvrvt (ctlon,ctlat,targlon,targlat
@@ -34989,13 +35931,19 @@ c
 
       logical(1) valid_pt(imax,jmax)
       character  point_is_over_water*1
+      character  c_int_type*7
       character (*)  gm_wrap_flag
       integer, parameter :: numazim=8
-      integer  iazim,ibiret1,imax,jmax,ix,jx,iclmret,imct,bimct,ifh
+      integer iazim,ibiret1,imax,jmax,ix,jx,iclmret,imct,bimct,ifh
+      integer idum,ifh99
       real     bear,targlat,targlon,xplon,yplat,rdist,xintrp_mask
       real     fract_land,dx,dy,xmask_sum
 c
       iclmret = 0
+
+      ifh99 = -99
+      idum  = -999
+      c_int_type = 'tracker'
 
 c     First, calculate the longitude and latitude of the input ix and
 c     jx points.  If the xplon value ends up being >360.0 (this can 
@@ -35069,7 +36017,7 @@ c     distance of 75 km from the center point....
 
         call bilin_int_uneven (targlat,targlon
      &      ,dx,dy,imax,jmax,trkrinfo,850,'m',xintrp_mask
-     &            ,valid_pt,bimct,-99,ibiret1)
+     &            ,valid_pt,bimct,ifh99,idum,c_int_type,ibiret1)
 
         if (ibiret1 == 0) then
           xmask_sum = xmask_sum + xintrp_mask
