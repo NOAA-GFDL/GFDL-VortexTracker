@@ -4381,9 +4381,9 @@ c
         print *,'gopen_g_file= ',gopen_g_file
         print *,'gopen_i_file= ',gopen_i_file
 
-        write (6,81) gopen_g_file,gopen_i_file
-   81   format (1x,'tpm gopen_g_file= ...',a<nlen1>
-     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
+c        write (6,81) gopen_g_file,gopen_i_file
+c   81   format (1x,'tpm gopen_g_file= ...',a<nlen1>
+c     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
 
         print *,'gopen_g_file= ',gopen_g_file,'....'
         print *,'gopen_i_file= ',gopen_i_file,'....'
@@ -14689,6 +14689,7 @@ c
       real      ucomp,vcomp,xdist,ydist,ydeg,dt,extraplat
       real      cosfac
       real      dtkm
+      character(len=1) :: in_grid, extrap_flag
 c
       in_grid = 'n'
       extrap_flag = 'y'
@@ -26285,7 +26286,7 @@ c     tracker was compiled in.
         enddo
       elseif (xtype == 6) then
         ! Read data into an 8-byte double real array
-        status = nf_get_var_double (ncid,var1id,var1)
+        status = nf_get_var_double (ncid,var1id,real(var1,kind=8))
         if (status .ne. NF_NOERR) call handle_netcdf_err(status)
         do i = 1,nmax
           var1(i) = readvar8(i)

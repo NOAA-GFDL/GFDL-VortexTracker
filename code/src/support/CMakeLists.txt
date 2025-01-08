@@ -20,8 +20,7 @@ target_link_libraries(
   supvit.x
   g2::g2_d
   bacio::bacio_4
-  w3emc::w3emc_d
-  w3nco::w3nco_d)
+  w3emc::w3emc_d)
 
 install(TARGETS supvit.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)
 
@@ -36,8 +35,7 @@ target_link_libraries(
   tave.x
   g2::g2_d
   bacio::bacio_4
-  w3emc::w3emc_d
-  w3nco::w3nco_d)
+  w3emc::w3emc_d)
 
 install(TARGETS tave.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)
 
@@ -52,7 +50,6 @@ target_link_libraries(
   vint.x
   g2::g2_d
   bacio::bacio_4
-  w3emc::w3emc_d
-  w3nco::w3nco_d)
+  w3emc::w3emc_d)
 
 install(TARGETS vint.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)

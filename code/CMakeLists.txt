@@ -20,7 +20,6 @@ find_package(Jasper REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(g2 REQUIRED)
 find_package(bacio REQUIRED)
-find_package(w3nco REQUIRED)
 find_package(w3emc REQUIRED)
 
 enable_testing()
