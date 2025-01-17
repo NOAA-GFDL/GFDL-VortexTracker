@@ -272,6 +272,7 @@ c
       integer   igrret,igmwret,iorret,ignret,iovret,icbret,igucret,ita
       integer   ifilret,ifret,iaret,isret,iotmret,iwa,iisa,sl_counter
       integer   iicret,igcret,igwcret,imbowret,iatret,ioapret,nwclev
+      integer   iuta,ivta,ixta,iutrfa,ivtrfa,ixtrfa
       integer(kind=8) :: pfcret
       logical(1), allocatable :: valid_pt(:,:)
       logical(1), allocatable :: masked_outc(:,:),masked_out(:,:)
@@ -298,7 +299,7 @@ c
       integer(kind=8) :: waitfor_gfile_status,waitfor_ifile_status
       integer(kind=8) :: wait_max_ifile_wait
       integer   ix_radii_beg,ix_radii_end,n_r34_iter,iccwcret
-      integer   date_time(8),igarret
+      integer   date_time(8),igarret,igvtret
       integer   int_vtq_ne,int_vtq_se,int_vtq_sw,int_vtq_nw
       integer(kind=8)   dum1,dum2,dum3
       character (len=10) big_ben(3)
@@ -731,7 +732,6 @@ c       First, allocate the working data arrays....
         if (allocated(spfh))     deallocate (spfh)
         if (allocated(temperature)) deallocate (temperature)
         if (allocated(omega500)) deallocate (omega500)
-        if (allocated(vortex_tilt_data)) deallocate (vortex_tilt_data)
         if (allocated(masked_out))  deallocate (masked_out)
         if (allocated(masked_outc)) deallocate (masked_outc)
       
@@ -815,7 +815,7 @@ c       First, allocate the working data arrays....
 
           if (iuta /= 0 .or. ivta /= 0 .or. ixta /= 0 .or.
      &        iutrfa /= 0 .or. ivtrfa /= 0 .or. ixtrfa /= 0 .or.
-     &        ixtlo /= 0 .or. ixtlat /= 0 .or. ixtvl /= 0 .or. 
+     &        ixtlo /= 0 .or. ixtla /= 0 .or. ixtvl /= 0 .or. 
      &        ixtdf /= 0) then
             if (verb >= 1) then
               print *,' '
@@ -897,7 +897,8 @@ c       data for this forecast time.
         if (trkrinfo%inp_data_type == 'grib') then
           call getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,lmgb,lmgi,trkrinfo,num_vortex_tilt_levs)
+     &               ,lugb,lugi,lmgb,lmgi,trkrinfo,vortex_tilt_levs
+     &               ,num_vortex_tilt_levs)
         elseif (trkrinfo%inp_data_type == 'netcdf') then
           call getdata_netcdf (ncfile_id,nc_lsmask_file_id,readflag
      &               ,readgenflag,valid_pt,imax,jmax,ifh
@@ -3627,7 +3628,7 @@ c                 c---   radmax = radmax + 50.0
      &                     ,ist,ifh,fixlon,fixlat,valid_pt
      &                     ,maxstorm,trkrinfo
      &                     ,glatmax,glatmin,glonmax,glonmin
-     &                     ,inp%modtyp,ifcsthour
+     &                     ,inp%modtyp,ifcsthour,gm_wrap_flag
      &                     ,num_vortex_tilt_levs
      &                     ,vortex_tilt_levs,igvtret)
 
@@ -9213,7 +9214,7 @@ c     call, then the value of ip is meaningless for this routine.
       type (trackstuff) trkrinfo
 
       character  cparm*1
-      character :: c_int_type(*)
+      character (*) :: c_int_type
       logical(1) valid_pt(imax,jmax)
       real       targlat,targlon,xintrp_val,dx,dy,tmp_targlon
       real       to,ta,d1,d2,d3,d4,z,eastlon
@@ -18662,7 +18663,7 @@ c
       real circumference,arclength
       real circul_disk,xmax_circul_disk,xmin_circul_disk
       integer ibiret1,ibiret2,igvtret,azimuth_ct,igiret,npts
-      integer igibret,bimct,ifh
+      integer igibret,bimct,ifh,ip
       integer circ_diff_ct,ir,nhalf,bskip1,bskip2,iskip,nlev
       integer ilonfix,jlatfix,ibeg,iend,jbeg,jend,i,j,k,iix,jix
       logical(1) valid_pt(imax,jmax)
@@ -22463,7 +22464,7 @@ c
 c-----------------------------------------------------------------------
       subroutine getdata_grib (readflag,readgenflag,valid_pt,imax,jmax
      &               ,ifh,need_to_flip_lats,need_to_flip_lons,inp
-     &               ,lugb,lugi,lmgb,lmgi,vortex_tilt_levs,trkrinfo
+     &               ,lugb,lugi,lmgb,lmgi,trkrinfo,vortex_tilt_levs
      &               ,num_vortex_tilt_levs)
 c
 c     ABSTRACT: This subroutine reads the input GRIB file for the
@@ -23958,7 +23959,7 @@ c       *------------------------------------------------------------*
               JPDT(9) = ifhours(ifh)
             endif
 
-            do nz = 1,nread_loop
+            vtx_read_2levs_loop: do nz = 1,nread_loop
 
               if (vortex_tilt_parm == 'zeta' .or.
      &            vortex_tilt_parm == 'wcirc') then
@@ -23999,7 +24000,7 @@ c       *------------------------------------------------------------*
                
               if ( verb_g2 .ge. 1 ) then
                 print *,'before getgb2 call, value of unpack = '
-                       ,unpack
+     &                 ,unpack
               endif
 
               call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
@@ -24153,8 +24154,8 @@ c                 Get parameter abbrev for record that was retrieved
 
                 if (verb .ge. 3) then
                   print *,' '
-                  write (6,331)
- 331              format (' rec#   param     level  byy  bmm  bdd  '
+                  write (6,341)
+ 341              format (' rec#   param     level  byy  bmm  bdd  '
      &             ,'bhh  fhr'
      &             ,'      npts  firstval    lastval     minval   '
      &             ,'   maxval')
@@ -24193,7 +24194,7 @@ c               zeta or wind circulation data
 
               call gf_free (gfld)
 
-            enddo nread_loop
+            enddo vtx_read_2levs_loop
 
           enddo grib2_vortex_tilt_loop
 
@@ -24304,13 +24305,13 @@ c       *------------------------------------------------------------*
 
             if ( verb .ge. 3 ) then
               if (inp%lt_units == 'minutes') then
-                write (6,29) 
+                write (6,49) 
               else
-                write (6,31) 
+                write (6,51) 
               endif
- 29           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fmin'
+ 49           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fmin'
      &             ,'  npts  minval       maxval') 
- 31           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fhr '
+ 51           format (' rec#  parm# levt lev  byy   bmm  bdd  bhh  fhr '
      &             ,'  npts  minval       maxval') 
               print '(i4,2x,8i5,i8,2g12.4)',
      &             k,(kpds(i),i=5,11),kpds(14),kf,dmin,dmax
@@ -25108,7 +25109,7 @@ c                 valid data at the point (used for regional grids)
 
       USE tracked_parms; USE level_parms; USE inparms; USE phase
       USE netcdf_parms; USE verbose_output; USE read_parms
-      USE genesis_diags; USE trkrparms
+      USE genesis_diags; USE trkrparms; USE vortex_tilt_diags
 
       implicit none
 c
@@ -25129,13 +25130,16 @@ c
       character*30 :: chparm(nreadparms)
       character*30 :: chparm_cps(nreadcpsparms)
       character*30 :: chparm_gen(nreadgenparms)
+      character*40 :: cvar
+      integer, parameter :: iunit_ncvt_vars = 33
       integer, allocatable :: cnc_tilt_var_prs(:)
       integer, intent(in) :: ncfile_id,nc_lsmask_file_id,imax,jmax
       integer :: igvret,ifa,ip,ifh,i,j,k,m,n,ncfile_tmax,nf_get_att_real
       integer :: nf_get_att_double,nf_inq_attlen,imvlen,ifvlen
       integer :: usertime,ncix,missing_val_length,nf_status
-      integer :: nf_inq_varid,varid,igrh,igrhct,nc_zero_ix,np
+      integer :: nf_inq_varid,varid,igrh,igrhct,nc_zero_ix,np,ict
       integer :: xtype,ignrret,ilev,ilevix,ictvret,ictvpret
+      integer :: num_vortex_tilt_levs,iprslev,ilevct,ilevmod
 c
       lbrdflag = 'n'
 
@@ -26049,6 +26053,8 @@ c     *------------------------------------------------------------*
 
         enddo
 
+  130   continue
+
   405   format (1x,i4,1x,a40)
   417   format (1x,'NetCDF tilt vars: ilevct= ',i3,'  ilevix= ',i4
      &            ,' prs level= ',i4,'  cvar: ---> ',a40,'<----')
@@ -26092,7 +26098,6 @@ c     *------------------------------------------------------------*
 
             if (igvret == 0) then
 
-              set flag here on this line for tilt read flag....
               dmin = minval(f)
               dmax = maxval(f)
 
@@ -26982,9 +26987,8 @@ c
 c---------------------------------------------------------------------
 c
 c---------------------------------------------------------------------
-      subroutine read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
-     &                        num_vortex_tilt_levs
-     &                        vortex_tilt_levs,lunml)
+      subroutine read_nlists (inp,trkrinfo,netcdfinfo
+     &                    ,num_vortex_tilt_levs,vortex_tilt_levs,lunml)
 c
 c     ABSTRACT: This subroutine reads in the namelists that are
 c     created in the shell script.  Namelist datein contains the 
@@ -27006,7 +27010,7 @@ c
       logical(1) :: namelist_file_exists
       integer, parameter :: iunit_vtilt = 17
       integer :: vortex_tilt_levs(vortex_max_levs)
-      integer, intent out :: num_vortex_tilt_levs
+      integer :: num_vortex_tilt_levs
       integer ifh,ict,lunml,inpvtix,inpvtlev
       type (datecard) inp
       type (trackstuff) trkrinfo
@@ -30278,7 +30282,7 @@ c
       implicit none
 
       dimension cosfac(jmax),tanfac(jmax)
-      character :: rvctype(*)
+      character*7 :: rvctype
 c      real      tmpzeta(imax,jmax)
       real      xlondiff,xlatdiff,dlon,dlat,dfix
       real      dlat_edge,dlat_inter,dlon_edge,dlon_inter
@@ -30655,6 +30659,7 @@ c
      &              - vtilt(i-1,j,z))/(dlon_edge * cosfac(j))
      &              - (utilt(i,j-1,z)-utilt(i,j,z))/(dlat_edge)
      &              + tanfac(j)*utilt(i,j,z)
+        endif
       else
 c        zeta(i,j,z)= -999.
         if (rvctype == 'tracker') then
@@ -34047,13 +34052,13 @@ c---------------------------------------------------------------------
      &                     ,maxstorm,trkrinfo
      &                     ,grid_maxlat,grid_minlat
      &                     ,grid_maxlon,grid_minlon
-     &                     ,cmodel_type,ifcsthour
+     &                     ,cmodel_type,ifcsthour,gm_wrap_flag
      &                     ,num_vortex_tilt_levs
      &                     ,vortex_tilt_levs,igvtret)
 c
 c     ABSTRACT: This subroutine will diagnose center fixes at vertical
 c     levels that are specified in a text file created by a user.  That
-c     text file was read in and processed in subroutine read_nlists.
+c     text file was read in and processed in subroutine  read_nlists.
 c
 c     INPUT:
 c     imax     Num pts in i direction on input grid
@@ -34083,6 +34088,8 @@ c     grid_minlon westernmost longitude on the input grid being sent to
 c              this routine.  This grid may be a subset of the original
 c              full grid from the original dataset.
 c     cmodel_type character, 'global' or 'regional'
+c     gm_wrap_flag character flag set in getgridinfo that determines
+c              if GM-wrapping has been set for this grid.
 c     num_vortex_tilt_levs Integer number of vertical levels that the
 c              user included in a text file to be processed for the 
 c              vortex tilt analysis.
@@ -34105,6 +34112,7 @@ c
 
       character (len=10) big_ben(3)
       character(*)  cmodel_type
+      character(*)  gm_wrap_flag
       character :: gwctype*7,rvctype*7
       character :: cmaxmin*3,cvort_maxmin*3,basinid*2
       character :: cymdh*10
@@ -34113,7 +34121,7 @@ c
       real    dx,dy,guesslon,guesslat,dist,degrees,xmax_allow_diff
       real    grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
       integer vortex_tilt_levs(vortex_max_levs)
-      integer imax,jmax,ist,ifmret
+      integer imax,jmax,ist,ifh,ifmret,ip,igwcret
       integer igvtret,num_vortex_tilt_levs,ifcsthour,maxstorm
       integer date_time(8)
 c
@@ -34309,15 +34317,18 @@ c       -----------------------------------------------------------
           case default;    basinid = '**'
         end select
 
-        write (xx,91) ifcsthour,vortex_tilt_levs(ip),
+        write (82,91) ifcsthour,vortex_tilt_levs(ip)
      &        ,xtiltlat(ist,ip),-1.0*(360.0-xtiltlon(ist,ip))
      &        ,xtilt_dist_flag(ist,ip),dist,xtiltlon(ist,ip)
      &        ,vortex_tilt_parm
      &        ,basinid,storm(ist)%tcv_storm_id(1:2),cymdh(1:4)
-     &        ,atcfymdh,fixlat(ist,ifh)
+     &        ,atcfymdh,adjustr(atcfname),fixlat(ist,ifh)
      &        ,-1.0*(360.0-fixlon(ist,ifh)),fixlon(ist,ifh)
 
       enddo level_loop
+
+   91 format (i3.3,4x,i4,4x,f7.3,4x,f8.3,2x,i1,2x,f5.1,2x,f8.3
+     &       ,2x,a5,2x,a2,a2,2x,a4,2x,a10,2x,a4,2x,f7.3,2(2x,f8.3))
 c
       return
       end

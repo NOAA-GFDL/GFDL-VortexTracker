@@ -378,9 +378,8 @@ c      call w3tagb('GETTRK  ',1999,0104,0058,'NP22   ')
       ncfile_has_hour0 = 'n'  ! Default value; set in read_netcdf_hours
       vortex_tilt_levs = -999
 c
-      call read_nlists (inp,trkrinfo,netcdfinfo,vortex_tilt_levs
-     &                 ,num_vortex_tilt_levs
-     &                 ,vortex_tilt_levs,lunml)
+      call read_nlists (inp,trkrinfo,netcdfinfo
+     &               ,num_vortex_tilt_levs,vortex_tilt_levs,lunml)
       enable_timing=trkrinfo%enable_timing
 
       call read_fhours (ifhmax)
