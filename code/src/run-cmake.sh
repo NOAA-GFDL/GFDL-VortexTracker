@@ -17,7 +17,7 @@ mkdir build
 cd build
 
 # build src code
-if [ $target = analysis ]; then 	# new ifx & icx compilers do not work properly with spack envs used on analysis
+if [ $target = analysisRHEL7 ]; then 	# nodes that have not been updated to RHEL8 will not compile with ifx & icx
   cmake .. -DCMAKE_Fortran_COMPILER=ifort -DCMAKE_C_COMPILER=icc
 elif [ $target = gaea ]; then
   cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
