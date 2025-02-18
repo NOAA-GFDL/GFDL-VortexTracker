@@ -33,14 +33,12 @@ wcoss2=("dlogin01" "dlogin02" "dlogin03" "dlogin04" "dlogin05" "dlogin06" "dlogi
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
-    if  [ $HOSTNAME == "an001" ] || [ $HOSTNAME == "an002" ] || [ $HOSTNAME == "an009" ] || [ $HOSTNAME == "an010" ] || \
-        [ $HOSTNAME == "an011" ] || [ $HOSTNAME == "an012" ] || [ $HOSTNAME == "an101" ] || [ $HOSTNAME == "an102" ] || \
-        [ $HOSTNAME == "an103" ] || [ $HOSTNAME == "an104" ] || [ $HOSTNAME == "an105" ] || [ $HOSTNAME == "an106" ] || \
-        [ $HOSTNAME == "an201" ] || [ $HOSTNAME == "an210" ]; then
-      target=analysisRHEL8
+    if  [ $HOSTNAME == "an203" ] || [ $HOSTNAME == "an204" ] || [ $HOSTNAME == "an205" ] || \
+        [ $HOSTNAME == "an206" ] || [ $HOSTNAME == "an207" ]; then
+      target=analysisRHEL7
       echo $target
     else
-      target=analysisRHEL7
+      target=analysisRHEL8
       echo $target
     fi
   fi
