@@ -5,8 +5,10 @@
 #        timothy.marchok@noaa.gov
 #----------------------------------------------------------
 
-# fortran flags
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+# add if statement in case user is using gcc
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+endif()
 
 # set up build for supvit support code
 set(supvit_srcs
