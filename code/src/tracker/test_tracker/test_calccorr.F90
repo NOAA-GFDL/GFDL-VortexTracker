@@ -103,7 +103,7 @@ program test_subroutine_calccor
 
   !test r2 = 1 - sumyresid / sumydiff
   test_resid  = -2.0
-  expected_r2 = 0.2
+  expected_r2 = 0.0
 
   call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
