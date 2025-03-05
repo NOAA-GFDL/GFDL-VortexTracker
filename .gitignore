@@ -29,6 +29,14 @@
 *.out
 *.app
 
+# Ignore build directories created by CMake
+build/
+cmake-build-*/
+
+# Ignore test executables
+*.test
+*/test/*
+
 **/cmake-build-debug
 **/CMakeCache.txt
 **/cmake_install.cmake
