@@ -93,6 +93,8 @@ program test_subroutine_calccor
 
   ! test r2 = 0.0, no need to change other arrays
   ! with this test
+  expected_r2 = 0.0
+
   call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
   if (test_r2 .ne. expected_r2) then
@@ -102,10 +104,10 @@ program test_subroutine_calccor
   endif
 
   !test r2 = 1 - sumyresid / sumydiff
-  test_resid  = -2.0
-  expected_r2 = 0.0
+  !test_resid  = -2.0
+  !expected_r2 = 0.0
 
-  call getcorr(test_resid, test_zdiff, test_inum, test_r2)
+  !call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
   ! - these numbers match but this is still failing, come back to this
   !if (test_r2 .ne. expected_r2) then
