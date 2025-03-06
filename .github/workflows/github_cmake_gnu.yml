@@ -6,7 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: docker pull ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
+      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
 
     steps:
     - name: Checkout code
