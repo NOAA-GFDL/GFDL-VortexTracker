@@ -12,8 +12,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
     - name: Make & move into build dir
-      run:  |
-            cd code
+      working-directory: /code
+      run: |
             mkdir build
             cd build
     - name: Build
