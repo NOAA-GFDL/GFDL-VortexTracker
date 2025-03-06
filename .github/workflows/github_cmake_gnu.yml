@@ -1,0 +1,17 @@
+name: Build cmake system
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: docker pull ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4.2.2
+    - name: Build
+      uses: cmake ..
+    - name: Compile
+      uses: make
