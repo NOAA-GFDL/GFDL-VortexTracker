@@ -12,6 +12,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
     - name: Build
-      uses: cmake ..
+      run:  cmake ..
     - name: Compile
-      uses: make
+      run:  make
+    - name: Run tests
+      run:  make test
