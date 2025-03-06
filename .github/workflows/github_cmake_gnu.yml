@@ -11,6 +11,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
+    - name: Make & move into build dir
+      run:  
+            cd code/
+            mkdir build
+            cd build/
     - name: Build
       run:  cmake ..
     - name: Compile
