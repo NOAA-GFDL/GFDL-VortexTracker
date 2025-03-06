@@ -17,7 +17,7 @@ jobs:
             mkdir build
             cd build
     - name: Build
-      run:  cmake .
+      run:  cmake ..
     - name: Compile
       run:  make
     - name: Run tests
