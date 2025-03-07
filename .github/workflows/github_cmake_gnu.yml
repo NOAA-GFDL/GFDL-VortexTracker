@@ -9,18 +9,12 @@ jobs:
       image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
       env:
         NetCDF_INCLUDE_DIRS: "/opt/views/view/include/"
-        #ZLIB_INCLUDE_DIR: "/opt/views/view/include/"
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
-    - name: check directory
+    - name: Build & compile code
       working-directory: ./code
-      run: cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
-    #- name: Build Project
-    #  uses: threeal/cmake-action@v2.1.0
-    #  with:
-    #    source-dir: code/
-
-    #- name: Test Project
-    #  uses: threeal/ctest-action@v1.1.0
+      run: |
+        cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
+        make
