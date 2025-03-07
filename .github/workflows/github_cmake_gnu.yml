@@ -5,6 +5,9 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./code
     container:
       image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
       env:
@@ -14,10 +17,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
     - name: Build & compile code
-      working-directory: ./code
+      #working-directory: ./code
       run: |
         cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
         make
     - name: Run tests
-      working-directory: ./code
+      #working-directory: ./code
       run: ctest
