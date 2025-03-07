@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v4.2.2
     - name: check directory
       working-directory: ./code
-      run: cmake . -DZLIB_LIBRARY="/opt/views/view/include/"
+      run: cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
     #- name: Build Project
     #  uses: threeal/cmake-action@v2.1.0
     #  with:
