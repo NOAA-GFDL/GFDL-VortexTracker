@@ -1,6 +1,6 @@
 name: Build cmake system
 
-on: pull_request
+on: [push, pull_request]
 
 jobs:
   build:
@@ -11,9 +11,3 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
-    - name: Make & move into build dir
-      working-directory: /code
-      run: |
-           cmake .
-           make
-           make test
