@@ -1,0 +1,25 @@
+name: Build cmake system
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./code
+    container:
+      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
+      env:
+        NetCDF_INCLUDE_DIRS: "/opt/views/view/include/"
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4.2.2
+    - name: Build & compile code
+      run: |
+        mkdir -p build && cd build
+        cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" ..
+        make
+    - name: Run tests
+      run: ctest
