@@ -18,3 +18,6 @@ jobs:
       run: |
         cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
         make
+    - name: Run tests
+      working-directory: ./code
+      run: ctest
