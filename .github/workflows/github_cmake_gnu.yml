@@ -9,11 +9,12 @@ jobs:
       image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
       env:
         NetCDF_INCLUDE_DIRS: "/opt/views/view/include/"
+        ZLIB_INCLUDE_DIR: "/opt/views/view/include/"
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
-    - name: check directory  #this works
+    - name: check directory
       working-directory: ./code
       run: cmake .
     #- name: Build Project
