@@ -17,10 +17,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4.2.2
     - name: Build & compile code
-      #working-directory: ./code
       run: |
-        cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" .
+        mkdir -p build && cd -p build
+        cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" ..
         make
     - name: Run tests
-      #working-directory: ./code
       run: ctest
