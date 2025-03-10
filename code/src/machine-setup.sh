@@ -33,7 +33,7 @@ wcoss2=("dlogin01" "dlogin02" "dlogin03" "dlogin04" "dlogin05" "dlogin06" "dlogi
 for i in "${!analysis[@]}"; do
   if [ "${analysis[$i]}" == $HOSTNAME ]; then
     source $MODULESHOME/init/bash
-      target=analysisRHEL8
+      target=analysis
       echo $target
   fi
 done
