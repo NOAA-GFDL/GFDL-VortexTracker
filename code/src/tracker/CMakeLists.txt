@@ -22,8 +22,6 @@ endif()
 target_link_libraries(
   gettrk.x
   g2::g2_d
-  bacio::bacio_4
-  w3emc::w3emc_d
   NetCDF::NetCDF_Fortran
   ${JASPER_LIBRARIES}
   ${PNG_LIBRARIES})
@@ -40,8 +38,6 @@ add_library(subroutine_lib ${tracker_src})
 target_link_libraries(
   subroutine_lib
   g2::g2_d
-  bacio::bacio_4
-  w3emc::w3emc_d
   NetCDF::NetCDF_Fortran
   ${JASPER_LIBRARIES}
   ${PNG_LIBRARIES})
