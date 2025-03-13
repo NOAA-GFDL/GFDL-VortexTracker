@@ -22,4 +22,6 @@ jobs:
         cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" ..
         make
     - name: Run tests
-      run: ctest
+      run: |
+        cd build
+        ctest
