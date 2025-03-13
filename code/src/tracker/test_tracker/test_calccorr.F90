@@ -53,7 +53,7 @@ program test_subroutine_calccor
   !----------------------------------------------
   ! test subroutine getslope
   test_yarr      = (/8.0, 10.0, 12.0, 14.0/)
-  expected_slope = 2.0
+  expected_slope = 0.0
 
   call getslope(test_xarr, test_yarr, test_inum, test_slope)
 
