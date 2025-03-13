@@ -8,6 +8,8 @@ cd ../modulefile-setup
 source $target-setup.sh
 module list
 
+echo "CAITLYN"
+
 # makes and enters build directory
 cd ..
 if [ -d "build" ]; then
