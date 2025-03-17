@@ -17,7 +17,7 @@ void cwaitfor(int64_t *status, int64_t *minage, int64_t *minsize, int64_t *maxwa
   time_t now=time(NULL);
   int64_t maxwaitv=*maxwait;
   int64_t size,age;
-  fprintf(stderr,"%s: cwaitfor with minage=%d minsize=%d maxwait=%d=%d sleeptime=%d\n",
+  fprintf(stderr,"%s: cwaitfor with minage=%ld minsize=%ld maxwait=%ld=%ld sleeptime=%ld\n",
           filename,*minage,*minsize,*maxwait,maxwaitv,*sleeptime);
   while(maxwaitv<0 || time(NULL)-now<maxwaitv) {
     if(!stat(filename,&s)) {
@@ -28,13 +28,13 @@ void cwaitfor(int64_t *status, int64_t *minage, int64_t *minsize, int64_t *maxwa
         *status=0;
         return;
       } else {
-        fprintf(stderr,"%s: Not ready yet.  Size=%d, age=%d, min size=%d, min age=%d\n",
+        fprintf(stderr,"%s: Not ready yet.  Size=%ld, age=%ld, min size=%ld, min age=%ld\n",
                filename,size,age,*minsize,*minage);
       }
     } else {
       fprintf(stderr,"%s: cannot stat: %d\n",filename,errno);
     }
-    fprintf(stderr,"%s: sleep %d\n",filename,*sleeptime);
+    fprintf(stderr,"%s: sleep %ld\n",filename,*sleeptime);
     sleep(*sleeptime);
   }
 

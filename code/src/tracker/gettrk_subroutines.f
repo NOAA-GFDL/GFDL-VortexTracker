@@ -477,13 +477,6 @@ c          lugi = 5200
           print *,'*-------------------------------------------*'
         endif
 
-        if (vortex_tilt_flag == 'y') then
-          ! Re-initialize the vortex tilt distance / continuity flags
-          ! back to zero for all storms and all vertical levels with
-          ! each new forecast hour.
-          xtilt_dist_flag = 0
-        endif
-
         if (inp%file_seq == 'multi') then
 
           lugb = lugb + 1
@@ -668,6 +661,11 @@ c          lugi = 5200
           call getgridinfo_netcdf (ncfile_id,imax,jmax,dx,dy
      &                 ,trkrinfo,need_to_flip_lats,need_to_flip_lons
      &                 ,inp,netcdfinfo,iggret)
+          gm_wrap_flag = 'none' ! As of Feb 2025, no examples of NetCDF
+                                ! data have been found that have 
+                                ! required setting gm_wrap_flag to
+                                ! anything other than 'none', the way it
+                                ! is done in getgridinfo_grib.
         else
           print *,' '
           print *,'!!! ERROR: trkrinfo%inp_data_type NOT VALID '
@@ -855,6 +853,13 @@ c       First, allocate the working data arrays....
           endif
           itret = 94
           return
+        endif
+
+        if (vortex_tilt_flag == 'y') then
+          ! Re-initialize the vortex tilt distance / continuity flags
+          ! back to zero for all storms and all vertical levels with
+          ! each new forecast hour.
+          xtilt_dist_flag = 0
         endif
 
         masked_out  = .false.   ! Initialize all pts to false at each hr
@@ -3630,7 +3635,7 @@ c                 c---   radmax = radmax + 50.0
      &                     ,glatmax,glatmin,glonmax,glonmin
      &                     ,inp%modtyp,ifcsthour,gm_wrap_flag
      &                     ,num_vortex_tilt_levs
-     &                     ,vortex_tilt_levs,igvtret)
+     &                     ,vortex_tilt_levs,xmaxwind,gridprs,igvtret)
 
               if ( verb .ge. 3 ) then
                 call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -20826,6 +20831,24 @@ c     search the entire global grid).
 
       else
 
+        print *,' '
+        print *,' npts= ',npts,' ri= ',ri,' imax= ',imax,' jmax= ',jmax
+        print *,' grid_maxlat= ',grid_maxlat
+        print *,' grid_minlat= ',grid_minlat
+        print *,' grid_maxlon= ',grid_maxlon
+        print *,' grid_minlon= ',grid_minlon
+        print *,' guesslon= ',guesslon
+        print *,' guesslat= ',guesslat
+        print *,' The immediately following lines for ilonfix, jlatfix,'
+        print *,' ibeg, jbeg, iend and jend likely contain junk values'
+        print *,' since we have not yet called get_ij_bounds....'
+        print *,' ilonfix= ',ilonfix,' jlatfix= ',jlatfix
+        print *,' ibeg= ',ibeg
+        print *,' jbeg= ',jbeg
+        print *,' iend= ',iend
+        print *,' jend= ',jend
+        print *,' '
+
         call get_ij_bounds (npts,0,ri,imax,jmax,dx,dy
      &             ,grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
      &             ,guesslon,guesslat
@@ -25131,7 +25154,7 @@ c
       character*30 :: chparm_cps(nreadcpsparms)
       character*30 :: chparm_gen(nreadgenparms)
       character*40 :: cvar
-      integer, parameter :: iunit_ncvt_vars = 33
+      integer, parameter :: iunit_ncvt_vars = 33 ! Unit # for tilt vars
       integer, allocatable :: cnc_tilt_var_prs(:)
       integer, intent(in) :: ncfile_id,nc_lsmask_file_id,imax,jmax
       integer :: igvret,ifa,ip,ifh,i,j,k,m,n,ncfile_tmax,nf_get_att_real
@@ -25996,7 +26019,7 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
       endif
 
 c     *------------------------------------------------------------*
-c      NetCDF Read for genesis diagnostics
+c      NetCDF Read for vortex tilt diagnostics
 c
 c      If we are attempting to perform vortex tilt diagnostics, then 
 c      read in data now that will allow us to do that.
@@ -26057,7 +26080,9 @@ c     *------------------------------------------------------------*
 
   405   format (1x,i4,1x,a40)
   417   format (1x,'NetCDF tilt vars: ilevct= ',i3,'  ilevix= ',i4
-     &            ,' prs level= ',i4,'  cvar: ---> ',a40,'<----')
+     &            ,' prs_level= ',i4,'  cvar: ---> ',a40,'<----')
+
+        rewind (iunit_ncvt_vars)
 
         nc_vortex_tilt_read_loop: do ip = 1,num_vortex_tilt_levs
 
@@ -26119,9 +26144,9 @@ c     *------------------------------------------------------------*
 
               if (verb >= 3) then
                 write (6,431)
- 431            format (' V-tilt parmread lead time      lev#'
-     &                 ,' pass#  parm_id   '
-     &                 ,23x,'minval       maxval')
+ 431            format (' V-tilt parmread lead time    lev#'
+     &                 ,' pass#    parm_id   '
+     &                 ,23x,' minval      maxval')
 
                 write (6,433) ifhours(ifh),ifclockmins(ifh),ip,np
      &                       ,cnc_tilt_var(ip,np),dmin,dmax
@@ -26408,8 +26433,8 @@ c     ignrret integer return code from this routine
 
       if (status /= NF_NOERR) then
         print *,' '
-        print *,'NOTE: Could not find variable ',var3_name,' at time'
-     &         ,' NetCDF file ID= ncid= ',ncid
+        print *,'NOTE: Could not find variable ',var3_name
+     &         ,' in NetCDF file ID= ncid= ',ncid
         ignrret = 92
         return
       endif
@@ -27008,7 +27033,7 @@ c
       implicit none
 
       logical(1) :: namelist_file_exists
-      integer, parameter :: iunit_vtilt = 17
+      integer, parameter :: iunit_vtilt_levs = 18
       integer :: vortex_tilt_levs(vortex_max_levs)
       integer :: num_vortex_tilt_levs
       integer ifh,ict,lunml,inpvtix,inpvtlev
@@ -27558,7 +27583,7 @@ c
  175    format ('Vortex tilt parameter = vortex_tilt_parm = ',a5)
         write (6,177) vortex_tilt_allow_thresh
  177    format ('Vortex tilt allow thresh = vortex_tilt_allow_thresh = '
-     &         ,i4)
+     &         ,f5.1)
 
       endif
 
@@ -27586,7 +27611,7 @@ c     list of vertical levels.
  273        format ('for vortex tilt analysis follows: ')
           endif
 
-          read (iunit_vtilt,275,end=285) inpvtix,inpvtlev
+          read (iunit_vtilt_levs,275,end=285) inpvtix,inpvtlev
 
           if (inpvtlev > 0 .and. inpvtlev < 1060) then
             write (6,275) inpvtix,inpvtlev
@@ -34054,7 +34079,7 @@ c---------------------------------------------------------------------
      &                     ,grid_maxlon,grid_minlon
      &                     ,cmodel_type,ifcsthour,gm_wrap_flag
      &                     ,num_vortex_tilt_levs
-     &                     ,vortex_tilt_levs,igvtret)
+     &                     ,vortex_tilt_levs,xmaxwind,gridprs,igvtret)
 c
 c     ABSTRACT: This subroutine will diagnose center fixes at vertical
 c     levels that are specified in a text file created by a user.  That
@@ -34095,6 +34120,8 @@ c              user included in a text file to be processed for the
 c              vortex tilt analysis.
 c     vortex_tilt_levs Integer array with a listing of the vertical 
 c              levels used in the vortex tilt analysis.
+c     xmaxwind real array of max wind for all storms and lead times
+c     gridprs  real array of min mslp for all storms and lead times
 c
 c     INPUT/OUTPUT:
 c
@@ -34117,9 +34144,11 @@ c
       character :: cmaxmin*3,cvort_maxmin*3,basinid*2
       character :: cymdh*10
       logical(1)    compflag, valid_pt(imax,jmax)
+      real    xmaxwind(maxstorm,maxtime),gridprs(maxstorm,maxtime)
       real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real    dx,dy,guesslon,guesslat,dist,degrees,xmax_allow_diff
       real    grid_maxlat,grid_minlat,grid_maxlon,grid_minlon
+      real    conv_ms_knots,mslp_outp_adj,xminmslp,xoutpval
       integer vortex_tilt_levs(vortex_max_levs)
       integer imax,jmax,ist,ifh,ifmret,ip,igwcret
       integer igvtret,num_vortex_tilt_levs,ifcsthour,maxstorm
@@ -34153,11 +34182,16 @@ c
 
         if (ip == 1) then
           guesslon = fixlon(ist,ifh)
-          guesslat = fixlon(ist,ifh)
+          guesslat = fixlat(ist,ifh)
         else
           guesslon = xtiltlon(ist,ip-1)
           guesslat = xtiltlat(ist,ip-1)
         endif
+
+        ! Set the character variables for relative vorticity and wind
+        ! circulation that will be used.  "cmaxmin" is used by
+        ! get_wind_circulation, and "cvort_maxmin" is used by
+        ! find_maxmin for finding the max or min in vorticity.
 
         if (guesslat >= 0.0) then
           cmaxmin      = 'max' 
@@ -34209,8 +34243,11 @@ c
             if (ifmret /= 0) then
               if (verb >= 3) then
                 print *,' '
-                print *,'ERROR in get_vortex_tilt from call to '
+                print *,'WARNING: Non-zero returd code in'
+                print *,'get_vortex_tilt from call to '
                 print *,'find_maxmin in get_vortex_tilt for zeta.'
+                print *,'Check to ensure this is just due to likely an'
+                print *,'upper level not having a cyclonic circulation.'
                 print *,'ifmret= ',ifmret
                 print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
               endif
@@ -34229,8 +34266,11 @@ c
             if (igwcret /= 0) then
               if (verb >= 3) then
                 print *,' '
-                print *,'ERROR in get_vortex_tilt from call to '
+                print *,'WARNING: Non-zero return code in'
+                print *,'get_vortex_tilt from call to '
                 print *,'find_maxmin in get_vortex_tilt for wcirc.'
+                print *,'Check to ensure this is just due to likely an'
+                print *,'upper level not having a cyclonic circulation.'
                 print *,'igwcret= ',igwcret
                 print *,'ip= ',ip,' vertical lev= ',vortex_tilt_levs(ip)
               endif
@@ -34243,10 +34283,25 @@ c
 
           ! Inside this else statement, we are doing the vortex center
           ! fix for other variables, which are defined by 
-          ! vortex_tilt_parm as either 'temp' or 'hgt'.
+          ! vortex_tilt_parm as either 'temp' or 'hgt'.  Remember to 
+          ! tell find_maxmin to look for the min in hgt but the max
+          ! in temp.
+
+          if ( verb .ge. 3 ) then
+            print *,' '
+            print *,'         ---    ---    ---'
+            print *,'Now calling find_maxmin for vortex-tilt '
+     &             ,vortex_tilt_parm
+            print *,'at ',vortex_tilt_levs(ip),' mb'
+          endif
+
+          select case (vortex_tilt_parm)
+            case ('temp'); cmaxmin = 'max'
+            case ('hgt');  cmaxmin = 'min'
+          end select
 
           call find_maxmin (imax,jmax,dx,dy,vortex_tilt_parm
-     &       ,xtilt(1,1,ip),cvort_maxmin,ist,guesslon
+     &       ,xtilt(1,1,ip),cmaxmin,ist,guesslon
      &       ,guesslat,glon,glat,valid_pt,trkrinfo
      &       ,compflag,xtiltlon(ist,ip),xtiltlat(ist,ip)
      &       ,xtiltval(ist,ip),glatmax,glatmin,glonmax,glonmin
@@ -34278,22 +34333,25 @@ c
 
         if (ip == 1) then
           xtilt_dist_flag(ist,1) = 1  ! Default setting for lowest level
+          dist = 0.0
         else
           ! Only check the difference in distance for the tilt flag if
           ! the flag at the next lowest level indicates that the vortex
           ! was still intact.  Otherwise, the default value of 0 will
           ! be left as is.
-          if (xtilt_dist_flag(ist,ip-1) == 1) then
-            call calcdist (xtiltlon(ist,ip),xtiltlat(ist,ip)
-     &                    ,xtiltlon(ist,ip-1),xtiltlat(ist,ip-1)
-     &                    ,dist,degrees)
+          call calcdist (xtiltlon(ist,ip),xtiltlat(ist,ip)
+     &                  ,xtiltlon(ist,ip-1),xtiltlat(ist,ip-1)
+     &                  ,dist,degrees)
 
+          if (xtilt_dist_flag(ist,ip-1) == 1) then
             xmax_allow_diff = vortex_tilt_allow_thresh * 
      &              (abs(vortex_tilt_levs(ip-1) - vortex_tilt_levs(ip)))
 
             if (dist <= xmax_allow_diff) then
               xtilt_dist_flag(ist,ip) = 1  
             endif
+          else
+            xtilt_dist_flag(ist,ip) = 0
           endif
         endif
 
@@ -34317,18 +34375,53 @@ c       -----------------------------------------------------------
           case default;    basinid = '**'
         end select
 
+        xminmslp = gridprs(ist,ifh)
+
+        if (xminmslp == 999999.0) xminmslp = 0.0
+
+        if (xminmslp < 1100.0) then
+          ! Pressure units are in mb...
+          mslp_outp_adj = 1.0
+        elseif (xminmslp >80000.0) then
+          ! Pressure units are in Pa...
+          mslp_outp_adj = 100.0
+        else
+          if (verb .ge. 3) then
+            print *,' '
+            print *,'ERROR: Something wrong in subroutine'
+            print *,'       output_atcfunix.  The mslp value'
+            print *,'       (xminmslp) is not in range.'
+            print *,'       xminmslp = ',xminmslp
+            print *,'       EXITING....'
+            print *,' '
+            stop 95
+          endif
+        endif
+
+        conv_ms_knots = 1.9427
+
+        select case (vortex_tilt_parm)
+          case ('zeta');  xoutpval = xtiltval(ist,ip)*1e5
+          case ('wcirc'); xoutpval = xtiltval(ist,ip)*1e-6
+          case ('temp');  xoutpval = xtiltval(ist,ip)
+          case ('hgt');   xoutpval = xtiltval(ist,ip)
+        end select
+
         write (82,91) ifcsthour,vortex_tilt_levs(ip)
      &        ,xtiltlat(ist,ip),-1.0*(360.0-xtiltlon(ist,ip))
      &        ,xtilt_dist_flag(ist,ip),dist,xtiltlon(ist,ip)
-     &        ,vortex_tilt_parm
+     &        ,adjustr(vortex_tilt_parm),xoutpval
      &        ,basinid,storm(ist)%tcv_storm_id(1:2),cymdh(1:4)
-     &        ,atcfymdh,adjustr(atcfname),fixlat(ist,ifh)
+     &        ,cymdh,adjustr(atcfname),fixlat(ist,ifh)
      &        ,-1.0*(360.0-fixlon(ist,ifh)),fixlon(ist,ifh)
+     &        ,int((xmaxwind(ist,ifh)*conv_ms_knots) + 0.5)
+     &        ,int(xminmslp/mslp_outp_adj + 0.5)
 
       enddo level_loop
 
    91 format (i3.3,4x,i4,4x,f7.3,4x,f8.3,2x,i1,2x,f5.1,2x,f8.3
-     &       ,2x,a5,2x,a2,a2,2x,a4,2x,a10,2x,a4,2x,f7.3,2(2x,f8.3))
+     &       ,2x,a5,2x,f9.2,2x,a2,a2,a4,2x,a10,2x,a4,2x,f7.3,2(2x,f8.3)
+     &       ,2x,i3,2x,i4)
 c
       return
       end

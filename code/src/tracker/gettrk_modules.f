@@ -311,7 +311,7 @@ c
         integer, parameter ::  vortex_max_levs=100 ! Max allowable
                                                 ! number of vertical
                                                 ! levs for vortex tilt
-        integer, save :: vortex_tilt_allow_thresh ! Max distance (km)
+        real, save :: vortex_tilt_allow_thresh  ! Max distance (km)
                                                 ! per mb of height 
                                                 ! difference allowed
                                                 ! between vortex fixes
@@ -341,7 +341,7 @@ c
           real, save, allocatable  ::  xtiltlon(:,:)
           real, save, allocatable  ::  xtiltlat(:,:)
           real, save, allocatable  ::  xtiltval(:,:)
-          real, save, allocatable  ::  xtilt_dist_flag(:,:)
+          integer, save, allocatable :: xtilt_dist_flag(:,:)
           integer, save, allocatable :: ifhours(:)  
           integer, save, allocatable :: iftotalmins(:)
           integer, save, allocatable :: ifclockmins(:)
