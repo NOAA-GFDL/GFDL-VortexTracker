@@ -23982,7 +23982,7 @@ c       *------------------------------------------------------------*
               JPDT(9) = ifhours(ifh)
             endif
 
-            vtx_read_2levs_loop: do nz = 1,nread_loop
+            vtx_read_2_levs_loop: do nz = 1,nread_loop
 
               if (vortex_tilt_parm == 'zeta' .or.
      &            vortex_tilt_parm == 'wcirc') then
@@ -24217,7 +24217,7 @@ c               zeta or wind circulation data
 
               call gf_free (gfld)
 
-            enddo vtx_read_2levs_loop
+            enddo vtx_read_2_levs_loop
 
           enddo grib2_vortex_tilt_loop
 
