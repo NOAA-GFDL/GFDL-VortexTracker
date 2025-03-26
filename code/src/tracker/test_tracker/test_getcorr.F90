@@ -1,15 +1,12 @@
 !************************************************
 !* This test program tests multiple subroutines from gettrk_main.f
-!* The main routine this unit test pertains to is subroutine calccor
-!* Other routines called within calccor are created specifically for
-!* this routine. So this testing file also contains those tests.
 !* Those subroutines are: getmean, getdiff, getslope, getyestim,
 !* getresid, and getcorr
 !*
 !* Created by: Caitlyn McAllister
 !* Email: caitlyn.mcalliser@noaa.gov
 !************************************************
-program test_subroutine_calccor
+program test_subroutine_getcorr
 
   use access_subroutines
 
@@ -94,7 +91,6 @@ program test_subroutine_calccor
   ! test r2 = 0.0, no need to change other arrays
   ! with this test
   expected_r2 = 0.0
-
   call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
   if (test_r2 .ne. expected_r2) then
@@ -103,21 +99,30 @@ program test_subroutine_calccor
     error stop
   endif
 
-  !test r2 = 1 - sumyresid / sumydiff
-  !test_resid  = -2.0
-  !expected_r2 = 0.0
+  ! test r2 = 1 - sumyresid / sumydiff
+  test_resid  = 1.0
+  test_zdiff  = 100.0
+  expected_r2 = 0.9999
 
-  !call getcorr(test_resid, test_zdiff, test_inum, test_r2)
+  call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
-  ! - these numbers match but this is still failing, come back to this
-  !if (test_r2 .ne. expected_r2) then
-  !  write(*,*) "Error in test getcorr (r2 = 1 - sumyresid / sumydiff)"
-  !  write(*,*) "Expected ", expected_r2, " but got ", test_r2
-  !  error stop
-  !endif
+  if (test_r2 .ne. expected_r2) then
+    write(*,*) "Error in test getcorr (r2 = 1 - sumyresid / sumydiff)"
+    write(*,*) "Expected ", expected_r2, " but got ", test_r2
+    error stop
+  endif
 
+  ! test r2 = 1.0
+  test_resid  = 1.0
+  test_zdiff  = 1.0E15
+  expected_r2 = 1.0
 
-  ! test with expected r2 = 1.0, have to change arrays first
-  ! - cannot find the conditions in order for r2=1.0
+  call getcorr(test_resid, test_zdiff, test_inum, test_r2)
 
-end program test_subroutine_calccor
+  if (test_r2 .ne. expected_r2) then
+    write(*,*) "Error in test getcorr (r2 = 1 - sumyresid / sumydiff)"
+    write(*,*) "Expected ", expected_r2, " but got ", test_r2
+    error stop
+  endif
+
+end program test_subroutine_getcorr

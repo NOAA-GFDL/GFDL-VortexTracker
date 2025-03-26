@@ -5,8 +5,10 @@
 #        timothy.marchok@noaa.gov
 #----------------------------------------------------------
 
-# fortran flags
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+# add if statement in case user is using gcc
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -O2 -fp-model precise -i4 -r8")
+endif()
 
 # set up build for supvit support code
 set(supvit_srcs
@@ -18,9 +20,7 @@ add_executable(supvit.x ${supvit_srcs})
 
 target_link_libraries(
   supvit.x
-  g2::g2_d
-  bacio::bacio_4
-  w3emc::w3emc_d)
+  g2::g2_d)
 
 install(TARGETS supvit.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)
 
@@ -33,9 +33,7 @@ add_executable(tave.x ${tave_srcs})
 
 target_link_libraries(
   tave.x
-  g2::g2_d
-  bacio::bacio_4
-  w3emc::w3emc_d)
+  g2::g2_d)
 
 install(TARGETS tave.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)
 
@@ -48,8 +46,6 @@ add_executable(vint.x ${tave_srcs})
 
 target_link_libraries(
   vint.x
-  g2::g2_d
-  bacio::bacio_4
-  w3emc::w3emc_d)
+  g2::g2_d)
 
 install(TARGETS vint.x DESTINATION ${CMAKE_SOURCE_DIR}/exec)
