@@ -32867,14 +32867,20 @@ c      endif
 c     ------------------------------------------------------------------
 c     STEP 3:  Now go through the grid again and, for all eligible
 c     points that are not already masked out (due to there being an 
-c     already-existing storm from the previous lead time), call a
-c     routine to go out along 8 radials surrounding each point to
-c     determine if there is a radial gradient of MSLP along each radial
-c     that is at least as strong as that specified by the user.  If
-c     that check passes, then call a routine that checks for a closed
-c     low-level (10m) wind circulation.  If both the MSLP radial
-c     gradient and low-level wind circulation checks pass, then you
-c     can consider this as a candidate point.
+c     already-existing storm from the previous lead time), do one or
+c     both of these next two steps:
+c
+c     (1) For both trkrtypes ("midlat" or "tcgen"), call a routine to 
+c         go out along 8 radials surrounding each point to determine
+c         if there is a radial gradient of MSLP along each radial
+c         that is at least as strong as that specified by the user.
+c
+c     (2) If that check passes *AND* if this is a "tcgen" run, then
+c         call a routine that checks for a closed low-level (10m) wind
+c         circulation.  If both the MSLP radial gradient and low-level
+c         wind circulation checks pass, then you can consider this as a
+c         candidate point.  If this is instead a "midlat" run, then we
+c         will skip the check for a low-level wind circulation.
 c     ------------------------------------------------------------------
 
       candidate_ct = 0
@@ -32929,74 +32935,98 @@ c            print *,'xxtim b4 call_mslp_chk, ip= ',ip,' jp= ',jp
 
             if (icmrgret == 0) then
 
-              call date_and_time (big_ben(1),big_ben(2),big_ben(3)
-     &                           ,date_time)
-              write (6,31) date_time(5),date_time(6),date_time(7)
- 31           format (1x,'TIMING: b4 check_for_closed_wind_circ at '
-     &                  ,i2.2,':',i2.2,':',i2.2)
-
-              !------------------------------------------------------
+              !-------------------------------------------------------
               ! Call routine to check for low-level circulation here
-              !------------------------------------------------------
+              ! since we have passed the mslp radial gradient test.
+              ! However, note from the IF statement below that we 
+              ! will only do the low-level wind circulation test for
+              ! a tcgen case; For a midlat case, we skip the low-level
+              ! wind circulation test.
+              !-------------------------------------------------------
 
-              low_level_wind_circ_flag = 'n'
-              call check_for_closed_wind_circulation (imax,jmax,ip,jp
-     &               ,dx,dy,valid_pt,trkrinfo,ifh
-     &               ,low_level_wind_circ_flag,gm_wrap_flag
-     &               ,vtquadmax,'genesis',iccwcret)
+              if (trkrinfo%type == 'tcgen') then
 
-              call date_and_time (big_ben(1),big_ben(2),big_ben(3)
-     &                           ,date_time)
-              write (6,33) date_time(5),date_time(6),date_time(7)
- 33           format (1x,'TIMING: after check_for_closed_wind_circ at'
-     &                ,' ',i2.2,':',i2.2,':',i2.2)
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,31) date_time(5),date_time(6),date_time(7)
+ 31             format (1x,'TIMING: b4 check_for_closed_wind_circ at '
+     &                    ,i2.2,':',i2.2,':',i2.2)
 
-              if (iccwcret == 0) then
+                low_level_wind_circ_flag = 'n'
+                call check_for_closed_wind_circulation (imax,jmax,ip,jp
+     &                ,dx,dy,valid_pt,trkrinfo,ifh
+     &                ,low_level_wind_circ_flag,gm_wrap_flag
+     &                ,vtquadmax,'genesis',iccwcret)
 
-                int_vtq_ne = nint(10.0 * vtquadmax(1) * 1.9427)
-                int_vtq_se = nint(10.0 * vtquadmax(2) * 1.9427)
-                int_vtq_sw = nint(10.0 * vtquadmax(3) * 1.9427)
-                int_vtq_nw = nint(10.0 * vtquadmax(4) * 1.9427)
+                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
+     &                             ,date_time)
+                write (6,33) date_time(5),date_time(6),date_time(7)
+ 33             format (1x,'TIMING: after check_for_closed_wind_circ at'
+     &                  ,' ',i2.2,':',i2.2,':',i2.2)
 
-                print *,' '
+                if (iccwcret == 0) then
 
-                write (6,234) ,atcfymdh,adjustr(atcfname)
-     &                ,ifhours(ifh)
-     &                ,int_vtq_ne,int_vtq_se,int_vtq_sw,int_vtq_nw
+                  int_vtq_ne = nint(10.0 * vtquadmax(1) * 1.9427)
+                  int_vtq_se = nint(10.0 * vtquadmax(2) * 1.9427)
+                  int_vtq_sw = nint(10.0 * vtquadmax(3) * 1.9427)
+                  int_vtq_nw = nint(10.0 * vtquadmax(4) * 1.9427)
 
-  234           format (1x,'tcvq_genesis ',i10.10,', ',1x,a4,', ',1x
+                  print *,' '
+
+                  write (6,234) ,atcfymdh,adjustr(atcfname)
+     &                  ,ifhours(ifh)
+     &                  ,int_vtq_ne,int_vtq_se,int_vtq_sw,int_vtq_nw
+
+  234             format (1x,'tcvq_genesis ',i10.10,', ',1x,a4,', ',1x
      &                    ,i3,4(', ',i7))
 
-                if (low_level_wind_circ_flag == 'y') then
-                  candidate_ct           = candidate_ct + 1
-                  prstemp(candidate_ct)  = slp_array(ip,jp)
-                  ipos(candidate_ct)     = ip
-                  jpos(candidate_ct)     = jp
-                  if (verb >= 3) then
-                    print *,' '
-                    print *,' +++ Successful check of both MSLP radial'
-     &                     ,' gradient and LL wind circ, '
-     &                     ,' ip= ',ip,' jp= ',jp
-                    print *,' '
+                  if (low_level_wind_circ_flag == 'y') then
+                    candidate_ct           = candidate_ct + 1
+                    prstemp(candidate_ct)  = slp_array(ip,jp)
+                    ipos(candidate_ct)     = ip
+                    jpos(candidate_ct)     = jp
+                    if (verb >= 3) then
+                      print *,' '
+                      print *,' +++ Successful check of both MSLP'
+     &                       ,' radial gradient and LL wind circ, '
+     &                       ,' ip= ',ip,' jp= ',jp
+                      print *,' '
+                    endif
+                  else
+                    if (verb >= 3) then
+                      print *,' '
+                      print *,' !!! MSLP radial gradient passed but'
+     &                       ,' LL wind circ check FAILED.  '
+     &                       ,' ip= ',ip,' jp= ',jp
+                      print *,' '
+                    endif
+                    cycle iloop_g
                   endif
                 else
                   if (verb >= 3) then
                     print *,' '
-                    print *,' !!! MSLP radial gradient passed but'
-     &                     ,' LL wind circ check FAILED.  '
-     &                     ,' ip= ',ip,' jp= ',jp
+                    print *,' !!! Failed check 2 of LL wind circ, '
+     &                       ,' ip= ',ip,' jp= ',jp
                     print *,' '
                   endif
                   cycle iloop_g
                 endif
+
               else
+
+                candidate_ct           = candidate_ct + 1
+                prstemp(candidate_ct)  = slp_array(ip,jp)
+                ipos(candidate_ct)     = ip
+                jpos(candidate_ct)     = jp
+
                 if (verb >= 3) then
                   print *,' '
-                  print *,' !!! Failed check 2 of LL wind circ, '
-     &                     ,' ip= ',ip,' jp= ',jp
+                  print *,' +++ Successful check of the MSLP radial'
+     &                   ,' gradient check for a midlat run,'
+     &                   ,' ip= ',ip,' jp= ',jp
                   print *,' '
                 endif
-                cycle iloop_g
+              
               endif
 
             else
