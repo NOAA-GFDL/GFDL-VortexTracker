@@ -222,10 +222,14 @@ c                use.  Yes, it's a little redundant, but this was the
 c                least disruptive alternative.
 c     vt850_flag This flag keeps track of the value of the flag for 
 c                the 850 mb Vt check.
-c     shear      real array containing both the magnitude and direction
-c                of the storm-centered 850-200 mb vertical shear.  In
-c                the 3rd element of the array, index 1 is for shear
-c                magnitude and index 2 is for shear direction.
+c     shear      real array containing the magnitude and direction
+c                of the storm-centered 850-200 mb vertical shear, and 
+c                also containing the magnitude of the u- and 
+c                v-components of the shear.  In the 3rd element of the 
+c                array, index 1 is for shear magnitude, index 2 is for
+c                shear direction, index 3 is for the magnitude of the
+c                u-component of shear, and index 4 is for the magnitude
+c                of the v-component of shear.
 c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
 c             forecast hour (this keeps us from re-computing it for 
@@ -318,7 +322,7 @@ c
       real      clat(maxstorm,maxtime,maxtp)
       real      xmaxwind(maxstorm,maxtime)
       real      stderr(maxstorm,maxtime),xval(maxtp),cps_vals(3)
-      real      shear(maxstorm,maxtime,2)
+      real      shear(maxstorm,maxtime,4)
       real      pctile_quad_bin_wind(numquad,num_r34_bins)
       real      fp_pctile_quad_bin_wind(numquad,num_r34_bins)
       real      gridpoint_maxmin,dist,distnm,xknots,xmaxspeed
@@ -601,7 +605,7 @@ c          lugi = 5200
      &           ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
      &           ,x99_rmax,cps_vals,c_undef_wcflag
      &           ,imeanzeta,igridzeta
-     &           ,x999_shrmag,x999_shrdir
+     &           ,x999_shrmag,x999_shrdir,x999_shrmag
      &           ,x999_divg,x999_moist_divg
      &           ,x999_rh600_800,x999_rh1000_925
      &           ,x999_omega500,x999_sst
@@ -2006,7 +2010,7 @@ c           to get a guess position for the next forecast hour.
      &                   ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
      &                   ,x99_rmax,cps_vals,c_undef_wcflag
      &                   ,imeanzeta,igridzeta
-     &                   ,x999_shrmag,x999_shrdir
+     &                   ,x999_shrmag,x999_shrdir,x999_shrmag
      &                   ,x999_divg,x999_moist_divg
      &                   ,x999_rh600_800,x999_rh1000_925
      &                   ,x999_omega500,x999_sst
@@ -3741,7 +3745,7 @@ c           knots (1.9427) is explained in output_atcf.
      &               ,istmspd,istmdir,plastbar,rlastbar
      &               ,rmax,cps_vals,wcore_flag
      &               ,imeanzeta,igridzeta
-     &               ,shear(ist,ifh,1),shear(ist,ifh,2)
+     &               ,shear(ist,ifh,1),shear(ist,ifh,2),shear(ist,ifh,3)
      &               ,divg,moist_divg
      &               ,rh_800_600_smooth,rh_1000_925_smooth
      &               ,omega500_smooth,sst_smooth
@@ -3947,7 +3951,7 @@ c           knots (1.9427) is explained in output_atcf.
      &               ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
      &               ,x99_rmax,cps_vals,c_undef_wcflag
      &               ,imeanzeta,igridzeta
-     &               ,x999_shrmag,x999_shrdir
+     &               ,x999_shrmag,x999_shrdir,x999_shrmag
      &               ,x999_divg,x999_moist_divg
      &               ,x999_rh600_800,x999_rh1000_925
      &               ,x999_omega500,x999_sst
@@ -4092,7 +4096,7 @@ c           data, so we'll just output the genesis vitals record.
      &             ,i999_stmspd,i999_stmdir,x99_pbar,x99_rbar
      &             ,x99_rmax,cps_vals,c_undef_wcflag
      &             ,imeanzeta,igridzeta
-     &             ,x999_shrmag,x999_shrdir
+     &             ,x999_shrmag,x999_shrdir,x999_shrmag
      &             ,x999_divg,x999_moist_divg
      &             ,x999_rh600_800,x999_rh1000_925
      &             ,x999_omega500,x999_sst
@@ -8044,10 +8048,14 @@ c     gm_wrap_flag character flag set in getgridinfo that determines
 c              if GM-wrapping has been set for this grid.
 c
 c     OUTPUT:
-c     shear    real array containing both the magnitude and direction
-c              of the storm-centered 850-200 mb vertical shear.  In the
-c              3rd element of the array, index 1 is for shear magnitude
-c              and index 2 is for shear direction.
+c     shear    real array containing the magnitude and direction
+c              of the storm-centered 850-200 mb vertical shear, and 
+c              also containing the magnitude of the u- and 
+c              v-components of the shear.  In the 3rd element of the
+c              array, index 1 is for shear magnitude, index 2 is for
+c              shear direction, index 3 is for the magnitude of the
+c              u-component of shear, and index 4 is for the magnitude
+c              of the v-component of shear.
 c     igsret   return code from this subroutine
 c
 c     LOCAL:
@@ -8086,7 +8094,7 @@ c            is for 200 mb.
       real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
-      real    shear(maxstorm,maxtime,2)
+      real    shear(maxstorm,maxtime,4)
       real    rdist(numdist),vr(numazim,numdist,numlev)
       real    vt(numazim,numdist,numlev)
       real    vt_prime(numazim,numdist,numlev)
@@ -8555,6 +8563,9 @@ c     -----------------------------------------------------------------
       endif
             
       shear(ist,ifh,1) = shear_mag
+
+      shear(ist,ifh,3) = ushear
+      shear(ist,ifh,4) = vshear
 
 c     -----------------------------------------------------------------
 c     Now compute the shear direction (i.e., the direction that the
@@ -12417,7 +12428,7 @@ c-----------------------------------------------------------------------
      &         ,ifcsthour,vmaxwind,xminmslp,vradius,maxstorm
      &         ,trkrinfo,istmspd,istmdir,plastbar,rlastbar,rmax
      &         ,cps_vals,wcore_flag,imeanzeta,igridzeta
-     &         ,shear_mag,shear_dir,divg,moist_divg
+     &         ,shear_mag,shear_dir,u_shear_mag,divg,moist_divg
      &         ,rh_800_600_smooth,rh_1000_925_smooth
      &         ,omega500_smooth,sst_smooth
      &         ,axisymet_rmw_dist,axisymet_rmw_val,ioaxret)
@@ -12502,6 +12513,8 @@ c     igridzeta array with values of max (gridpoint) 850 & 700 zeta
 c     shear_mag real magnitude of 850-200 mb vertical shear.
 c     shear_dir real vector direction the 850-200 mb vertical shear
 c               is heading to.
+c     u_shear_mag real magnitude of the u-component of the 850-200 mb
+c               vertical shear.
 c     sst_smooth real barnes-averaged SST centered on mean fix 
 c     axisymet_rmw_dist real distance to axisymmetric RMW
 c     axisymet_rmw_val  real value of axisymmetric RMW
@@ -12529,9 +12542,10 @@ c
       real    cps_vals(3)
       real    shear_mag,shear_dir,axisymet_rmw_dist,axisymet_rmw_val
       real    divg,moist_divg,rh_800_600_smooth,rh_1000_925_smooth
-      real    omega500_smooth,sst_smooth
+      real    omega500_smooth,sst_smooth,u_shear_mag
       integer intlon,intlat,istmspd,istmdir,iplastbar,irlastbar,irmax
       integer ivtl,ivtu,iparamb,output_fhr,ishear_mag,ishear_dir
+      integer i_u_shear_mag
       integer vradius(3,4)
       integer imeanzeta(nlevgrzeta),igridzeta(nlevgrzeta)
       integer idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500,isst
@@ -12743,6 +12757,17 @@ c     identifier at the beginning of the modified atcfunix record.
         ishear_dir = -99
       endif
 
+      if (shearflag == 'y' .or. shearflag == 'Y') then
+        if (u_shear_mag > -998.0) then
+          ! Convert the shear from m/s to knots for the output
+          i_u_shear_mag = nint((u_shear_mag*1.9427)*10.)
+        else  
+          i_u_shear_mag = -99 
+        endif 
+      else  
+        i_u_shear_mag = -99 
+      endif
+
       if (axisymet_rmw_dist >= 0.0) then
         irmw_dist = nint(axisymet_rmw_dist * 0.539638)  ! convert from
                                                         ! km to nm
@@ -12881,6 +12906,7 @@ c     identifier at the beginning of the modified atcfunix record.
       print *,'ivtu= ',ivtu
       print *,'wcore_flag= ',wcore_flag
       print *,'ishear_mag= ',ishear_mag,' ishear_dir= ',ishear_dir
+      print *,'i_u_shear_mag= ',i_u_shear_mag
       print *,'isst= ',isst
       print *,'irmw_dist= ',irmw_dist,' irmw_val= ',irmw_val
       print *,'idivg= ',idivg,' imoistdivg= ',imoistdivg
@@ -12905,7 +12931,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &      ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &      ,istmdir,istmspd
      &      ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &      ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &      ,ishear_mag,ishear_dir,i_u_shear_mag
+     &      ,isst,irmw_dist,irmw_val
      &      ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
 
       if (vradius(2,1) > 0 .or. vradius(2,2) > 0 .or.
@@ -12923,7 +12950,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &        ,istmdir,istmspd
      &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,ishear_mag,ishear_dir,i_u_shear_mag
+     &        ,isst,irmw_dist,irmw_val
      &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
       endif
 
@@ -12942,7 +12970,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &        ,iplastbar,irlastbar,irmax,iparamb,ivtl,ivtu,wcore_flag
      &        ,istmdir,istmspd
      &        ,imeanzeta(1),igridzeta(1),imeanzeta(2),igridzeta(2)
-     &        ,ishear_mag,ishear_dir,isst,irmw_dist,irmw_val
+     &        ,ishear_mag,ishear_dir,i_u_shear_mag
+     &        ,isst,irmw_dist,irmw_val
      &        ,idivg,imoistdivg,irh_800_600,irh_1000_925,iomega500
       endif
 
@@ -12950,7 +12979,7 @@ c     identifier at the beginning of the modified atcfunix record.
      &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
      &       ,', ',3(i4,', '),3(i6,', '),a1,2(', ',i4),4(', ',i6)
-     &       ,', SHR82, ',i4,', ',i3,3(', ',i4),2(', ',i9)
+     &       ,', SHR82, ',i4,', ',i3,', ',i5,3(', ',i4),2(', ',i9)
      &       ,3(', ',i4))
 
 c     bug fix for IBM: flush the output stream so it actually writes
