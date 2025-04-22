@@ -9,7 +9,7 @@ jobs:
       run:
         working-directory: ./code
     container:
-      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14
+      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14.2.0
       env:
         NetCDF_INCLUDE_DIRS: "/opt/views/view/include/"
 
