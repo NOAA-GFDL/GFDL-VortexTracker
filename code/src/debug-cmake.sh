@@ -20,7 +20,7 @@ cd build
 if [ $target = gaea ]; then
   cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 else
-  cmake .. -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
+  cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
 fi
 
 # compile
