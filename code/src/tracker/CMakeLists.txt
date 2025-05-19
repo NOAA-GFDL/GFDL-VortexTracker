@@ -17,13 +17,13 @@ add_executable(gettrk.x gettrk_main.f ${tracker_src})
 # set fortran compiler flags
 get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 if (Fortran_COMPILER_NAME MATCHES "gfortran.*")
-  set (CMAKE_Fortran_FLAGS "-Wall -Wextra")     # gcc fortran compiler flags here
+  set (CMAKE_Fortran_FLAGS "-Wall -Wextra")                 # gcc fortran compiler flags here
 elseif (Fortran_COMPILER_NAME MATCHES "ifx.*")
   set (CMAKE_Fortran_FLAGS "-fp-model=precise -i4 -r8")     # ifx fortran compiler flags here
 endif()
 
 # debug mode
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -O0")
+set (CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -O0")
 
 target_link_libraries(
   gettrk.x
