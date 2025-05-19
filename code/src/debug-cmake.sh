@@ -22,7 +22,11 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILE
 # compile
 make VERBOSE=1
 
-echo " COMPLETE "
+if [ $? -eq 0 ]; then
+  echo "COMPILATION SUCCESSFUL"
+else
+  echo "COMPILATION ERROR"
+fi
 
 # back out of build directory
 cd ..

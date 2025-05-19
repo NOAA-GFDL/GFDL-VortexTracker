@@ -26,11 +26,15 @@ fi
 # compile
 make
 
+if [ $? -eq 0 ]; then
+  echo "COMPILATION SUCCESSFUL"
+else
+  echo "COMPILATION ERROR"
+fi
+
 # install executables in exec/ directory
 make install
 
 # back out of build directory
 cd ..
 exit
-
-
