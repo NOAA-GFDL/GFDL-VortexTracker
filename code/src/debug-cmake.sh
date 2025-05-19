@@ -17,7 +17,11 @@ mkdir build
 cd build
 
 # build src code
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
+if [ $target = gaea ]; then
+  cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
+else
+  cmake .. -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
+fi
 
 # compile
 make VERBOSE=1
