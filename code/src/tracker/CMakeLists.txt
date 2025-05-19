@@ -22,6 +22,9 @@ elseif (Fortran_COMPILER_NAME MATCHES "ifx.*")
   set (CMAKE_Fortran_FLAGS "-fp-model=precise -i4 -r8")     # ifx fortran compiler flags here
 endif()
 
+# debug mode
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -O0")
+
 target_link_libraries(
   gettrk.x
   g2::g2_d

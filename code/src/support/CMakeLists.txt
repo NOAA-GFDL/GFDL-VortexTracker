@@ -13,6 +13,9 @@ elseif (Fortran_COMPILER_NAME MATCHES "ifx.*")
   set (CMAKE_Fortran_FLAGS "-fp-model=precise -i4 -r8")     # ifx fortran compiler flags here
 endif()
 
+# debug mode
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -<flags>")
+
 # set up build for supvit support code
 set(supvit_srcs
   supvit/supvit_main.f
