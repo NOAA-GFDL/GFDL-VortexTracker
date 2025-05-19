@@ -18,22 +18,19 @@ cd build
 
 # build src code
 if [ $target = gaea ]; then
-  cmake .. -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
+  cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ftn -DCMAKE_C_COMPILER=cc
 else
-  cmake .. -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
+  cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_Fortran_COMPILER=ifx -DCMAKE_C_COMPILER=icx
 fi
 
 # compile
-make
+make VERBOSE=1
 
 if [ $? -eq 0 ]; then
   echo "COMPILATION SUCCESSFUL"
 else
   echo "COMPILATION ERROR"
 fi
-
-# install executables in exec/ directory
-make install
 
 # back out of build directory
 cd ..
