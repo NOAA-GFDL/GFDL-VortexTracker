@@ -1,25 +1,26 @@
 # set up module environment on gaea
 
-module use /ncrc/proj/epic/spack-stack/spack-stack-1.7.0/envs/ue-intel/install/modulefiles/Core
+module use /ncrc/proj/epic/spack-stack/spack-stack-1.8.0/envs/ue-intel-2021.10.0/install/modulefiles/Core/
 module load stack-intel/2023.2.0
 
-module load cray-hdf5
-module load cray-netcdf
+module load cray-hdf5/1.14.3.5
+module load cray-netcdf/4.9.0.13
 
-module load libpng
-module load jasper
-module load zlib-ng
-module load g2
-module load g2tmpl
-module load bacio
-module load w3emc
+module load libpng/1.6.37
+module load jasper/2.0.32
+module load zlib-ng/2.1.6
+module load g2/3.5.1
+module load g2tmpl/1.13.0
+module load bacio/2.4.1
+module load w3emc/2.10.0
 
-module load nco
-module load cdo
+module load nco/5.1.9
+module load cdo/2.3.0-omp
 
 export ncdump=/opt/cray/pe/netcdf/4.9.0.13/bin/ncdump
 
 # for grib data
-module load grib-util
-module load wgrib
-module load wgrib2
+module load grib-util/1.4.0
+module load wgrib/1.8.5
+module load wgrib2/3.1.1
+
