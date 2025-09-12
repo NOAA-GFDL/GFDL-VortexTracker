@@ -956,18 +956,18 @@ c     specified output pressure levels.
       real     coordlist
       real     xoutdat(kf,nlevsout),xoutlevs_p(nlevsout)
 c
-      iodret=0
-      call baopenw (lout,"fort.51",igoret)
-      print *,'baopenw: igoret= ',igoret
+c      iodret=0
+c      call baopenw (lout,"fort.51",igoret)
+c      print *,'baopenw: igoret= ',igoret
 
-      if (igoret /= 0) then
-        print *,' '
-        print *,'!!! ERROR in vint in sub output_data opening'
-        print *,'!!! **OUTPUT** grib file.  baopenw return codes:'
-        print *,'!!! grib file 1 return code = igoret = ',igoret
-        STOP 95
-        return
-      endif
+c      if (igoret /= 0) then
+c        print *,' '
+c        print *,'!!! ERROR in vint in sub output_data opening'
+c        print *,'!!! **OUTPUT** grib file.  baopenw return codes:'
+c        print *,'!!! grib file 1 return code = igoret = ',igoret
+c        STOP 95
+c        return
+c      endif
 
       levloop: do lev = 1,nlevsout
 
@@ -1209,16 +1209,29 @@ C     iret     The return code from this subroutine
 
       implicit none
 
-      character fnameg*7,fnamei*7,fnameo*7
+      character(2)   lugb_c,lugi_c,lout_c
+      character(255) fnameg,fnamei,fnameo
+      character(6)   enameb,enamei,enameo
       integer   iret,gribver,lugb,lugi,lout,igoret,iioret,iooret
 
       iret=0
-      fnameg(1:5) = "fort."
-      fnamei(1:5) = "fort."
-      fnameo(1:5) = "fort."
-      write(fnameg(6:7),'(I2)') lugb
-      write(fnamei(6:7),'(I2)') lugi
-      write(fnameo(6:7),'(I2)') lout
+      write(lugb_c,'(i2)')lugb
+      write(lugi_c,'(i2)')lugi
+      write(lout_c,'(i2)')lout
+      enameb='FORT'//adjustl(lugb_c)
+      enamei='FORT'//adjustl(lugi_c)
+      enameo='FORT'//adjustl(lout_c)
+      call get_environment_variable(enameb,fnameg, status=igoret)
+      call get_environment_variable(enamei, fnamei, status=iioret)
+      call get_environment_variable(enameo, fnameo, status=iooret)
+      if (igoret /= 0 .or. iioret /= 0 .or. iooret /= 0) then
+        fnameg(1:5) = "fort."
+        fnamei(1:5) = "fort."
+        fnameo(1:5) = "fort."
+        write(fnameg(6:7),'(I2)') lugb
+        write(fnamei(6:7),'(I2)') lugi
+        write(fnameo(6:7),'(I2)') lout
+      endif
       call baopenr (lugb,fnameg,igoret)
       call baopenr (lugi,fnamei,iioret)
       call baopenw (lout,fnameo,iooret)

@@ -1070,16 +1070,29 @@ C     iret     The return code from this subroutine
 
       implicit none
 
-      character fnameg*7,fnamei*7,fnameo*7
+      character fnameg*255,fnamei*255,fnameo*255
+      character enameb*16,enamei*16,enameo*16
+      character lugb_c*16,lugi_c*16,lout_c*16
       integer   iret,gribver,lugb,lugi,lout,igoret,iioret,iooret
 
       iret=0
-      fnameg(1:5) = "fort."
-      fnamei(1:5) = "fort."
-      fnameo(1:5) = "fort."
-      write(fnameg(6:7),'(I2)') lugb
-      write(fnamei(6:7),'(I2)') lugi
-      write(fnameo(6:7),'(I2)') lout
+      write(lugb_c,'(I2.2)')lugb
+      write(lugi_c,'(I2.2)')lugi
+      write(lout_c,'(I2.2)')lout
+      enameb='FORT'//lugb_c
+      enamei='FORT'//lugi_c
+      enameo='FORT'//lout_c
+      call get_environment_variable(trim(enameb), fnameg, status=igoret)
+      call get_environment_variable(trim(enamei), fnamei, status=iioret)
+      call get_environment_variable(trim(enameo), fnameo, status=iooret)
+      if (igoret /= 0 .or. iioret /= 0 .or. iooret /= 0) then
+        fnameg(1:5) = "fort."
+        fnamei(1:5) = "fort."
+        fnameo(1:5) = "fort."
+        write(fnameg(6:7),'(I2)') lugb
+        write(fnamei(6:7),'(I2)') lugi
+        write(fnameo(6:7),'(I2)') lout
+      endif
       call baopenr (lugb,fnameg,igoret)
       call baopenr (lugi,fnamei,iioret)
       call baopenw (lout,fnameo,iooret)

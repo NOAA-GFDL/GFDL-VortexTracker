@@ -883,12 +883,18 @@ c       data for this forecast time.
         v     = -9999.0
         slp   = -9999.0 
         tmean = -9999.0
-        sst   = -9999.0
-        q850  = -9999.0
-        rh    = -9999.0 
-        spfh  = -9999.0
-        temperature  = -9999.0
-        omega500  = -9999.0
+
+        if (sstflag == 'y' .or. sstflag == 'Y') then
+          sst   = -9999.0
+        endif
+
+        if (genflag == 'y' .or. genflag == 'Y') then
+          q850  = -9999.0
+          rh    = -9999.0 
+          spfh  = -9999.0
+          temperature  = -9999.0
+          omega500  = -9999.0
+        endif
 
         readflag    = .FALSE.
         readgenflag = .FALSE.
@@ -4337,7 +4343,9 @@ c
       logical(1)  output_file_open
       logical(1)  file_open
       logical(4)  file_open4,file_open5
-      character fnameg*7,fnamei*7,fnameo*7
+      character fnameg*255,fnamei*255,fnameo*255
+      character enameb*16,enamei*16,enameo*16
+      character lugb_c*16,lugi_c*16,lout_c*16
       character fname_mask_g*7,fname_mask_i*7
       character opening_mask*1
       character(*) gfilename,ifilename
@@ -4351,20 +4359,41 @@ c
       iooret = 0
 
       if (inp%file_seq == 'onebig') then
-        fnameg(1:5) = "fort."
-        fnamei(1:5) = "fort."
-        write(fnameg(6:7),'(I2)') lugb
-        write(fnamei(6:7),'(I2)') lugi
+
+        write(lugb_c,'(I2.2)')lugb
+        write(lugi_c,'(I2.2)')lugi
+        enameb='FORT'//lugb_c
+        enamei='FORT'//lugi_c
+        call get_environment_variable(trim(enameb), fnameg
+     &          , status=igoret)
+        call get_environment_variable(trim(enamei), fnamei
+     &          , status=iioret)
+
+        if (igoret /= 0 .or. iioret /= 0) then
+          fnameg(1:5) = "fort."
+          fnamei(1:5) = "fort."
+          write(fnameg(6:7),'(I2)') lugb
+          write(fnamei(6:7),'(I2)') lugi
+        endif
+
         call baopenr (lugb,fnameg,igoret)
         call baopenr (lugi,fnamei,iioret)
+
         if (opening_mask /= 'y') then
           ! If this is a regular call to open_grib_files (i.e., not
           ! for opening the land-sea mask file), then open the 
           ! output grib file unit.
-          fnameo(1:5) = "fort."
-          write(fnameo(6:7),'(I2)') lout
-          call baopenw (lout,fnameo,iooret)
+          write(lout_c,'(I2.2)')lout
+          enameo='FORT'//lout_c
+          call get_environment_variable(trim(enameo), fnameo
+     &            , status=iooret)
+          if (iooret /= 0) then
+            fnameo(1:5) = "fort."
+            write(fnameo(6:7),'(I2)') lout
+            call baopenw (lout,fnameo,iooret)
+          endif
         endif
+
       else
 
         if (opening_mask == 'y') then
@@ -4375,7 +4404,9 @@ c
           print *,'!!! inp%file_seq flag indicates that this is not'
           print *,'!!! a onebig file, and as of yet, the functionality'
           print *,'!!! for an additional land-sea mask file can only'
-          print *,'!!! be used for onebig file applications.'
+          print *,'!!! be used for onebig file applications.  As an'
+          print *,'!!! alternative, you can include a land-sea mask'
+          print *,'!!! record within each individual file.'
           stop 95
         endif
 
@@ -4413,7 +4444,7 @@ c     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
       inquire (unit=lugb, opened=file_open)
       if (file_open) then
         print *,'TEST open_grib_files, unit lugb= ',lugb
-     &        ,' is OPEN'
+     &         ,' is OPEN'
       else
         print *,'TEST open_grib_files, unit lugb= ',lugb
      &         ,' is CLOSED'
@@ -4476,6 +4507,7 @@ c     &         ,'...  gopen_i_file= ...',a<nlen2>,'...')
 
         iret = 113
         return
+
       endif
 
       return
@@ -12979,8 +13011,8 @@ c     identifier at the beginning of the modified atcfunix record.
      &       ,'_',a3,', ',i10.10,', 03, ',a4,', ',i3.3,', ',i3,a1
      &       ,', ',i4,a1,', ',i3,', ',i4,', ',a12,4(', ',i4.4)
      &       ,', ',3(i4,', '),3(i6,', '),a1,2(', ',i4),4(', ',i6)
-     &       ,', SHR82, ',i4,', ',i3,', ',i5,3(', ',i4),2(', ',i9)
-     &       ,3(', ',i4))
+     &       ,', SHR82, ',i4,', ',i3,', ',i5,3(', ',i4),', ',i9
+     &       ,', ',i11,3(', ',i4))
 
 c     bug fix for IBM: flush the output stream so it actually writes
       flush(66)
@@ -20871,6 +20903,8 @@ c     search the entire global grid).
         print *,' The immediately following lines for ilonfix, jlatfix,'
         print *,' ibeg, jbeg, iend and jend likely contain junk values'
         print *,' since we have not yet called get_ij_bounds....'
+        ilonfix = -9999
+        jlatfix = -9999
         print *,' ilonfix= ',ilonfix,' jlatfix= ',jlatfix
         print *,' ibeg= ',ibeg
         print *,' jbeg= ',jbeg
@@ -28977,7 +29011,7 @@ c17Jul2014      if (glonmax < 0.0) glonmax = 360. - abs(glonmax)
             print *,'       GRID MIN & MAX LON '
             print *,'         (MODIFIED FOR GM WRAPPING):'
             print *,'         glonmin (same as original)= ',glonmin
-            print *,'         glonmax (modified)=         ',glonmax
+            print *,'         glonmax (modified)=         ',glonmax+360.
             print *,'       '
           endif
           glonmax = glonmax + 360.
