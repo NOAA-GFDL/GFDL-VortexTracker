@@ -10149,18 +10149,15 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
         case default;    basinid = 'HC'
       end select
 
@@ -10566,18 +10563,15 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
         case default;    basinid = 'HC'
       end select
 
@@ -11191,19 +11185,16 @@ c     need to mod it to get it in a 0-360 framework.
 
         basinid = '    '
         select case (storm(ist)%tcv_storm_id(3:3))
-          case ('L','l');  basinid(1:2) = 'AL'
-          case ('E','e');  basinid(1:2) = 'EP'
+          case ('A','a');  basinid(1:2) = 'IO'
+          case ('B','b');  basinid(1:2) = 'IO'
           case ('C','c');  basinid(1:2) = 'CP'
-          case ('W','w');  basinid(1:2) = 'WP'
-          case ('O','o');  basinid(1:2) = 'SC'
-          case ('T','t');  basinid(1:2) = 'EC'
-          case ('U','u');  basinid(1:2) = 'AU'
-          case ('P','p');  basinid(1:2) = 'SP'
-          case ('S','s');  basinid(1:2) = 'SI'
-          case ('B','b');  basinid(1:2) = 'BB'
-          case ('A','a');  basinid(1:2) = 'AA'
+          case ('E','e');  basinid(1:2) = 'EP'
+          case ('L','l');  basinid(1:2) = 'AL'
+          case ('P','p');  basinid(1:2) = 'SH'
           case ('Q','q');  basinid(1:2) = 'SL'
-          case default;    basinid(1:2) = '**'
+          case ('S','s');  basinid(1:2) = 'SH'
+          case ('W','w');  basinid(1:2) = 'WP'
+          case default;    basinid(1:2) = 'HC'
         end select
         basinid(3:4) = storm(ist)%tcv_storm_id(1:2)
 
@@ -11450,19 +11441,16 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
-        case default;    basinid = '**'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
+        case default;    basinid = 'HC'
       end select
 
       ! ST: ifcsthour does not exist, so output_fhr is always
@@ -11671,19 +11659,16 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
-        case default;    basinid = '**'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
+        case default;    basinid = 'HC'
       end select
 
       if (atcfname(1:2) == 'SP') then
@@ -11931,19 +11916,16 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
-        case default;    basinid = '**'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
+        case default;    basinid = 'HC'
       end select
 
       if (atcfname(1:2) == 'SP') then
@@ -12254,19 +12236,16 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
-        case default;    basinid = '**'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
+        case default;    basinid = 'HC'
       end select
 
       if (atcfname(1:2) == 'SP') then
@@ -12413,19 +12392,16 @@ c     need to mod it to get it in a 0-360 framework.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
-        case default;    basinid = '**'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
+        case default;    basinid = 'HC'
       end select
 
       if (atcfname(1:2) == 'SP') then
@@ -12878,18 +12854,15 @@ c     identifier at the beginning of the modified atcfunix record.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
         case default;    basinid = 'HC'
       end select
 
@@ -13206,18 +13179,15 @@ c     identifier at the beginning of the modified atcfunix record.
       endif
 
       select case (storm(ist)%tcv_storm_id(3:3))
-        case ('L','l');  basinid = 'AL'
-        case ('E','e');  basinid = 'EP'
+        case ('A','a');  basinid = 'IO'
+        case ('B','b');  basinid = 'IO'
         case ('C','c');  basinid = 'CP'
-        case ('W','w');  basinid = 'WP'
-        case ('O','o');  basinid = 'SC'
-        case ('T','t');  basinid = 'EC'
-        case ('U','u');  basinid = 'AU'
-        case ('P','p');  basinid = 'SP'
-        case ('S','s');  basinid = 'SI'
-        case ('B','b');  basinid = 'BB'
-        case ('A','a');  basinid = 'AA'
+        case ('E','e');  basinid = 'EP'
+        case ('L','l');  basinid = 'AL'
+        case ('P','p');  basinid = 'SH'
         case ('Q','q');  basinid = 'SL'
+        case ('S','s');  basinid = 'SH'
+        case ('W','w');  basinid = 'WP'
         case default;    basinid = 'HC'
       end select
 
@@ -34453,19 +34423,16 @@ c       Now output the data for this storm, this level
 c       -----------------------------------------------------------
 
         select case (storm(ist)%tcv_storm_id(3:3))
-          case ('L','l');  basinid = 'AL'
-          case ('E','e');  basinid = 'EP'
+          case ('A','a');  basinid = 'IO'
+          case ('B','b');  basinid = 'IO'
           case ('C','c');  basinid = 'CP'
-          case ('W','w');  basinid = 'WP'
-          case ('O','o');  basinid = 'SC'
-          case ('T','t');  basinid = 'EC'
-          case ('U','u');  basinid = 'AU'
-          case ('P','p');  basinid = 'SP'
-          case ('S','s');  basinid = 'SI'
-          case ('B','b');  basinid = 'BB'
-          case ('A','a');  basinid = 'AA'
+          case ('E','e');  basinid = 'EP'
+          case ('L','l');  basinid = 'AL'
+          case ('P','p');  basinid = 'SH'
           case ('Q','q');  basinid = 'SL'
-          case default;    basinid = '**'
+          case ('S','s');  basinid = 'SH'
+          case ('W','w');  basinid = 'WP'
+          case default;    basinid = 'HC'
         end select
 
         xminmslp = gridprs(ist,ifh)

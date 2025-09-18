@@ -48,7 +48,7 @@ set(vint_srcs
         vint/vint.f
         CACHE INTERNAL "")
 
-add_executable(vint.x ${tave_srcs})
+add_executable(vint.x ${vint_srcs})
 
 target_link_libraries(
   vint.x
