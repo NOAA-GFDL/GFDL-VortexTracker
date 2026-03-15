@@ -9035,6 +9035,8 @@ c
       
       logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
 c
+      igdret = 0
+
       if (allocated(divg_850)) deallocate(divg_850)
       allocate (divg_850(imax,jmax),stat=idvgf)
       if (idvgf /= 0) then
