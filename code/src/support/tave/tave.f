@@ -233,7 +233,7 @@ c
       type(gribfield) :: holdgfld
       integer,dimension(200) :: jids,jpdt,jgdt
       logical(1), allocatable :: lb(:)
-      integer, parameter :: jf=4000000
+      integer, parameter :: jf=40000000
       integer   jpds(200),jgds(200)
       integer   kpds(200),kgds(200)
       integer :: listsec1(13)
@@ -417,7 +417,7 @@ c
       CHARACTER(len=8) :: ctemp,pabbrev
       CHARACTER(len=80) :: ftemplate
       integer,dimension(200) :: jids,jpdt,jgdt
-      integer, parameter :: jf=4000000
+      integer, parameter :: jf=40000000
       integer   ilevs(nlevsin)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
       integer   lugb,lugi,kf,nlevsin,igdret,iparm,jskp,jdisc

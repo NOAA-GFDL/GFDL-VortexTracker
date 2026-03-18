@@ -22622,6 +22622,7 @@ c                 valid data at the point (used for regional grids)
       USE tracked_parms; USE level_parms; USE inparms; USE phase
       USE verbose_output; USE params; USE grib_mod; USE trkrparms
       USE read_parms; USE genesis_diags; USE vortex_tilt_diags
+      USE sst_diags
 
       implicit none
 c
@@ -22896,6 +22897,14 @@ c              endif
 c            endif
 c          endif
 
+          if (chparm(ip) == 'sst') then
+            if (sstflag == 'y' .or. sstflag == 'Y') then
+              continue
+            else
+              cycle grib2_standard_parm_read_loop
+            endif
+          endif
+
           !
           ! ---  Initialize Variables ---
           !
@@ -23012,6 +23021,7 @@ c         choose to average something else in the future.
  531        format (/,1x,'TIMING: before getgb2-1',i2.2,':',i2.2
      &             ,':',i2.2)
           endif
+
           call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn,jgdt
      &             ,unpack,krec,gfld,iret)
 
@@ -24265,6 +24275,14 @@ c        This is the GRIB1 reading section.
 c       *------------------------------------------------------------*
 
         grib1_read_loop: do ip = 1,nreadparms
+
+          if (chparm(ip) == 'sst') then
+            if (sstflag == 'y' .or. sstflag == 'Y') then
+              continue
+            else
+              cycle grib1_read_loop
+            endif
+          endif
               
           jpds = -1
           jgds = -1
@@ -25166,6 +25184,7 @@ c                 valid data at the point (used for regional grids)
       USE tracked_parms; USE level_parms; USE inparms; USE phase
       USE netcdf_parms; USE verbose_output; USE read_parms
       USE genesis_diags; USE trkrparms; USE vortex_tilt_diags
+      USE sst_diags
 
       implicit none
 c
@@ -25339,6 +25358,14 @@ c     variables into the chparm array...
       !---------------------------------------------------------------
 
       netcdf_standard_parm_read_loop: do ip = 1,nreadparms
+
+        if (ip == 20) then
+          if (sstflag == 'y' .or. sstflag == 'Y') then
+            continue
+          else
+            cycle netcdf_standard_parm_read_loop
+          endif
+        endif
 
         if (chparm(ip) == 'X' .or. chparm(ip) == 'x') then
           if (verb .ge. 3) then

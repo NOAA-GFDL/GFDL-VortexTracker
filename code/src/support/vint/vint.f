@@ -252,7 +252,7 @@ c
       type(gribfield) :: holdgfld
       integer,dimension(200) :: jids,jpdt,jgdt
       logical(1), allocatable :: lb(:)
-      integer, parameter :: jf=4000000
+      integer, parameter :: jf=40000000
       integer   jpds(200),jgds(200)
       integer   kpds(200),kgds(200)
       integer :: listsec1(13)
@@ -325,6 +325,19 @@ c       Search for Temperature or GP Height by production template....
 
         jpdt(9) = ifcsthour
 
+        print *,'Before getgb2 call, ifcsthour= ',ifcsthour
+        print *,'Before getgb2 call, lugb= ',lugb
+        print *,'Before getgb2 call, lugi= ',lugi
+        print *,'Before getgb2 call, jskp= ',jskp
+        print *,'Before getgb2 call, jdisc= ',jdisc
+        print *,'Before getgb2 call, jids= ',jids
+        print *,'Before getgb2 call, jpdtn= ',jpdtn
+        print *,'Before getgb2 call, jpdt= ',jpdt
+        print *,'Before getgb2 call, jgdtn= ',jgdtn
+        print *,'Before getgb2 call, jgdt= ',jgdt
+        print *,'Before getgb2 call, iret= ',iret
+        print *,'Before getgb2 call, krec= ',krec
+
         call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn,jgdt
      &             ,unpack,krec,holdgfld,iret)
         if ( iret.ne.0) then
@@ -361,6 +374,8 @@ c       The default packing is 40  JPEG 2000
      &         ,holdgfld%igdtlen
         print *,'PDT num= holdgfld%ipdtnum= ',holdgfld%ipdtnum
         print *,'GDT num= holdgfld%igdtnum= ',holdgfld%igdtnum
+
+        print *,'At line before assign value of imax....'
 
         imax = holdgfld%igdtmpl(8)
         print *,'at A'
@@ -439,7 +454,7 @@ c
       CHARACTER(len=8) :: pabbrev
       integer,dimension(200) :: jids,jpdt,jgdt
       logical(1)  valid_pt(kf),lb(kf),readflag(nlevsin)
-      integer, parameter :: jf=4000000
+      integer, parameter :: jf=40000000
       integer   ilevs(maxlev)
       integer   jpds(200),jgds(200),kpds(200),kgds(200)
       integer   lugb,lugi,kf,nlevsin,maxlev,igdret,jskp,jdisc
