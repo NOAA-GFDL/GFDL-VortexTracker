@@ -20873,10 +20873,13 @@ c     search the entire global grid).
         print *,' guesslon= ',guesslon
         print *,' guesslat= ',guesslat
         print *,' The immediately following lines for ilonfix, jlatfix,'
-        print *,' ibeg, jbeg, iend and jend likely contain junk values'
-        print *,' since we have not yet called get_ij_bounds....'
+        print *,' ibeg, jbeg, iend and jend contain either undefined'
+        print *,' values of -9999 or nominal initialized values such'
+        print *,' as 1 or imax or jmax since we have not yet '
+        print *,' called get_ij_bounds....'
         ilonfix = -9999
         jlatfix = -9999
+        ibeg=1; jbeg=1; iend=imax; jend=jmax
         print *,' ilonfix= ',ilonfix,' jlatfix= ',jlatfix
         print *,' ibeg= ',ibeg
         print *,' jbeg= ',jbeg
