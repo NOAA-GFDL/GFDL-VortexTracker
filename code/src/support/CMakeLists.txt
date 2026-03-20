@@ -8,13 +8,19 @@
 # set fortran compiler flags
 get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 if (Fortran_COMPILER_NAME MATCHES "gfortran.*")
-  set (CMAKE_Fortran_FLAGS "-Wall -Wextra")                 # gcc fortran compiler flags here
+  # gcc fortran compiler flags here
+  set (CMAKE_Fortran_FLAGS "-ffp-contract=off -fno-unsafe-math-optimizations -fno-finite-math-only -fno-rounding-math -fno-signed-zeros")
 elseif (Fortran_COMPILER_NAME MATCHES "ifx.*")
-  set (CMAKE_Fortran_FLAGS "-fp-model=precise -i4 -r8")     # ifx fortran compiler flags here
+  # ifx fortran compiler flags here
+  set (CMAKE_Fortran_FLAGS "-fp-model=precise -i4 -r8")
 endif()
 
-# debug mode
-set (CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -O0")
+# set fortran compiler flags for debug mode
+if (Fortran_COMPILER_NAME MATCHES "gfortran.*")
+  set (CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -Wall -Wextra")  # gcc fortran debugging flags here
+elseif (Fortran_COMPILER_NAME MATCHES "ifx.*")
+  set (CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -O0")            # ifx fortran debugging flags here
+endif()
 
 # set up build for supvit support code
 set(supvit_srcs
