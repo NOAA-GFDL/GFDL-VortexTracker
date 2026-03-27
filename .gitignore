@@ -63,4 +63,4 @@ bin/*
 test/test_runner
 
 # ignore work directory in case user has it in the same area as their run directory
-work/*
+**/work/*

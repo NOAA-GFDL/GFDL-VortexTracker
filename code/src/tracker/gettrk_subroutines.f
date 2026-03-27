@@ -9035,6 +9035,8 @@ c
       
       logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
 c
+      igdret = 0
+
       if (allocated(divg_850)) deallocate(divg_850)
       allocate (divg_850(imax,jmax),stat=idvgf)
       if (idvgf /= 0) then
@@ -20871,10 +20873,13 @@ c     search the entire global grid).
         print *,' guesslon= ',guesslon
         print *,' guesslat= ',guesslat
         print *,' The immediately following lines for ilonfix, jlatfix,'
-        print *,' ibeg, jbeg, iend and jend likely contain junk values'
-        print *,' since we have not yet called get_ij_bounds....'
+        print *,' ibeg, jbeg, iend and jend contain either undefined'
+        print *,' values of -9999 or nominal initialized values such'
+        print *,' as 1 or imax or jmax since we have not yet '
+        print *,' called get_ij_bounds....'
         ilonfix = -9999
         jlatfix = -9999
+        ibeg=1; jbeg=1; iend=imax; jend=jmax
         print *,' ilonfix= ',ilonfix,' jlatfix= ',jlatfix
         print *,' ibeg= ',ibeg
         print *,' jbeg= ',jbeg
@@ -23572,14 +23577,18 @@ c       *------------------------------------------------------------*
 
               if (ip == 9) then
 
-                ! The ip index is now at the point where we are past all
+                ! The user has requested to read in RH fields, and
+                ! the ip index is now at the point where we are past all
                 ! of the reads for the different levels of RH.
                 ! Check the readgenflags for relative humidity.  If not
                 ! enough RH records were read in, then we have to assume
-                ! that RH was not included in the user data, so we will
-                ! instead stay in this Genesis GRIB2 read loop to read
-                ! in q and T to compute RH later on.  If enough RH 
-                ! records were read in, then exit this read loop.
+                ! that RH was not included in the user data, and we will
+                ! read in q and T to compute RH later on, and we will 
+                ! set the flag need_to_compute_rh_from_q = 'y'.  If 
+                ! enough RH records were read in, then we will still 
+                ! attempt to read in the q and T records, but we will 
+                ! use the RH records and 
+                ! set need_to_compute_rh_from_q = 'n'.
 
                 igrhct = 0
                 do igrh = 2,8
@@ -23592,20 +23601,17 @@ c       *------------------------------------------------------------*
                   if (verb >= 3) then
                     print *,' '
                     print *,'Genesis GRIB2 read: At least 2 RH records'
-                    print *,'were read in, so we will exit the Genesis'
-                    print *,'GRIB2 read loop without reading specific'
-                    print *,'humidity or temperature records.'
+                    print *,'were read in, so we will use the RH data'
+                    print *,'and set need_to_compute_rh_from_q = n'
                   endif
                   need_to_compute_rh_from_q = 'n' 
-                  ! call gf_free (gfld)
-                  exit grib2_gen_parm_loop
                 else
                   if (verb >= 3) then
                     print *,' '
                     print *,'Genesis GRIB2 read: Fewer than 2 RH'
-                    print *,'records were read in, so we will continue'
-                    print *,'in the Genesis GRIB2 read loop, reading'
-                    print *,'specific humidity and temperature records.'
+                    print *,'records were read in, so we need to'
+                    print *,'compute the RH from q and T that are read'
+                    print *,'in and set need_to_compute_rh_from_q = y'
                   endif
                   need_to_compute_rh_from_q = 'y' 
                 endif
@@ -24600,15 +24606,6 @@ c
 c        If we are attempting to perform genesis diagnostics, then 
 c        read in data now that will allow us to do that.
 c
-c        The order of the variables in the reads is set up so that, 
-c        ideally, we will read in the first 9 fields and not need 
-c        anything else, e.g., SST, q850, and then RH at these 
-c        levels: 1000, 925, 800, 750, 700, 650, 600 mb.  However, 
-c        some models, like SHiELD & T-SHiELD, do not have RH at these
-c        levels, but they do have T & q, so in those cases we would 
-c        have to compute RH, and therefore need to read in T & q at
-c        those levels.
-c
 c        This is the GRIB1 reading section.
 c       *------------------------------------------------------------*
 
@@ -24624,10 +24621,13 @@ c       *------------------------------------------------------------*
                 ! of the reads for the different levels of RH.
                 ! Check the readgenflags for relative humidity.  If not
                 ! enough RH records were read in, then we have to assume
-                ! that RH was not included in the user data, so we will
-                ! instead stay in this Genesis GRIB1 read loop to read
-                ! in q and T to compute RH later on.  If enough RH 
-                ! records were read in, then exit this read loop.
+                ! that RH was not included in the user data, and we will
+                ! read in q and T to compute RH later on, and we will 
+                ! set the flag need_to_compute_rh_from_q = 'y'.  If 
+                ! enough RH records were read in, then we will still 
+                ! attempt to read in the q and T records, but we will 
+                ! use the RH records and 
+                ! set need_to_compute_rh_from_q = 'n'.
 
                 igrhct = 0
                 do igrh = 2,8
@@ -24640,19 +24640,17 @@ c       *------------------------------------------------------------*
                   if (verb >= 3) then
                     print *,' '
                     print *,'Genesis GRIB1 read: At least 2 RH records'
-                    print *,'were read in, so we will exit the Genesis'
-                    print *,'GRIB1 read loop without reading specific'
-                    print *,'humidity or temperature records.'
+                    print *,'were read in, so we will use the RH data'
+                    print *,'and set need_to_compute_rh_from_q = n'
                   endif
                   need_to_compute_rh_from_q = 'n'
-                  exit grib1_gen_parm_loop
                 else
                   if (verb >= 3) then
                     print *,' '
                     print *,'Genesis GRIB1 read: Fewer than 2 RH'
-                    print *,'records were read in, so we will continue'
-                    print *,'in the Genesis GRIB1 read loop, reading'
-                    print *,'specific humidity and temperature records.'
+                    print *,'records were read in, so we need to'
+                    print *,'compute the RH from q and T that are read'
+                    print *,'in and set need_to_compute_rh_from_q = y'
                   endif
                   need_to_compute_rh_from_q = 'y'
                 endif
