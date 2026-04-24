@@ -234,6 +234,10 @@ c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
 c             forecast hour (this keeps us from re-computing it for 
 c             every storm at each lead time).
+c     already_computed_domain_wide_q character (y/n) indicates if q
+c             has already been computed across the whole domain for this
+c             forecast hour (this keeps us from re-computing it for 
+c             every storm at each lead time).
 c-----
 c
       USE def_vitals; USE inparms; USE tracked_parms; USE error_parms
@@ -258,6 +262,7 @@ c
       character :: r34_check_okay*1,had_to_try_backup_850_vt_check*1
       character :: need_to_expand_r34(4)*1,ncfile_has_hour0*1
       character :: already_computed_domain_wide_rh*1,gm_wrap_flag*21
+      character :: already_computed_domain_wide_q*1
       character :: low_level_wind_circ_flag*1,opening_mask*1
       character :: gwctype*7,rvctype*7
       character*(*), intent(in) :: ncfile
@@ -298,7 +303,8 @@ c
       integer   ibeg,jbeg,iend,jend,ix1,ix2,n,ilev,npts,icpsa,igzvret
       integer   igfwret,ioiret,igisret,iofwret,iowsret,igwsret,igscret
       integer   pdf_ct_tot,lugb,lugi,iret,icmcf,iccfh,ivt8f,icqwret
-      integer   igsret,issta,iq850a,irha,ispfha,itempa,iomegaa
+      integer   igsret,issta,iq850a,irh850a,irha,ispfha,itempa,iomegaa
+      integer   it850a
       integer   ncfile_tmax,ivr,r34_good_ct,itha,ilma,inctcv,lmgb,lmgi
       integer(kind=8) :: waitfor_gfile_status,waitfor_ifile_status
       integer(kind=8) :: wait_max_ifile_wait
@@ -472,6 +478,7 @@ c          lugi = 5200
       ifhloop: do while (ifh <= ifhmax)
 
         already_computed_domain_wide_rh = 'n'
+        already_computed_domain_wide_q  = 'n'
 
         if ( verb .ge. 3 ) then
           print *,' '
@@ -730,6 +737,8 @@ c       First, allocate the working data arrays....
         if (allocated(lsmask))   deallocate (lsmask)
         if (allocated(sst))      deallocate (sst)
         if (allocated(q850))     deallocate (q850)
+        if (allocated(rh850))    deallocate (rh850)
+        if (allocated(t850))     deallocate (t850)
         if (allocated(rh))       deallocate (rh)
         if (allocated(spfh))     deallocate (spfh)
         if (allocated(temperature)) deallocate (temperature)
@@ -753,6 +762,8 @@ c       First, allocate the working data arrays....
 
         issta   = 0
         iq850a  = 0
+        irh850a = 0
+        it850a  = 0
         irha    = 0
         ispfha  = 0
         itempa  = 0
@@ -764,6 +775,8 @@ c       First, allocate the working data arrays....
 
         if (genflag == 'y') then
           allocate (q850(imax,jmax),stat=iq850a)
+          allocate (rh850(imax,jmax),stat=irh850a)
+          allocate (t850(imax,jmax),stat=it850a)
           allocate (rh(imax,jmax,nlevmoist),stat=irha)
           allocate (spfh(imax,jmax,nlevmoist),stat=ispfha)
           allocate (temperature(imax,jmax,nlevmoist)
@@ -840,7 +853,7 @@ c       First, allocate the working data arrays....
      &      itha /= 0 .or. imoa /= 0 .or. imoca /= 0 .or.
      &      ilma /= 0 .or. issta /= 0 .or. iq850a /= 0 .or. 
      &      irha /= 0 .or. ispfha /= 0 .or. itempa /= 0 .or.
-     &      iomegaa /= 0) 
+     &      iomegaa /= 0 .or. irh850a /= 0 .or. it850a /= 0) 
      &     then
           
           if ( verb .ge. 1 ) then
@@ -853,7 +866,8 @@ c       First, allocate the working data arrays....
             print *,'!!! itha = ',itha,' ilma= ',ilma,' issta= ',issta
             print *,'!!! iq850a = ',iq850a,' irha= ',irha
             print *,'!!! ispfha= ',ispfha,' itempa= ',itempa
-            print *,'!!! iomegaa= ',iomegaa
+            print *,'!!! iomegaa= ',iomegaa,' irh850a= ',irh850a
+            print *,'!!! it850a= ',it850a
           endif
           itret = 94
           return
@@ -3606,7 +3620,8 @@ c                 c---   radmax = radmax + 50.0
      &                     ,clon,clat,divg,moist_divg
      &                     ,rh_800_600_smooth,rh_1000_925_smooth
      &                     ,omega500_smooth
-     &                     ,already_computed_domain_wide_rh,iggdret)
+     &                     ,already_computed_domain_wide_rh
+     &                     ,already_computed_domain_wide_q,iggdret)
 
               if ( verb .ge. 3 ) then
                 call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -4215,6 +4230,8 @@ c
       if (allocated(lsmask))   deallocate (lsmask)
       if (allocated(sst))      deallocate (sst)
       if (allocated(q850))     deallocate (q850)
+      if (allocated(rh850))    deallocate (rh850)
+      if (allocated(t850))     deallocate (t850)
       if (allocated(rh))       deallocate (rh)
       if (allocated(spfh))     deallocate (spfh)
       if (allocated(temperature))  deallocate (temperature)
@@ -8766,7 +8783,8 @@ c-----------------------------------------------------------------------
      &                     ,clon,clat,divg,moist_divg
      &                     ,rh_800_600_smooth,rh_1000_925_smooth
      &                     ,omega500_smooth
-     &                     ,already_computed_domain_wide_rh,iggdret)
+     &                     ,already_computed_domain_wide_rh
+     &                     ,already_computed_domain_wide_q,iggdret)
 c
 c     ABSTRACT: This subroutine is the driver for calling various other 
 c     routines to compute diagnostics needed for genesis.
@@ -8802,6 +8820,10 @@ c     already_computed_domain_wide_rh character (y/n) indicates if RH
 c             has already been computed across the whole domain for this
 c             forecast hour (this keeps us from re-computing it for 
 c             every storm at each lead time).
+c     already_computed_domain_wide_q character (y/n) indicates if q
+c             has already been computed across the whole domain for this
+c             forecast hour (this keeps us from re-computing it for 
+c             every storm at each lead time).
 c
 c     OUTPUT:
 c     divg     The  barnes analysis-averaged value of 850 mb divergence,
@@ -8822,6 +8844,7 @@ c
       USE grid_bounds; USE tracked_parms; USE trig_vals
       USE level_parms; USE trkrparms; USE inparms; USE set_max_parms
       USE verbose_output; USE def_vitals; USE read_parms
+      USE genesis_diags
 
       implicit none
 
@@ -8832,7 +8855,7 @@ c
       character (len=10) big_ben(3)
 
       integer imax,jmax,ist,ifh,maxstorm
-      integer level,iggdret,igdret,ilev,igrhret,igsvret
+      integer level,iggdret,igdret,ilev,igrhret,igsvret,icqrhret
       real    fixlon(maxstorm,maxtime),fixlat(maxstorm,maxtime)
       real    clon(maxstorm,maxtime,maxtp)
       real    clat(maxstorm,maxtime,maxtp)
@@ -8840,6 +8863,7 @@ c
       real    rh_1000_925_smooth,rh_800_600_smooth,omega500_smooth
       real    divg,moist_divg,re,ri,xsmoothval
       character :: already_computed_domain_wide_rh*1
+      character :: already_computed_domain_wide_q*1
       logical(1) calcparm(maxtp,maxstorm),valid_pt(imax,jmax)
       logical(1) readflag(nreadparms),readgenflag(nreadgenparms)
 c
@@ -8881,7 +8905,29 @@ c
       ! (moist_divg).
       !----------------------------------------------------------------
 
-      if (readgenflag(1)) then
+      if (readgenflag(1) .or. (readgenflag(2) .and. readgenflag(3))) 
+     &then
+
+        if (readgenflag(1)) then
+          ! We have already read in q850
+          print *,' '
+          print *,'In subroutine get_gen_diags, readgenflag(1) is'
+          print *,'TRUE, meaning we did read in q850 data, so we '
+          print *,'will NOT be computing q from RH.'
+          print *,' '
+          continue
+        else
+          ! We need to compute q850 from RH
+          if (need_to_compute_q_from_rh == 'y' .and.
+     &        already_computed_domain_wide_q == 'n') then
+            icqrhret = 0
+            call compute_q_from_rh (ist,ifh,imax,jmax,dx,dy
+     &                    ,valid_pt,maxstorm,trkrinfo,readgenflag
+     &                    ,icqrhret)
+            already_computed_domain_wide_rh = 'y'
+          endif
+        endif
+
         re = 125.0
         ri = 250.0
         igsvret = 0
@@ -8964,7 +9010,7 @@ c
       ! the center point. 
       !----------------------------------------------------------------
 
-      if (readgenflag(23)) then
+      if (readgenflag(25)) then
 
         if ( verb .ge. 3 ) then
           call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -22570,28 +22616,30 @@ c     For genesis humidity & temperature parameters (if requested), the
 c     list of variables goes as follows:
 c
 c      1.  850 mb specific humidity
-c      2. 1000 mb relative humidity
-c      3.  925 mb relative humidity
-c      4.  800 mb relative humidity
-c      5.  750 mb relative humidity
-c      6.  700 mb relative humidity
-c      7.  650 mb relative humidity
-c      8.  600 mb relative humidity
-c      9. 1000 mb specific humidity
-c     10.  925 mb specific humidity
-c     11.  800 mb specific humidity
-c     12.  750 mb specific humidity
-c     13.  700 mb specific humidity
-c     14.  650 mb specific humidity
-c     15.  600 mb specific humidity
-c     16. 1000 mb temperature
-c     17.  925 mb temperature
-c     18.  800 mb temperature
-c     19.  750 mb temperature
-c     20.  700 mb temperature
-c     21.  650 mb temperature
-c     22.  600 mb temperature
-c     23.  500 mb omega
+c      2.  850 mb temperature
+c      3.  850 mb relative humidity
+c      4. 1000 mb relative humidity
+c      5.  925 mb relative humidity
+c      6.  800 mb relative humidity
+c      7.  750 mb relative humidity
+c      8.  700 mb relative humidity
+c      9.  650 mb relative humidity
+c     10.  600 mb relative humidity
+c     11. 1000 mb specific humidity
+c     12.  925 mb specific humidity
+c     13.  800 mb specific humidity
+c     14.  750 mb specific humidity
+c     15.  700 mb specific humidity
+c     16.  650 mb specific humidity
+c     17.  600 mb specific humidity
+c     18. 1000 mb temperature
+c     19.  925 mb temperature
+c     20.  800 mb temperature
+c     21.  750 mb temperature
+c     22.  700 mb temperature
+c     23.  650 mb temperature
+c     24.  600 mb temperature
+c     25.  500 mb omega
 c
 c     For vortex tilt (if requested), we will first read in the list of
 c     vertical levels that the user wants, and then we will read the
@@ -22724,17 +22772,17 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
      &              ,'vgrid','temp','gphgt','gphgt','lmask'
      &              ,'ugrid','vgrid','sst'/
 
-      data genparm   /51,7*52,7*51,7*11,39/
-      data genlevtyp /23*100/
-      data genlev    /850,1000,925,800,750,700
+      data genparm   /51,11,8*52,7*51,7*11,39/
+      data genlevtyp /25*100/
+      data genlev    /850,850,850,1000,925,800,750,700
      &                   ,650,600,1000,925,800,750
      &                   ,700,650,600,1000,925,800
      &                   ,750,700,650,600,500/
 
-      data ch_genparm /'spfh','relh','relh','relh','relh','relh'
-     &                ,'relh','relh','spfh','spfh','spfh','spfh'
-     &                ,'spfh','spfh','spfh','temp','temp','temp'
-     &                ,'temp','temp','temp','temp','omega500'/
+      data ch_genparm /'spfh','temp','relh','relh','relh','relh','relh'
+     &                ,'relh','relh','relh','spfh','spfh','spfh'
+     &                ,'spfh','spfh','spfh','spfh','temp','temp'
+     &                ,'temp','temp','temp','temp','temp','omega500'/
 
       data cpsgparm     /13*7/
       data ec_cpsgparm  /13*156/
@@ -22748,9 +22796,9 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data ec_iglev    /850,700,850,850,700,700,850,700,0,0,0,500,500
      &                 ,401,500,200,0,200,200,0/
 
-      data ec_genparm   /999,7*157,7*999,7*130,135/
-      data ec_genlevtyp /999,7*100,7*999,7*100,100/
-      data ec_genlev    /999,1000,925,800,750,700
+      data ec_genparm   /999,130,8*157,7*999,7*130,135/
+      data ec_genlevtyp /999,100,8*100,7*999,7*100,100/
+      data ec_genlev    /999,850,850,1000,925,800,750,700
      &                   ,650,600,999,999,999,999
      &                   ,999,999,999,1000,925,800
      &                   ,750,700,650,600,500/
@@ -22768,12 +22816,12 @@ c      data igparm   /41,41,33,34,33,34,7,7,1,33,34,33,34,11,7,7,81/
       data cpsig2_lev_typ  /13*100/
       data cpsig2_lev_val  /900,850,800,750,700,650,600,550,500,450,400
      &                     ,350,300/
-      data gensig2_parm_cat /15*1,7*0,2/
-      data gensig2_parm_num /0,1,1,1,1,1,1,1
+      data gensig2_parm_cat /1,0,15*1,7*0,2/
+      data gensig2_parm_num /0,0,1,1,1,1,1,1,1,1
      &                          ,0,0,0,0,0,0,0
      &                          ,0,0,0,0,0,0,0,8/
-      data gensig2_lev_typ /23*100/
-      data gensig2_lev_val /850,1000,925,800,750,700
+      data gensig2_lev_typ /25*100/
+      data gensig2_lev_val /850,850,850,1000,925,800,750,700
      &                           ,650,600,1000,925,800,750
      &                           ,700,650,600,1000,925,800
      &                           ,750,700,650,600,500/
@@ -23030,15 +23078,22 @@ c         choose to average something else in the future.
           call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn,jgdt
      &             ,unpack,krec,gfld,iret)
 
+          if (verb >= 3) then
+            print *,'iret from getgb2 (standard) in getdata = ',iret
+            if (iret == 0) then
+              print *,'+++ Successful getgb2 standard read for '
+     &               ,chparm(ip),' at height ',ig2_lev_val(ip)
+            else
+              print *,'!!! FAILED getgb2 standard read for '
+     &               ,chparm(ip),' at height ',ig2_lev_val(ip)
+            endif
+          endif
+
           if(enable_timing/=0) then
              call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &            ,date_time)
              write (6,532) date_time(5),date_time(6),date_time(7)
  532         format (1x,'TIMING: after getgb2-1',i2.2,':',i2.2,':',i2.2)
-          endif
-
-          if ( verb .ge. 3 ) then
-            print *,'iret from getgb2 in getdata = ',iret
           endif
 
           if (verb_g2 .ge. 1) then
@@ -23369,16 +23424,25 @@ c       *------------------------------------------------------------*
               endif
               call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
      &                   ,jgdt,unpack,krec,gfld,iret)
+
+              if (verb >= 3) then
+                print *,'iret from getgb2 (PHASE) in getdata = ',iret
+                if (iret == 0) then
+                  print *,'+++ Successful getgb2 PHASE read for '
+     &                   ,'gphgt at ',cpsig2_lev_val(ip),' mb'
+                else
+                  print *,'!!! FAILED getgb2 PHASE read for '
+     &                   ,'gphgt at ',cpsig2_lev_val(ip),' mb'
+                endif
+              endif
+
+
               if(enable_timing/=0) then
                  call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &                ,date_time)
                  write (6,732) date_time(5),date_time(6),date_time(7)
  732             format (1x,'TIMING: after getgb2-2',i2.2,':',i2.2,':'
      &                ,i2.2)
-              endif
-
-              if ( verb .ge. 3 ) then
-                print *,'iret from getgb2 (PHASE) in getdata = ',iret
               endif
 
               if (verb_g2 .ge. 1) then
@@ -23575,7 +23639,7 @@ c       *------------------------------------------------------------*
 
             if (gen_read_rh_fields == 'y' ) then
 
-              if (ip == 9) then
+              if (ip == 11) then
 
                 ! The user has requested to read in RH fields, and
                 ! the ip index is now at the point where we are past all
@@ -23591,7 +23655,7 @@ c       *------------------------------------------------------------*
                 ! set need_to_compute_rh_from_q = 'n'.
 
                 igrhct = 0
-                do igrh = 2,8
+                do igrh = 4,10
                   if (readgenflag(igrh)) then
                     igrhct = igrhct + 1
                   endif
@@ -23622,12 +23686,12 @@ c       *------------------------------------------------------------*
 
               need_to_compute_rh_from_q = 'y'
  
-              ! If the ip index is between 2 and 8 (which is for RH
+              ! If the ip index is between 4 and 10 (which is for RH
               ! records) and the user has specified that RH will NOT be
               ! read in, then skip over the read section for these by
               ! cycling.
 
-              if (ip >= 2 .and. ip <= 8) then
+              if (ip >= 4 .and. ip <= 10) then
                 if (verb >= 3) then
                   print *,' '
                   print *,'Genesis read NOT requested for RH, ip= ',ip
@@ -23703,14 +23767,21 @@ c       *------------------------------------------------------------*
             call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
      &                 ,jgdt,unpack,krec,gfld,iret)
 
+            if (verb >= 3) then
+              print *,'iret from getgb2 (Genesis) in getdata = ',iret
+              if (iret == 0) then
+                print *,'+++ Successful getgb2 Genesis read for '
+     &                 ,ch_genparm(ip),' ',genlev(ip),' mb'
+              else
+                print *,'!!! FAILED getgb2 Genesis read for '
+     &                 ,ch_genparm(ip),' ',genlev(ip),' mb'
+              endif
+            endif
+
             if(enable_timing/=0) then
                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &              ,date_time)
                write (6,732) date_time(5),date_time(6),date_time(7)
-            endif
-
-            if ( verb .ge. 3 ) then
-              print *,'iret from getgb2 (Genesis) in getdata = ',iret
             endif
 
             if (verb_g2 .ge. 1) then
@@ -23902,7 +23973,10 @@ c             Convert data to 2-d array
      &                                             ,need_to_flip_lats)
                   endif
                 case ('relh')
-                  if (jpdt(12) == 100000) then
+                  if (jpdt(12) == 85000) then
+                    call conv1d2d_real (imax,jmax,f,rh850(1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 100000) then
                     call conv1d2d_real (imax,jmax,f,rh(1,1,1)
      &                                             ,need_to_flip_lats)
                   else if (jpdt(12) == 92500) then
@@ -23925,7 +23999,10 @@ c             Convert data to 2-d array
      &                                             ,need_to_flip_lats)
                   endif
                 case ('temp')
-                  if (jpdt(12) == 100000) then
+                  if (jpdt(12) == 85000) then
+                    call conv1d2d_real (imax,jmax,f,t850(1,1)
+     &                                             ,need_to_flip_lats)
+                  else if (jpdt(12) == 100000) then
                     call conv1d2d_real (imax,jmax,f,temperature(1,1,1)
      &                                             ,need_to_flip_lats)
                   else if (jpdt(12) == 92500) then
@@ -24056,7 +24133,7 @@ c       *------------------------------------------------------------*
                 chparm_vtilt = 'temp'
               else
                 print *,' '
-                print *,'!!! ERROR: In subroutine getdata_grib,'
+                print *,'!!! ERROR: In subroutine  getdata_grib,'
                 print *,'!!! vortex tilt diagnostics have been '
                 print *,'!!! requested by the user, but the '
                 print *,'!!! vortex_tilt_parm is not recognized as'
@@ -24078,6 +24155,20 @@ c       *------------------------------------------------------------*
               call getgb2(lugb,lugi,jskp,jdisc,jids,jpdtn,jpdt,jgdtn
      &                   ,jgdt,unpack,krec,gfld,iret)
 
+              if (verb >= 3) then
+                print *,'iret from getgb2 (vortex_tilt) in getdata = '
+     &                 ,iret
+                if (iret == 0) then
+                  print *,'+++ Successful getgb2 (tilt) read for '
+     &                   ,vortex_tilt_parm,' at height '
+     &                   ,vortex_tilt_levs(ip)
+                else
+                  print *,'!!! FAILED getgb2 (tilt) read for '
+     &                   ,vortex_tilt_parm,' at height '
+     &                   ,vortex_tilt_levs(ip)
+                endif
+              endif
+
               if (verb_g2 .ge. 1) then
                 print *,'after getgb2 vortex_tilt call,'
      &                 ,' value of unpacked = ',gfld%unpacked
@@ -24085,11 +24176,6 @@ c       *------------------------------------------------------------*
      &                 ,' gfld%ngrdpts = ',gfld%ngrdpts
                 print *,'after getgb2 vortex_tilt call,'
      &                 ,' gfld%ibmap = ',gfld%ibmap
-              endif
-
-              if ( verb .ge. 3 ) then
-                print *,'iret from getgb2 vortex_tilt in getdata = '
-     &                 ,iret
               endif
 
               if ( iret == 0) then
@@ -24347,6 +24433,17 @@ c       *------------------------------------------------------------*
      &                            kf,k,kpds,kgds,lb,f,iret)
           endif
 
+          if (verb >= 3) then
+            print *,'iret from getgb (standard) in getdata = ',iret
+            if (iret == 0) then
+              print *,'+++ Successful getgb standard read for '
+     &               ,chparm(ip),' at height ',iglev(ip)
+            else
+              print *,'!!! FAILED getgb standard read for '
+     &               ,chparm(ip),' at height ',iglev(ip)
+            endif
+          endif
+
           if (enable_timing /= 0) then
             call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &           ,date_time)
@@ -24548,6 +24645,18 @@ c       *------------------------------------------------------------*
               endif
               call getgb (lugb,lugi,jf,j,jpds,jgds,
      &                         kf,k,kpds,kgds,lb,f,iret)
+
+              if (verb >= 3) then
+                print *,'iret from getgb (PHASE) in getdata = ',iret
+                if (iret == 0) then
+                  print *,'+++ Successful getgb PHASE read for '
+     &                   ,'gphgt at ',cpsglev(ip),' mb'
+                else
+                  print *,'!!! FAILED getgb PHASE read for '
+     &                   ,'gphgt at ',cpsglev(ip),' mb'
+                endif
+              endif
+
               if(enable_timing/=0) then
                  call date_and_time (big_ben(1),big_ben(2),big_ben(3)
      &                ,date_time)
@@ -24615,7 +24724,7 @@ c       *------------------------------------------------------------*
 
             if (gen_read_rh_fields == 'y' ) then
 
-              if (ip == 9) then
+              if (ip == 11) then
 
                 ! The ip index is now at the point where we are past all
                 ! of the reads for the different levels of RH.
@@ -24630,7 +24739,7 @@ c       *------------------------------------------------------------*
                 ! set need_to_compute_rh_from_q = 'n'.
 
                 igrhct = 0
-                do igrh = 2,8
+                do igrh = 4,10
                   if (readgenflag(igrh)) then
                     igrhct = igrhct + 1
                   endif
@@ -24666,7 +24775,7 @@ c       *------------------------------------------------------------*
               ! read in, then skip over the read section for these by
               ! cycling.
 
-              if (ip >= 2 .and. ip <= 8) then
+              if (ip >= 4 .and. ip <= 10) then
                 if (verb >= 3) then
                   print *,' '
                   print *,'Genesis read NOT requested for RH, ip= ',ip
@@ -24724,6 +24833,17 @@ c       *------------------------------------------------------------*
 
             call getgb (lugb,lugi,jf,j,jpds,jgds,
      &                       kf,k,kpds,kgds,lb,f,iret)
+
+            if (verb >= 3) then
+              print *,'iret from getgb (Genesis) in getdata = ',iret
+              if (iret == 0) then
+                print *,'+++ Successful getgb Genesis read for '
+     &                 ,ch_genparm(ip),' ',genlev(ip),' mb'
+              else
+                print *,'!!! FAILED getgb Genesis read for '
+     &                 ,ch_genparm(ip),' ',genlev(ip),' mb'
+              endif
+            endif
 
             if(enable_timing/=0) then
                call date_and_time (big_ben(1),big_ben(2),big_ben(3)
@@ -24795,7 +24915,10 @@ c             Convert data to 2-d array
      &                                           ,need_to_flip_lats)
                   endif
                 case ('relh')
-                  if (jpds(7) == 1000) then
+                  if (jpds(7) == 850) then
+                    call conv1d2d_real (imax,jmax,f,rh850(1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 1000) then
                     call conv1d2d_real (imax,jmax,f,rh(1,1,1)
      &                                           ,need_to_flip_lats)
                   else if (jpds(7) == 925) then
@@ -24818,7 +24941,10 @@ c             Convert data to 2-d array
      &                                           ,need_to_flip_lats)
                   endif
                 case ('temp')
-                  if (jpds(7) == 1000) then
+                  if (jpds(7) == 850) then
+                    call conv1d2d_real (imax,jmax,f,t850(1,1)
+     &                                           ,need_to_flip_lats)
+                  else if (jpds(7) == 1000) then
                     call conv1d2d_real (imax,jmax,f,temperature(1,1,1)
      &                                           ,need_to_flip_lats)
                   else if (jpds(7) == 925) then
@@ -24963,6 +25089,20 @@ c       *------------------------------------------------------------*
                
               call getgb (lugb,lugi,jf,j,jpds,jgds,
      &                      kf,k,kpds,kgds,lb,f,iret)
+
+              if (verb >= 3) then
+                print *,'iret from getgb (vortex_tilt) in getdata = '
+     &                 ,iret
+                if (iret == 0) then
+                  print *,'+++ Successful getgb (tilt) read for '
+     &                   ,vortex_tilt_parm,' at height '
+     &                   ,vortex_tilt_levs(ip)
+                else
+                  print *,'!!! FAILED getgb (tilt) read for '
+     &                   ,vortex_tilt_parm,' at height '
+     &                   ,vortex_tilt_levs(ip)
+                endif
+              endif
 
               if (verb >= 3) then
                 print *,' '
@@ -25122,28 +25262,30 @@ c     For genesis humidity & temperature parameters (if requested), the
 c     list of variables goes as follows:
 c
 c      1.  850 mb specific humidity
-c      2. 1000 mb relative humidity
-c      3.  925 mb relative humidity
-c      4.  800 mb relative humidity
-c      5.  750 mb relative humidity
-c      6.  700 mb relative humidity
-c      7.  650 mb relative humidity
-c      8.  600 mb relative humidity
-c      9. 1000 mb specific humidity
-c     10.  925 mb specific humidity
-c     11.  800 mb specific humidity
-c     12.  750 mb specific humidity
-c     13.  700 mb specific humidity
-c     14.  650 mb specific humidity
-c     15.  600 mb specific humidity
-c     16. 1000 mb temperature
-c     17.  925 mb temperature
-c     18.  800 mb temperature
-c     19.  750 mb temperature
-c     20.  700 mb temperature
-c     21.  650 mb temperature
-c     22.  600 mb temperature
-c     23.  500 mb omega
+c      2.  850 mb temperature
+c      3.  850 mb relative humidity
+c      4. 1000 mb relative humidity
+c      5.  925 mb relative humidity
+c      6.  800 mb relative humidity
+c      7.  750 mb relative humidity
+c      8.  700 mb relative humidity
+c      9.  650 mb relative humidity
+c     10.  600 mb relative humidity
+c     11. 1000 mb specific humidity
+c     12.  925 mb specific humidity
+c     13.  800 mb specific humidity
+c     14.  750 mb specific humidity
+c     15.  700 mb specific humidity
+c     16.  650 mb specific humidity
+c     17.  600 mb specific humidity
+c     18. 1000 mb temperature
+c     19.  925 mb temperature
+c     20.  800 mb temperature
+c     21.  750 mb temperature
+c     22.  700 mb temperature
+c     23.  650 mb temperature
+c     24.  600 mb temperature
+c     25.  500 mb omega
 c
 c     If the user has requested to check the cyclone phase space for
 c     this run (phaseflag set to 'y' and phasescheme set to 'cps'), 
@@ -25814,34 +25956,36 @@ c     *------------------------------------------------------------*
       if (genflag == 'y') then
 
         chparm_gen(1)  = netcdfinfo%q850name
-        chparm_gen(2)  = netcdfinfo%rh1000name
-        chparm_gen(3)  = netcdfinfo%rh925name
-        chparm_gen(4)  = netcdfinfo%rh800name
-        chparm_gen(5)  = netcdfinfo%rh750name
-        chparm_gen(6)  = netcdfinfo%rh700name
-        chparm_gen(7)  = netcdfinfo%rh650name
-        chparm_gen(8)  = netcdfinfo%rh600name
-        chparm_gen(9)  = netcdfinfo%spfh1000name
-        chparm_gen(10) = netcdfinfo%spfh925name
-        chparm_gen(11) = netcdfinfo%spfh800name
-        chparm_gen(12) = netcdfinfo%spfh750name
-        chparm_gen(13) = netcdfinfo%spfh700name
-        chparm_gen(14) = netcdfinfo%spfh650name
-        chparm_gen(15) = netcdfinfo%spfh600name
-        chparm_gen(16) = netcdfinfo%temp1000name
-        chparm_gen(17) = netcdfinfo%temp925name
-        chparm_gen(18) = netcdfinfo%temp800name
-        chparm_gen(19) = netcdfinfo%temp750name
-        chparm_gen(20) = netcdfinfo%temp700name
-        chparm_gen(21) = netcdfinfo%temp650name
-        chparm_gen(22) = netcdfinfo%temp600name
-        chparm_gen(23) = netcdfinfo%omega500name
+        chparm_gen(2)  = netcdfinfo%t850name
+        chparm_gen(3)  = netcdfinfo%rh850name
+        chparm_gen(4)  = netcdfinfo%rh1000name
+        chparm_gen(5)  = netcdfinfo%rh925name
+        chparm_gen(6)  = netcdfinfo%rh800name
+        chparm_gen(7)  = netcdfinfo%rh750name
+        chparm_gen(8)  = netcdfinfo%rh700name
+        chparm_gen(9)  = netcdfinfo%rh650name
+        chparm_gen(10)  = netcdfinfo%rh600name
+        chparm_gen(11)  = netcdfinfo%spfh1000name
+        chparm_gen(12) = netcdfinfo%spfh925name
+        chparm_gen(13) = netcdfinfo%spfh800name
+        chparm_gen(14) = netcdfinfo%spfh750name
+        chparm_gen(15) = netcdfinfo%spfh700name
+        chparm_gen(16) = netcdfinfo%spfh650name
+        chparm_gen(17) = netcdfinfo%spfh600name
+        chparm_gen(18) = netcdfinfo%temp1000name
+        chparm_gen(19) = netcdfinfo%temp925name
+        chparm_gen(20) = netcdfinfo%temp800name
+        chparm_gen(21) = netcdfinfo%temp750name
+        chparm_gen(22) = netcdfinfo%temp700name
+        chparm_gen(23) = netcdfinfo%temp650name
+        chparm_gen(24) = netcdfinfo%temp600name
+        chparm_gen(25) = netcdfinfo%omega500name
 
         netcdf_gen_parm_loop: do ip = 1,nreadgenparms
 
           if (gen_read_rh_fields == 'y' ) then
 
-            if (ip == 9) then
+            if (ip == 11) then
 
               ! The ip index is now at the point where we are past all
               ! of the reads for the different levels of RH.
@@ -25853,7 +25997,7 @@ c     *------------------------------------------------------------*
               ! records were read in, then exit this read loop.
 
               igrhct = 0
-              do igrh = 2,8
+              do igrh = 4,10
                 if (readgenflag(igrh)) then
                   igrhct = igrhct + 1
                 endif
@@ -25886,12 +26030,12 @@ c     *------------------------------------------------------------*
 
             need_to_compute_rh_from_q = 'y'
 
-            ! If the ip index is between 3 and 9 (which is for RH
+            ! If the ip index is between 4 and 10 (which is for RH
             ! records) and the user has specified that RH will NOT be
             ! read in, then skip over the read section for these by
             ! cycling.
 
-            if (ip >= 2 .and. ip <= 8) then
+            if (ip >= 4 .and. ip <= 10) then
               if (verb >= 3) then
                 print *,' '
                 print *,'Genesis read NOT requested for RH, ip= ',ip
@@ -25986,77 +26130,83 @@ c            call bitmapchk(kf,lb,f,dmin,dmax)
             if (ip == 1) then   ! 850 mb specific humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,q850(1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 2) then   ! 1000 mb relative humidity 
+            else if (ip == 2) then   ! 850 mb temperature
+              call conv1d2d_real_netcdf (imax,jmax,f,t850(1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 3) then   ! 850 mb relative humidity
+              call conv1d2d_real_netcdf (imax,jmax,f,rh850(1,1)
+     &                                   ,need_to_flip_lats)
+            else if (ip == 4) then   ! 1000 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 3) then   ! 925 mb relative humidity 
+            else if (ip == 5) then   ! 925 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,2)
      &                                   ,need_to_flip_lats)
-            else if (ip == 4) then   ! 800 mb relative humidity 
+            else if (ip == 6) then   ! 800 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,3)
      &                                   ,need_to_flip_lats)
-            else if (ip == 5) then   ! 750 mb relative humidity 
+            else if (ip == 7) then   ! 750 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,4)
      &                                   ,need_to_flip_lats)
-            else if (ip == 6) then   ! 700 mb relative humidity 
+            else if (ip == 8) then   ! 700 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,5)
      &                                   ,need_to_flip_lats)
-            else if (ip == 7) then   ! 650 mb relative humidity 
+            else if (ip == 9) then   ! 650 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,6)
      &                                   ,need_to_flip_lats)
-            else if (ip == 8) then   ! 600 mb relative humidity 
+            else if (ip == 10) then   ! 600 mb relative humidity 
               call conv1d2d_real_netcdf (imax,jmax,f,rh(1,1,7)
      &                                   ,need_to_flip_lats)
-            else if (ip == 9) then   ! 1000 mb specific humidity
+            else if (ip == 11) then   ! 1000 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 10) then   ! 925 mb specific humidity
+            else if (ip == 12) then   ! 925 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,2)
      &                                   ,need_to_flip_lats)
-            else if (ip == 11) then   ! 800 mb specific humidity
+            else if (ip == 13) then   ! 800 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,3)
      &                                   ,need_to_flip_lats)
-            else if (ip == 12) then   ! 750 mb specific humidity
+            else if (ip == 14) then   ! 750 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,4)
      &                                   ,need_to_flip_lats)
-            else if (ip == 13) then   ! 700 mb specific humidity
+            else if (ip == 15) then   ! 700 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,5)
      &                                   ,need_to_flip_lats)
-            else if (ip == 14) then   ! 650 mb specific humidity
+            else if (ip == 16) then   ! 650 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,6)
      &                                   ,need_to_flip_lats)
-            else if (ip == 15) then   ! 600 mb specific humidity
+            else if (ip == 17) then   ! 600 mb specific humidity
               call conv1d2d_real_netcdf (imax,jmax,f,spfh(1,1,7)
      &                                   ,need_to_flip_lats)
-            else if (ip == 16) then   ! 1000 mb temperature
+            else if (ip == 18) then   ! 1000 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,1)
      &                                   ,need_to_flip_lats)
-            else if (ip == 17) then   !  925 mb temperature
+            else if (ip == 19) then   !  925 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,2)
      &                                   ,need_to_flip_lats)
-            else if (ip == 18) then   !  800 mb temperature
+            else if (ip == 20) then   !  800 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,3)
      &                                   ,need_to_flip_lats)
-            else if (ip == 19) then   !  750 mb temperature
+            else if (ip == 21) then   !  750 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,4)
      &                                   ,need_to_flip_lats)
-            else if (ip == 20) then   !  700 mb temperature
+            else if (ip == 22) then   !  700 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,5)
      &                                   ,need_to_flip_lats)
-            else if (ip == 21) then   !  650 mb temperature
+            else if (ip == 23) then   !  650 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,6)
      &                                   ,need_to_flip_lats)
-            else if (ip == 22) then   !  600 mb temperature
+            else if (ip == 24) then   !  600 mb temperature
               call conv1d2d_real_netcdf (imax,jmax,f,temperature(1,1,7)
      &                                   ,need_to_flip_lats)
-            else if (ip == 23) then   !  500 mb omega
+            else if (ip == 25) then   !  500 mb omega
               call conv1d2d_real_netcdf (imax,jmax,f,omega500(1,1)
      &                                   ,need_to_flip_lats)
             else
               if (verb >= 3) then
                 print *,' '
                 print *,'!!! NOTE: Genesis NetCDF Parm not recognized.'
-                print *,'!!!       ip is > 23.... ip= ',ip
+                print *,'!!!       ip is > 25.... ip= ',ip
                 print *,'!!!       Forecast time level = ',ifh
               endif
             endif
@@ -27124,6 +27274,7 @@ c
       namelist/sstdiaginfo/sstflag
       namelist/gendiaginfo/genflag,gen_read_rh_fields
      &                    ,need_to_compute_rh_from_q
+     &                    ,need_to_compute_q_from_rh
      &                    ,smoothe_mslp_for_gen_scan
      &                    ,depth_of_mslp_for_gen_scan
       namelist/vortextiltinfo/vortex_tilt_flag,vortex_tilt_parm
@@ -27598,6 +27749,11 @@ c
         write (6,167) need_to_compute_rh_from_q
  167    format ('Flag for whether or not to compute RH from q = '
      &         ,'need_to_compute_rh_from_q = ',a1)
+
+        write (6,367) need_to_compute_q_from_rh
+ 367    format ('Flag for whether or not to compute q from RH = '
+     &         ,'need_to_compute_q_from_rh = ',a1)
+
         write (6,169) smoothe_mslp_for_gen_scan
  169    format ('Flag for whether or not to smoothe the MSLP data '
      &         ,'before scanning for new storms = '
@@ -27624,6 +27780,13 @@ c
           need_to_compute_rh_from_q = 'y'
         else
           need_to_compute_rh_from_q = 'n'
+        endif
+
+        if (need_to_compute_q_from_rh == 'y' .or.
+     &      need_to_compute_q_from_rh == 'Y') then
+          need_to_compute_q_from_rh = 'y'
+        else
+          need_to_compute_q_from_rh = 'n'
         endif
 
         if (smoothe_mslp_for_gen_scan == 'y' .or.
@@ -31370,9 +31533,10 @@ c
 
       if (need_to_compute_rh_from_q == 'y' .and.
      &    already_computed_domain_wide_rh == 'n') then
-        do ip = 2,8
-          ! This loop starts at 2 because the first RH variable is
-          ! the 2nd variable in the list of genesis variables.
+        do ip = 4,10
+          ! This loop starts at 4 because the first RH variable for
+          ! computing mean RH in the 1000-925 and 800-600 mb levels
+          ! is the 4th variable in the list of genesis variables.
           call compute_rh_from_q (ist,ifh,imax,jmax,dx,dy,ip
      &                  ,valid_pt,maxstorm,trkrinfo,readgenflag
      &                  ,ichrret)
@@ -31495,18 +31659,20 @@ c     LOCAL:
       logical(1) valid_pt(imax,jmax),readgenflag(nreadgenparms)
 c
       select case (ip)
-        case (2); z=1; qix=9;  tix=16; penv=100.0;
-        case (3); z=2; qix=10; tix=17; penv= 92.5;
-        case (4); z=3; qix=11; tix=18; penv= 80.0;
-        case (5); z=4; qix=12; tix=19; penv= 75.0;
-        case (6); z=5; qix=13; tix=20; penv= 70.0;
-        case (7); z=6; qix=14; tix=21; penv= 65.0;
-        case (8); z=7; qix=15; tix=22; penv= 60.0;
+        case (4);  z=1; qix=11; tix=18; penv=100.0;
+        case (5);  z=2; qix=12; tix=19; penv= 92.5;
+        case (6);  z=3; qix=13; tix=20; penv= 80.0;
+        case (7);  z=4; qix=14; tix=21; penv= 75.0;
+        case (8);  z=5; qix=15; tix=22; penv= 70.0;
+        case (9);  z=6; qix=16; tix=23; penv= 65.0;
+        case (10); z=7; qix=17; tix=24; penv= 60.0;
+
         case default;
           print *,' '
           print *,'ERROR in subroutine  compute_rh_from_q.  The index'
           print *,'  ip that indicates the vertical level needs to be'
-          print *,'  in the range of 2-8 is out of range. Here, ip= ',ip
+          print *,'  in the range of 4-10 is out of range. Here, ip= '
+     &           ,ip
           stop 95
       end select
 
@@ -31604,6 +31770,130 @@ c                endif
         print *,' '
         print *,'xxrhstat: xminval= ',xminrh,' xmaxval= ',xmaxrh
         print *,'x999ct = ',x999ct,'  rhgt100ct= ',rhgt100ct
+      
+      endif
+c
+      return
+      end
+c
+c----------------------------------------------------------------------
+c
+c----------------------------------------------------------------------
+      subroutine compute_q_from_rh (ist,ifh,imax,jmax,dx,dy
+     &                  ,valid_pt,maxstorm,trkrinfo,readgenflag
+     &                  ,ichrret)
+c
+c     ABSTRACT: This routine computes specific humidity (q) across a
+c     full model domain, using T and RH.  This routine is specifically
+c     intended for getting q at 850 mb to compute moisture divergence
+c     as one of the genesis diagnostics.  For some model output, RH is
+c     included, but not q, so we have to convert. 
+c
+c     INPUT:
+c     ist     Storm number currently being processed
+c     ifh     Forecast hour currently being processed
+c     imax    Max number of pts in x-direction for this grid
+c     jmax    Max number of pts in y-direction for this grid
+c     dx      grid-spacing of the model in the i-direction
+c     dy      grid-spacing of the model in the j-direction
+c     valid_pt Logical; bitmap indicating if valid data at that pt.
+c     maxstorm Max # of storms that can be handled in this run
+c     trkrinfo derived type detailing user-specified grid info
+c     readgenflag logical array, indicates if a genesis parm was read in
+c
+c     OUTPUT:
+c     ichrret integer return code from this routine
+c
+c     LOCAL:
+
+      USE def_vitals; USE grid_bounds; USE trig_vals
+      USE tracked_parms; USE read_parms; USE trkrparms
+
+      implicit none
+
+      type (trackstuff) trkrinfo
+      real, parameter :: rd_over_rv=0.622
+      real, parameter :: l_over_rv_water=5423.0
+      real, parameter :: l_over_rv_ice=6139.0
+      real, parameter :: one_over_tnot=0.003663  ! (1/273)
+      real, parameter :: eo=0.611
+      real, parameter :: b=17.2694
+      real, parameter :: t1=273.16
+      real, parameter :: t2=35.86
+      real      rh_scale
+      integer   ist,ifh,imax,jmax,maxstorm,ichrret,i,j
+      integer   z,x999ct
+      real      dx,dy,penv,es,qs,xminq,xmaxq,xmaxrh
+      logical(1) valid_pt(imax,jmax),readgenflag(nreadgenparms)
+c
+
+      print *,' '
+      print *,'top of compute_q_from_rh, readgenflag(2)= '
+     &       ,readgenflag(2)
+
+      penv = 85.0  ! Need these units for 850 mb
+
+      if (readgenflag(2) .and. readgenflag(3)) then
+
+        xmaxrh = -99.0
+        do j = 1,jmax
+          do i = 1,imax
+            if (rh850(i,j) > xmaxrh) xmaxrh = rh850(i,j)
+          enddo
+        enddo
+
+        if (xmaxrh > 2.0) then
+          ! In case RH values are stored as whole numbers
+          rh_scale = 0.01
+        else
+          rh_scale = 1.0
+        endif
+
+        jloop: do j = 1,jmax
+
+          iloop: do i = 1,imax
+
+            if (valid_pt(i,j)) then
+
+c             Teten's formula:
+              es = eo * exp((b * (t850(i,j) - t1)) 
+     &                         / (t850(i,j) - t2))
+
+              qs = (rd_over_rv * es) / penv
+
+              q850(i,j) = (rh850(i,j) * rh_scale) * qs
+
+            endif
+
+          enddo iloop
+
+        enddo jloop
+
+        xmaxq = -999999.0
+        xminq =  999999.0
+        x999ct = 0
+
+        jloop2: do j = 1,jmax
+          iloop2: do i = 1,imax
+
+            if (q850(i,j) < xminq) then
+              xminq = q850(i,j)
+            endif
+
+            if (q850(i,j) > xmaxq) then
+              xmaxq = q850(i,j)
+            endif
+
+            if (q850(i,j) < 0.0) then
+              x999ct = x999ct + 1
+            endif
+
+          enddo iloop2
+        enddo jloop2
+
+        print *,' '
+        print *,'xxq850stat: xminval= ',xminq,' xmaxval= ',xmaxq
+        print *,'x999ct = ',x999ct
       
       endif
 c
