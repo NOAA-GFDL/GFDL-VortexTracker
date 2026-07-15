@@ -49,9 +49,9 @@ export nest_type=''      # 'moveable' or 'fixed'
 # 'vortex_tilt_flag' = 'y'/'n'
 # 'vortex_tilt_parm' = '<tilt_parameter_name>'
 # 'vortex_tilt_allow_thresh' = float
-export vortex_tilt_flag='y'
-export vortex_tilt_parm='zeta'
-export vortex_tilt_allow_thresh=1.0
+export vortex_tilt_flag=''
+export vortex_tilt_parm=''
+export vortex_tilt_allow_thresh=
 
 # 'need_to_*' = 'y'/'n'
 # These variables are used to detemerine if input data needs to be interpolated; i.e. input files being used
