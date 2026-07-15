@@ -9,7 +9,6 @@ source ${tmpdir}/compileinputs.txt
 source ${tmpdir}/userinputs.txt
 
 # -------------------------------------------------------------------------------------------------
-# SECTION 3; ADDITIONAL VARIABLE DECLARINING, DOES NOT NEED TO BE EDITED BY USER
 
 # slice init date/time to use later in script
 export pdy=`     echo ${initymdh} | cut -c1-8`
@@ -31,7 +30,7 @@ if [ ! -d ${wdir} ]; then mkdir -p ${wdir}; fi
 
 set +x
 # -------------------------------------------------------------------------------------------------
-# SECTION 4; INVOKE SCRIPTS
+# INVOKE SCRIPTS
 
 # load env modules 
 source ${compdir}/system-envs/${compiler}/${system}.sh
@@ -74,23 +73,23 @@ source ${subdir}/IOfiles.sh
 echo "TRACKER SET UP FINISHED"
 
 # -------------------------------------------------------------------------------------------------
-# SECTION 5; EXECUTE TRACKER SOURCE CODE
+# EXECUTE TRACKER SOURCE CODE
 
-#echo "INITIALIZE TRACKER EXECUTABLE"
-#echo "Running tracker for ${atcfname} at ${hh}z at ${date_stamp}"
+echo "INITIALIZE TRACKER EXECUTABLE"
+echo "Running tracker for ${atcfname} at ${hh}z at ${date_stamp}"
 
-#${execdir}/gettrk.x
-#export gettrk_rcc=$?
+${execdir}/gettrk.x
+export gettrk_rcc=$?
 
-#echo "After tracker source code run  ---> ${date_stamp}"
-#echo "Return code from tracker= gettrk_rcc= ${gettrk_rcc}"
+echo "After tracker source code run  ---> ${date_stamp}"
+echo "Return code from tracker= gettrk_rcc= ${gettrk_rcc}"
 
 # add print statement if tracker completed successfully
-#if [ ${gettrk_rcc} -gt 0 ]; then
-#  echo "TRACKER DID NOT RUN TO COMPLETION"
-#  exit 1
-#else
-#  echo "TRACKER RAN SUCCESSFULLY"
-#fi
+if [ ${gettrk_rcc} -gt 0 ]; then
+  echo "TRACKER DID NOT RUN TO COMPLETION"
+  exit 1
+else
+  echo "TRACKER RAN SUCCESSFULLY"
+fi
 
 exit 0
