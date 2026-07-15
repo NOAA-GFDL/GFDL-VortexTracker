@@ -50,6 +50,7 @@ export vortex_tilt_allow_thresh=''
 # -------------------------------------------------------------------------------------------------
 # DO NOT EDIT; the following code will save the information inputed and use it to run the tracker
 export ncdfdir=${PWD}
+export initdatadir=${PWD%/*/*}/init_data
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
 export userinputs=${PWD%/*/*}/work/tmpfiles/userinputs.txt
@@ -71,6 +72,7 @@ vortex_tilt_flag='${vortex_tilt_flag}'
 vortex_tilt_parm='${vortex_tilt_parm}'
 vortex_tilt_allow_thresh='${vortex_tilt_allow_thresh}'
 ncdfdir='${ncdfdir}'
+initdatadir='${initdatadir}'
 subdir='${subdir}'
 vitalsdir='${vitalsdir}'
 datatype='${inp_data_type}'

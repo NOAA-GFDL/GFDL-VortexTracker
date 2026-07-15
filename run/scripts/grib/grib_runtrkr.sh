@@ -71,6 +71,7 @@ export need_to_interpolate_temperature=''
 # DO NOT EDIT; the following code will save the information inputed and use it to run the tracker
 
 export gribdir=${PWD}
+export initdatadir=${PWD%/*/*}/init_data
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
 export userinputs=${PWD%/*/*}/work/tmpfiles/userinputs.txt
@@ -97,6 +98,7 @@ need_to_interpolate_height='${need_to_interpolate_height}'
 need_to_interpolate_temperature='${need_to_interpolate_temperature}'
 vitalsdir='${vitalsdir}'
 gribdir='${gribdir}'
+initdatadir='${initdatadir}'
 subdir='${subdir}'
 datatype='${inp_data_type}'
 EOF
