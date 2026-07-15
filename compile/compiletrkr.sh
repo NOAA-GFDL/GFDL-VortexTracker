@@ -45,7 +45,7 @@ for arg in "$@"
 do
   case $arg in
     #system
-    ppan|gaea|hera|hercules|orion|ursa|wcoss2|container|personal)
+    ppan|gaea|hera|hercules|orion|ursa|wcoss2)
     	system="${arg#*=}"
     	# if-statements go here if needed
 			shift # remove "system" from processing
