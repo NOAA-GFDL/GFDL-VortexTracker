@@ -8,11 +8,6 @@ export file_sequence='single'
 # get netcdf time units
 echo "NetCDF time units pulled from atmos_ncdfvars script = ${ncdf_time_units}"
 
-
-#cp ${datadir}/${ncdf_filename} ${wdir}/.
-#cd ${wdir}
-
-
 # ---------- needed for both data types ----------
 
 export atcfnum=15
