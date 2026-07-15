@@ -15,6 +15,7 @@ export usercheck='NOTCHECKED'
 
 export ncdf_num_netcdf_vars=999
 export ncdf_time_name=''             # time (hours, mins, etc.)
+export ncdf_time_units=''            # time (hours, mins, etc.)
 export ncdf_lon_name=''              # longitude (degrees_east)
 export ncdf_lat_name=''              # latitude (degrees_north)
 export ncdf_sstname=''               # sea surface temperature (K)
