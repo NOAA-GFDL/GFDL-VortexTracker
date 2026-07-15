@@ -290,6 +290,10 @@ c
                                                ! read in to compute RH
                                                ! if RH is not read in?
                                                ! (y/n)
+        character*1 , save ::   need_to_compute_q_from_rh ! Will RH
+                                               ! fields be read in to
+                                               ! compute q if q is not
+                                               ! read in? (y/n)
         character*1 , save ::   smoothe_mslp_for_gen_scan ! Did 
                                                ! user request to smoothe
                                                ! the MSLP data before
@@ -330,6 +334,8 @@ c
           real, save, allocatable  ::  lsmask(:,:)
           real, save, allocatable  ::  sst(:,:)
           real, save, allocatable  ::  q850(:,:)
+          real, save, allocatable  ::  rh850(:,:)
+          real, save, allocatable  ::  t850(:,:)
           real, save, allocatable  ::  rh(:,:,:)
           real, save, allocatable  ::  spfh(:,:,:)
           real, save, allocatable  ::  temperature(:,:,:)
@@ -477,7 +483,7 @@ c
                                             ! read in for standard parms
         integer, parameter :: nreadcpsparms=13 ! max # of parameters to
                                             ! read in for Hart's CPS
-        integer, parameter :: nreadgenparms=23 ! max # of parameters to
+        integer, parameter :: nreadgenparms=25 ! max # of parameters to
                                             ! read in for genesis parms
       end module read_parms
 c
@@ -572,6 +578,8 @@ c
           character*30 ::  v200name   ! 200 mb v-comp
           character*30 ::  sstname    ! SST
           character*30 ::  q850name   ! 850 mb specific humidity
+          character*30 ::  t850name   ! 850 mb temperature
+          character*30 ::  rh850name  ! 850 mb relative humidity
           character*30 ::  rh1000name ! 1000 mb RH
           character*30 ::  rh925name  ! 925 mb RH
           character*30 ::  rh800name  ! 800 mb RH
