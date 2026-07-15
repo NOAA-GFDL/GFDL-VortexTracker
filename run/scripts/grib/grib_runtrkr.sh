@@ -97,6 +97,6 @@ subdir='${subdir}'
 datatype='${inp_data_type}'
 EOF
 
-export start_trkr=${subdir}/init_trkr.sh
+export start_trkr=${subdir}/inittrkr.sh
 source ${start_trkr}
 # -------------------------------------------------------------------------------------------------
