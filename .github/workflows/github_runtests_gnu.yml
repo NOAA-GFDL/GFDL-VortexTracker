@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./code
+        working-directory: ./compile/src_code
     container:
       image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14.2.0
       env:
