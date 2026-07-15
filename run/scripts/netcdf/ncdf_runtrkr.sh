@@ -53,7 +53,7 @@ export ncdfdir=${PWD}
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
 export userinputs=${PWD%/*/*}/work/tmpfiles/userinputs.txt
-export datatype='ncdf'
+export inp_data_type='netcdf'
 
 cat << EOF > ${userinputs}
 datadir='${datadir}'
@@ -73,7 +73,7 @@ vortex_tilt_allow_thresh='${vortex_tilt_allow_thresh}'
 ncdfdir='${ncdfdir}'
 subdir='${subdir}'
 vitalsdir='${vitalsdir}'
-datatype='${datatype}'
+datatype='${inp_data_type}'
 EOF
 
 export start_trkr=${subdir}/init_trkr.sh

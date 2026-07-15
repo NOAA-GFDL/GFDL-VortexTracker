@@ -70,7 +70,7 @@ export gribdir=${PWD}
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
 export userinputs=${PWD%/*/*}/work/tmpfiles/userinputs.txt
-export datatype='grib'
+export inp_data_type='grib'
 
 cat << EOF > ${userinputs}
 datadir='${datadir}'
@@ -93,8 +93,8 @@ need_to_interpolate_height='${need_to_interpolate_height}'
 need_to_interpolate_temperature='${need_to_interpolate_temperature}'
 vitalsdir='${vitalsdir}'
 gribdir='${gribdir}'
-#subdir='${subdir}'
-datatype='${datatype}'
+subdir='${subdir}'
+datatype='${inp_data_type}'
 EOF
 
 export start_trkr=${subdir}/init_trkr.sh
