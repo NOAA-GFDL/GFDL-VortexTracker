@@ -63,7 +63,7 @@ do
       echo "        g2_jpdtn=${g2_jpdtn}/"    >> ${namelist}
 
       ln -s -f ${gfile}                       fort.11
-      ln -s -f ${homedir}/run/hgt_levs.txt    fort.16
+      ln -s -f ${initdatadir}/hgt_levs.txt    fort.16
       ln -s -f ${ifile}                       fort.31
       ln -s -f ${filebase}.z.f${fhour}        fort.51
 
@@ -89,7 +89,7 @@ do
       echo "        g2_jpdtn=${g2_jpdtn}/"    >> ${namelist}
 
       ln -s -f ${gfile}                       fort.11
-      ln -s -f ${homedir}/run/tmp_levs.txt    fort.16
+      ln -s -f ${initdatadir}/tmp_levs.txt    fort.16
       ln -s -f ${ifile}                       fort.31
       ln -s -f ${filebase}.t.f${fhour}        fort.51
 
