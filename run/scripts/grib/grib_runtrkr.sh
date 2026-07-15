@@ -1,5 +1,9 @@
 #!/bin/bash
 
+
+# print line numbers in std out
+export PS4=' line $LINENO: '
+set -x
 # -------------------------------------------------------------------------------------------------
 # PLEASE READ COMMENTS CAREFULLY BEFORE EDITING THIS FILE
 # For additional instructions, you can find the documentation here:
@@ -99,4 +103,5 @@ EOF
 
 export start_trkr=${subdir}/inittrkr.sh
 source ${start_trkr}
+set +x
 # -------------------------------------------------------------------------------------------------
