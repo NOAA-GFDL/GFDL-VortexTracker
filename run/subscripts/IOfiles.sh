@@ -5,10 +5,6 @@ set -x
 # go into work dir to add files
 cd ${wdir}
 
-if [ ${datatype} = 'grib' ]; then
-
-
-
 # link various files that are either needed as input to the tracker or are output from the tracker
 cp ${namelist} namelist.gettrk
 ln -s -f namelist.gettrk                                  fort.555
