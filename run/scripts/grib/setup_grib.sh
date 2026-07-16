@@ -20,6 +20,9 @@ export initymdh=
 # This will be used for temperature and height interpolation
 export fcsthrs=''
 
+# Units of time in data file(s) (hours, mins, etc.)
+export lead_time_units=''
+
 # gribver=1 for GRIB1 data; gribver=2 for GRIB2 data
 export gribver=
 
@@ -85,6 +88,7 @@ export inp_data_type='grib'
 cat << EOF > ${userinputs}
 datadir='${datadir}'
 initymdh='${initymdh}'
+lead_time_units='${lead_time_units}'
 fcsthrs='${fcsthrs}'
 gribver='${gribver}'
 file_sequence='${file_sequence}'

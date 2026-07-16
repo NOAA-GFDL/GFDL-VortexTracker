@@ -18,6 +18,9 @@ export ncdf_filename=''
 # Initialization forecast date/time matching your data (yyyymmddhh format)
 export initymdh=
 
+# Units of time in data file(s) (hours, mins, etc.)
+export lead_time_units=''           
+
 # ATCF name of model (4 char long)
 export atcfname=''
 
@@ -63,6 +66,7 @@ cat << EOF > ${userinputs}
 datadir='${datadir}'
 ncdf_filename='${ncdf_filename}'
 initymdh='${initymdh}'
+lead_time_units='${lead_time_units}'  
 atcfname='${atcfname}'
 tcvitals_file='${tcvitals_file}'
 trkrtype='${trkrtype}'
