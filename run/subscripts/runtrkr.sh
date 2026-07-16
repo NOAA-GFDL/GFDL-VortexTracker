@@ -41,7 +41,6 @@ module list
 
 if [ ${datatype} = 'netcdf' ]; then
   export atmosvars=${PWD}/atmos_${datatype}vars.sh
-  source ${atmosvars}
   if [ ${usercheck} != 'CHECKED' ]; then
     echo -e " "
 	  echo -e "** USER CHECK FAILED**"
@@ -57,7 +56,8 @@ if [ ${datatype} = 'netcdf' ]; then
 		echo -e " "
 	  echo -e " "
 	  exit 0
-  fi  
+  fi
+  source ${atmosvars}  
 fi
 
 source ${subdir}/${datatype}_vars.sh
