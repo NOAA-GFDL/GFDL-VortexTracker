@@ -7,15 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./code
+        working-directory: ./compile/src_code
     container:
-      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14.2.0
+      image: ghcr.io/noaa-gfdl/gfdl-vortextracker/vortex-ci-gnu:gcc14.2.0_spackv1.2
       env:
         NetCDF_INCLUDE_DIRS: "/opt/views/view/include/"
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4.2.2
+      uses: actions/checkout@v6
     - name: Build & compile code
       run: |
         mkdir -p build && cd build
@@ -24,4 +24,4 @@ jobs:
     - name: Run tests
       run: |
         cd build
-        ctest
+        make test
