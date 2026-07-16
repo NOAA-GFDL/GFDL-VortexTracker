@@ -10,8 +10,8 @@ cp ${namelist} namelist.gettrk
 ln -s -f namelist.gettrk                                  fort.555
 
 if [ ${datatype} = 'grib' ]; then
-    export fileseqscrit=${subdir}/${datatype}_${file_sequence}_fileseq.sh
-    source ${fileseqscrit}
+    export fileseq_script=${subdir}/${datatype}_${file_sequence}_fileseq.sh
+    source ${fileseq_script}
     if [ ${file_sequence} = 'onebig' ]; then
       ln -s -f ${gribfile}                                fort.11
       ln -s -f ${ixfile}                                  fort.31
@@ -20,7 +20,7 @@ if [ ${datatype} = 'grib' ]; then
     fi
 else
   cp ${datadir}/${ncdf_filename} ${wdir}/.
-  ln -s -f ${netcdffile}                                  fort.11
+  ln -s -f ${ncdf_filename}                               fort.11
   if [ ${read_separate_land_mask_file} = 'y' ]; then
     ln -s -f ${ncdf_ls_mask_filename}                     fort.17
   fi
@@ -65,8 +65,7 @@ else  # trkrtype = tcgen
   ln -s -f ${wdir}/trak.${atcfname}.parmfix.${ymdh}       fort.81
 fi
 
-if [ ${write_vit} = 'y' ]
-then
+if [ ${write_vit} = 'y' ]; then
   ln -s -f ${wdir}/output_genvitals.${atcfname}.${ymdh}   fort.67
 fi
 
