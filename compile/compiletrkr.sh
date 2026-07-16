@@ -29,6 +29,7 @@ mode="prod" 			# build mode
 
 export rootdir=${PWD%/*}
 export rundir=${rootdir}/run
+export scrdir=${rundir}/scripts
 export workdir=${rundir}/work
 export compdir=${rootdir}/compile
 export codedir=${compdir}/src_code
@@ -133,6 +134,7 @@ export compileinputs=${tmpdir}/compileinputs.txt
 cat << EOF > ${compileinputs}
 rootdir='${PWD%/*}'
 rundir='${rootdir}/run'
+scrdir='${rundir}/scripts'
 workdir='${rundir}/work'
 compdir='${rootdir}/compile'
 codedir='${compdir}/src_code'

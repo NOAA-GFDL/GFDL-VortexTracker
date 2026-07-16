@@ -40,7 +40,8 @@ echo -e " "
 module list
 
 if [ ${datatype} = 'netcdf' ]; then
-  export atmosvars=${PWD}/atmos_${datatype}vars.sh
+  export atmosvars=${PWD}/atmos_netcdfvars.sh
+  source ${atmosvars}
   if [ ${usercheck} != 'CHECKED' ]; then
     echo -e " "
 	  echo -e "** USER CHECK FAILED**"
@@ -57,7 +58,9 @@ if [ ${datatype} = 'netcdf' ]; then
 	  echo -e " "
 	  exit 0
   fi
-  source ${atmosvars}  
+elif [ ${datatype} = 'grib' ]; then
+  export atmosvars=${scrdir}/netcdf/atmos_netcdfvars.sh
+  source ${atmosvars}   
 fi
 
 source ${subdir}/trkrvars.sh
