@@ -60,7 +60,7 @@ if [ ${datatype} = 'netcdf' ]; then
   source ${atmosvars}  
 fi
 
-source ${subdir}/${datatype}_vars.sh
+source ${subdir}/trkrvars.sh
 
 export vitalsdir=${subdir}/archived_vitals
 source ${subdir}/make_tcvitals.sh
