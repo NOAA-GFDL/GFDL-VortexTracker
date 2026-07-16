@@ -2,11 +2,13 @@
 # SET UP ENVIRONMENT VARIABLES
 set -x
 
-export inp_data_type='netcdf'
-export file_sequence='single'
-
-# get netcdf time units
-echo "NetCDF time units pulled from atmos_ncdfvars script = ${ncdf_time_units}"
+# grib specific
+export g1_mslp_parm_id=130
+export g1_sfcwind_lev_typ=105
+export g1_sfcwind_lev_val=10
+export g2_jpdtn=0               # 0 for deterministic data; 1 for ens data
+export g2_mslp_parm_id=192
+export model=1
 
 # ---------- needed for both data types ----------
 
@@ -44,7 +46,7 @@ export sstflag='y'
 export shear_calc_flag='y'
 export gen_read_rh_fields='n'
 export need_to_compute_rh_from_q='y'
-export smoothe_mslp_for_gen_scan='n'
+export smoothe_mslp_for_gen_scan='y'
 export write_vit='n'
 export use_backup_mslp_grad_check='y'
 export use_backup_850_vt_check='y'
@@ -67,17 +69,6 @@ export user_wants_to_track_thick200850='n'
 # char value variables
 export phase_scheme='both'    # 'both', 'vtt', or 'cps'
 export basin='al'
-
-# ----- grib specific vars -----
-
-# The following variables have to be set to a value here to avoid breaking code when the namelist is declared
-export gribver=1
-export g1_mslp_parm_id=130
-export g1_sfcwind_lev_typ=105
-export g1_sfcwind_lev_val=10
-export g2_jpdtn=0               # 0 for deterministic data; 1 for ens data
-export g2_mslp_parm_id=192
-export model=41
 
 # -------------------------------------------------------------------------------------------------
 set +x
