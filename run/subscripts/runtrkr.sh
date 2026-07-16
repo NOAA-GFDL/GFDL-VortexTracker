@@ -22,10 +22,10 @@ export ymdh=${initymdh}
 
 # set date stamp vars
 export date_stamp=$(date +"%a %b %d %H:%M:%S %Z %Y")
-export today_stamp=$(date +"%m.%d-%H.%M%p")
+export today_stamp=$(date +"%b%d-%H.%M%p")
 
 # set wdir path
-export wdir=${workdir}/${datatype}/${atcfname}
+export wdir=${workdir}/${today_stamp}/${atcfname}.${pdy}
 if [ ! -d ${wdir} ]; then mkdir -p ${wdir}; fi
 
 set +x
