@@ -33,8 +33,8 @@ export modtyp=''         # 'global' or 'regional'
 export nest_type=''      # 'moveable' or 'fixed'
 
 # Set 'use_land_mask' = 'y' AND 'read_serperate_land_mask_file' = 'y' if landmask file is needed.
-export use_land_mask='n'
-export read_separate_land_mask_file='n'
+export use_land_mask=''
+export read_separate_land_mask_file=''
 # Add path to landmask file below if 'y' to above variables, leave blank if 'n'
 export ncdf_ls_mask_filename=''
 
@@ -78,6 +78,6 @@ vitalsdir='${vitalsdir}'
 datatype='${inp_data_type}'
 EOF
 
-export start_trkr=${subdir}/inittrkr.sh
+export start_trkr=${subdir}/runtrkr.sh
 source ${start_trkr}
 # -------------------------------------------------------------------------------------------------

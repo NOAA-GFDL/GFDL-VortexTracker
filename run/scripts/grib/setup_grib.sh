@@ -24,7 +24,7 @@ export fcsthrs=''
 export gribver=
 
 # file_sequence='multi' when there are multiple files with single frcast hour;
-# file_sequenxe='single' when all of the data is in one single file
+# file_sequenxe='onebig' when all of the data is in one single file
 export file_sequence=''
 
 # ATCF name of model (4 char long)
@@ -48,6 +48,11 @@ export trkrtype=''
 # Variables to declare the model's grid and nesting configurations
 export modtyp=''         # 'global' or 'regional'
 export nest_type=''      # 'moveable' or 'fixed'
+
+# Set 'use_land_mask' = 'y' AND 'read_serperate_land_mask_file' = 'y' if landmask file is needed.
+export use_land_mask=''
+export read_separate_land_mask_file=''
+export ls_mask_filename=''
 
 # If developer would like to include vortex tilt diagnostics;
 # 'vortex_tilt_flag' = 'y'/'n'
@@ -103,7 +108,7 @@ subdir='${subdir}'
 datatype='${inp_data_type}'
 EOF
 
-export start_trkr=${subdir}/inittrkr.sh
+export start_trkr=${subdir}/runtrkr.sh
 source ${start_trkr}
 set +x
 # -------------------------------------------------------------------------------------------------
