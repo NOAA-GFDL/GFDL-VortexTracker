@@ -39,7 +39,7 @@ source ${compdir}/system-envs/${compiler}/${system}.sh
 echo -e " "
 module list
 
-if [ ${datatype} = 'necdf' ]; then
+if [ ${datatype} = 'netcdf' ]; then
   export atmosvars=${PWD}/atmos_${datatype}vars.sh
   source ${atmosvars}
   if [ ${usercheck} != 'CHECKED' ]; then
