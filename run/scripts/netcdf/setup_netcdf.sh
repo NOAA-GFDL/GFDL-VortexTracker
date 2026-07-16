@@ -56,7 +56,7 @@ export ncdfdir=${PWD}
 export initdatadir=${PWD%/*/*}/init_data
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
-export userinputs=${PWD%/*}/tmpwork/userinputs.txt
+export userinputs=${PWD%/*}/work/tmpfiles/userinputs.txt
 export inp_data_type='netcdf'
 
 cat << EOF > ${userinputs}
