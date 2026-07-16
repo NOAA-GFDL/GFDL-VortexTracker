@@ -16,7 +16,7 @@ export atcfymdh=${pdy}${hh}
 
 # ----- floating point values that don't typically change -----
 
-# grid boundaries
+# grid boundaries for genesis
 export trkrebd=339.0
 export trkrwbd=260.0
 export trkrnbd=40.0
@@ -44,11 +44,7 @@ export sstflag='y'
 export shear_calc_flag='y'
 export gen_read_rh_fields='n'
 export need_to_compute_rh_from_q='y'
-if [ ${use_land_mask} = 'n' ]; then
-  export smoothe_mslp_for_gen_scan='y'
-else    # use_land_mask = 'y'
-  export smoothe_mslp_for_gen_scan='n'
-fi
+export smoothe_mslp_for_gen_scan='n'
 export write_vit='n'
 export use_backup_mslp_grad_check='y'
 export use_backup_850_vt_check='y'
