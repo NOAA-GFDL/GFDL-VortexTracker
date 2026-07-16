@@ -19,7 +19,7 @@ jobs:
     - name: Build & compile code
       run: |
         mkdir -p build && cd build
-        cmake ..
+        cmake -DCMAKE_PREFIX_PATH="/opt/views/view/" ..
         make
     - name: Run tests
       run: |
