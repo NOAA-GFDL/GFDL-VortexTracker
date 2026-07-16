@@ -12,7 +12,7 @@ ln -s -f namelist.gettrk                                  fort.555
 if [ ${datatype} = 'grib' ]; then
     export fileseqscrit=${subdir}/${datatype}_${file_sequence}_fileseq.sh
     source ${fileseqscrit}
-    if [ ${file_sequence} = 'single' ]; then
+    if [ ${file_sequence} = 'onebig' ]; then
       ln -s -f ${gribfile}                                fort.11
       ln -s -f ${ixfile}                                  fort.31
     else
