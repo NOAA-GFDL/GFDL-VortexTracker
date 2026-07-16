@@ -22,7 +22,7 @@ export atcfymdh=${pdy}${hh}
 
 # ----- floating point values that don't typically change -----
 
-# grid boundaries
+# grid boundaries for genesis
 export trkrebd=339.0
 export trkrwbd=260.0
 export trkrnbd=40.0
