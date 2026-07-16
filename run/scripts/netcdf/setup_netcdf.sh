@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# print line numbers in std out
+export PS4=' line $LINENO: '
+set -x
 # -------------------------------------------------------------------------------------------------
 # PLEASE READ COMMENTS CAREFULLY BEFORE EDITING THIS FILE
 # For additional instructions, you can find the documentation here:
@@ -53,7 +56,7 @@ export ncdfdir=${PWD}
 export initdatadir=${PWD%/*/*}/init_data
 export subdir=${PWD%/*/*}/subscripts
 export vitalsdir=${subdir}/archived_vitals
-export userinputs=${PWD%/*/*}/work/tmpfiles/userinputs.txt
+export userinputs=${PWD%/*}/tmpwork/userinputs.txt
 export inp_data_type='netcdf'
 
 cat << EOF > ${userinputs}
@@ -80,4 +83,5 @@ EOF
 
 export runtrkr=${subdir}/runtrkr.sh
 source ${runtrkr}
+set +x
 # -------------------------------------------------------------------------------------------------
