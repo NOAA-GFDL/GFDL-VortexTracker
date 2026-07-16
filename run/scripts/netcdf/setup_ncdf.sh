@@ -78,6 +78,6 @@ vitalsdir='${vitalsdir}'
 datatype='${inp_data_type}'
 EOF
 
-export start_trkr=${subdir}/runtrkr.sh
-source ${start_trkr}
+export runtrkr=${subdir}/runtrkr.sh
+source ${runtrkr}
 # -------------------------------------------------------------------------------------------------
