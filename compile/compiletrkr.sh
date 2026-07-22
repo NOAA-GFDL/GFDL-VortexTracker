@@ -77,7 +77,7 @@ do
 			echo -e "(arguments inside brackets are optional, defaults are listed below)"
 			echo -e " "
 			echo -e "Valid options for system configuration are: "
-			echo -e "\t[ gaea | hera | hercules | orion | ppan | ursa | wcoss2 | container | personal ] "
+			echo -e "\t[ gaea | hera | hercules | orion | ppan | ursa | wcoss2 ] "
       echo -e "Valid options for compilers are: "
 			echo -e "\t[ intel(D) | gcc ] "
       echo -e "Valid options compilations modes are: "
