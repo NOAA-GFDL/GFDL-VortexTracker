@@ -36,33 +36,30 @@ More comprehensive technical documentation — covering exactly how the tracker 
 
 A high-level map of the GFDL Vortex Tracker repository, to help orient you before diving into the setup/run steps.
 
-```
-GFDL-VortexTracker/
-├── compile/
-│   ├── compiletrkr.sh        # Main compile script (RDHPC users)
-│   ├── src_code/             # Source code
-│   │   ├── cmake/            # CMake build configuration
-│   │   ├── trkr_src/         # Core tracker source code
-│   │   ├── sup_src/          # Supporting source code
-│   │   ├── images/           # Reference figures used in radiidoc.md
-│   │   └── exec/             # Compiled executables (created after a successful build)
-│   └── system-envs/          # Per-system module/environment setup, used by compiletrkr.sh
-│       ├── intel/             #   one file per RDHPC system (gaea, hera, hercules, orion, ppan, ursa, wcoss2)
-│       └── gcc/               #   same, for the gcc compiler option
-├── run/
-│   ├── init_data/            # User-filled-out config files (leadtimes, levels, vortex tilt vars) — see Chapter 5
-│   ├── scripts/
-│   │   ├── netcdf/           # setup_netcdf.sh + atmos_netcdfvars.sh (NetCDF data path)
-│   │   └── grib/             # setup_grib.sh (GRIB data path)
-│   └── subscripts/           # Internal scripts the tracker uses automatically — not meant to be edited directly
-│       └── archived_vitals/  # Historical tcvitals reference data, by year
-├── docs/
-│   ├── README.md             # (currently outdated — being superseded by this guide)
-│   ├── genesisdoc.md         # Documentation on genesis/tcgen mode
-│   └── radiidoc.md           # Documentation on wind radii output
-└── .github/
-    └── workflows/            # CI/CD configuration (see Chapter 4.2.4, Containerized Environment)
-```
+- **`compile/`**
+  - `compiletrkr.sh` — Main compile script (RDHPC users)
+  - **`src_code/`** — Source code
+    - `cmake/` — CMake build configuration
+    - `trkr_src/` — Core tracker source code
+    - `sup_src/` — Supporting source code
+    - `images/` — Reference figures used in `radiidoc.md`
+    - `exec/` — Compiled executables (created after a successful build)
+  - **`system-envs/`** — Per-system module/environment setup, used by `compiletrkr.sh`
+    - `intel/` — One file per RDHPC system (gaea, hera, hercules, orion, ppan, ursa, wcoss2)
+    - `gcc/` — Same, for the gcc compiler option
+- **`run/`**
+  - `init_data/` — User-filled-out config files (leadtimes, levels, vortex tilt vars) — see Chapter 5
+  - **`scripts/`**
+    - `netcdf/` — `setup_netcdf.sh` + `atmos_netcdfvars.sh` (NetCDF data path)
+    - `grib/` — `setup_grib.sh` (GRIB data path)
+  - **`subscripts/`** — Internal scripts the tracker uses automatically — not meant to be edited directly
+    - `archived_vitals/` — Historical tcvitals reference data, by year
+- **`docs/`**
+  - `README.md` — Currently outdated; being superseded by this guide
+  - `genesisdoc.md` — Documentation on genesis/tcgen mode
+  - `radiidoc.md` — Documentation on wind radii output
+- **`.github/`**
+  - `workflows/` — CI/CD configuration (see Chapter 4.2.4, Containerized Environment)
 
 ## Key Directories at a Glance
 
