@@ -1,0 +1,52 @@
+# FORMATTING RULES FOR init_data TEXT FILES
+# ------------------------------------------------------------------------------
+
+This file documents the required formatting for the following files
+in run/init_data/:
+
+    leadtimes.txt
+    hgt_levs.txt
+    tmp_levs.txt
+    vortex_tilt_levs.txt
+    vortex_tilt_vars.txt
+
+These files are intentionally left blank in the repository — you'll
+need to fill them out yourself with the values needed for your run.
+This file (example_file.txt) is reference-only; it is not itself a
+config file the tracker reads.
+
+IMPORTANT: These files use fixed-width columns. The tracker reads
+these files by character position, NOT by delimiter (no commas,
+tabs, etc. are used to separate values). Values must stay
+right-justified within their column width, and the number of
+characters per row must not change.
+
+Example format (based on leadtimes.txt):
+
+  - Column 1: row index, right-justified, 4 characters wide,
+    starting in column 3
+  - Column 2: value, right-justified, 6 characters wide
+  - Total row length: 10 characters, no separator between columns
+
+Example rows:
+
+   1     0
+   2   360
+   3   720
+  ...
+  29 10080
+
+Each row above is exactly 10 characters long:
+  "   1     0"  -> 4-char index "   1" + 6-char value "     0"
+  "  29 10080"  -> 4-char index "  29" + 6-char value " 10080"
+
+WHEN FILLING OUT ANY FILE IN THIS DIRECTORY:
+  1. Do not add, remove, or shift any spaces.
+  2. Keep all values right-justified within their column width.
+  3. Do not use commas, tabs, or other delimiters between columns.
+  4. The first integer (row index) must start in column 3.
+  5. Add as many rows as needed for your data, but keep every row
+     the same fixed width as shown above.
+
+Failing to preserve this exact spacing will cause the tracker to
+misread these files.
