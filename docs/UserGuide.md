@@ -55,7 +55,6 @@ A high-level map of the GFDL Vortex Tracker repository, to help orient you befor
   - **`subscripts/`** — Internal scripts the tracker uses automatically — not meant to be edited directly
     - `archived_vitals/` — Historical tcvitals reference data, by year
 - **`docs/`**
-  - `README.md` — Currently outdated; being superseded by this guide
   - `genesisdoc.md` — Documentation on genesis/tcgen mode
   - `radiidoc.md` — Documentation on wind radii output
 - **`.github/`**
@@ -498,7 +497,6 @@ Additional reference documentation is maintained within the repository's `docs/`
 
 - `docs/genesisdoc.md` — details on the tracker's genesis detection (`tcgen`) mode
 - `docs/radiidoc.md` — details on the wind radii and axisymmetric RMW diagnostic schemes
-- `docs/README.md` — currently outdated; being superseded by this guide
 
 ## 8.3 Contributing
 
